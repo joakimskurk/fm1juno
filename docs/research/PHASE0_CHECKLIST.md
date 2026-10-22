@@ -10,14 +10,19 @@ This checklist is the gate before fidelity DSP implementation.
 - [x] Confirm ~4.2 ms complete control service frame from Roland timing diagram.
 - [ ] Verify exact control-frame period from ROM execution timing or direct capture.
 - [x] Recover the core D7811G envelope algorithm and identify the ROM attack + decay/release tables.
-- [ ] Verify complete envelope-table extraction, slider indexing, retrigger and service-loop timing against the module ROM.
+- [x] Confirm Voice On re-arms Attack and that Attack continues from the current envelope level rather than forcing ENV to zero.
+- [ ] Verify complete envelope-table extraction, slider indexing and exact service-loop timing against the module ROM.
 - [x] Recover LFO accumulator/direction/polarity algorithm and rate-table architecture.
 - [x] Recover two-stage LFO Delay structure: holdoff + digital depth ramp.
 - [ ] Freeze exact normal-play LFO trigger/reset semantics and calibrated control-loop period.
 - [x] Recover Portamento as per-voice constant-step 8.8-pitch-domain glide with overshoot clamp.
-- [ ] Freeze exact Portamento slider indexing and Poly-2/voice-steal interaction.
+- [x] Recover Portamento control indexing: non-zero 8-bit control -> right shift -> 0..127 coefficient index.
 - [x] Confirm normal user-facing Poly 1 / Poly 2 / Solo-Unison semantics from Roland owner's documentation.
-- [ ] Freeze exact Poly 1 / Poly 2 allocator, retrigger and voice-steal state machine from assigner/module firmware.
+- [x] Confirm normal six-voice limit: a seventh simultaneously held key is ignored, not voice-stolen.
+- [x] Freeze normal Poly 1 allocator: dynamic voice-order queue, release-to-back ordering and same-note free-voice reuse.
+- [x] Freeze normal Poly 2 allocator: fixed physical first-free scan, no release-age reordering.
+- [x] Freeze normal Poly 1 / Poly 2 note-off behavior and relation to natural release.
+- [ ] Freeze Solo-Unison physical-voice/timer behavior in normal user mode.
 
 ## B. DCO
 
@@ -29,13 +34,20 @@ This checklist is the gate before fidelity DSP implementation.
 - [x] Confirm ~12 Vpp saw/pulse amplitude compensation target.
 - [x] Confirm PWM calibration anchors.
 - [x] Identify 8253 operating mode: Mode 3, binary, LSB then MSB (`36/76/B6`).
-- [x] Confirm Mode-3 count relation and odd/even duty behaviour from 8253 documentation.
+- [x] Confirm Mode-3 count relation and odd/even duty behavior from 8253 documentation.
 - [x] Locate module-ROM note-divisor table and 8.8-semitone interpolation path.
 - [x] Confirm distinct ordinary count reload vs reset/control-word + reload paths.
-- [ ] Finish exact pitch-build order/scaling for LFO, bender, portamento and tune.
-- [ ] Determine full count-write cadence and 8253 reload timing consequences during modulation.
-- [ ] Derive DCO-CV/range resistor ramp slope law from schematic.
-- [ ] Freeze oscillator reset/retrigger conditions from `resetVoiceBits` / allocator tracing.
+- [x] Freeze pitch-build order: per-voice Portamento pitch + global Base/Tune/LFO/Bender offset -> divisor/DCO-CV conversion.
+- [x] Derive Tune law in 8.8 pitch domain (~+/-127/256 semitone = ~+/-49.6 cents).
+- [x] Confirm LFO pitch and Bender enter the same global 8.8 pitch offset before per-voice table conversion.
+- [x] Confirm ordinary Mode-3 count update is deferred to the next half-cycle/output transition rather than replacing the active half-cycle immediately.
+- [x] Freeze oscillator reset decision: different note + not `voiceRun` requests reset; same note and/or running voice preserves timer phase.
+- [x] Confirm timer reset is independent from envelope re-attack.
+- [x] Derive digital DCO-CV note law: approximately `round(32 * 2^(n/12))`, octave-doubling until DAC saturation, with fractional interpolation.
+- [ ] Complete exact Bender normalization/truncation law.
+- [ ] Verify full control-loop/count-write cadence under representative workloads.
+- [ ] Extract range-selected R85/R86/R87 + C54/current-source values and derive analogue DCO-CV -> ramp-slope transfer.
+- [ ] Determine finite MC5534 ramp-discharge/reset transient.
 
 ## C. Mixer / noise
 
