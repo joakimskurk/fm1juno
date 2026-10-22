@@ -39,7 +39,7 @@ Use for:
 - user-facing parameter semantics;
 - authentic front-panel modes;
 - HPF position descriptions;
-- Poly 1 / Poly 2 performance semantics;
+- Poly 1 / Poly 2 / Solo-Unison performance semantics;
 - normal chorus operation;
 - controller behaviour.
 
@@ -49,6 +49,12 @@ Roland-hosted PDF:
 ### Roland current JUNO-106 technical-specification archive
 
 Use as a convenient cross-check for nominal ranges and feature list, not as a replacement for the original service manual.
+
+## Component references
+
+### Intel 8253 / 8253-5 documentation
+
+Use for interpreting the module ROM's literal `36/76/B6` control words and the exact Mode-3 square-wave count semantics, including odd/even high/low timing.
 
 ## Hardware / teardown evidence
 
@@ -66,15 +72,56 @@ Use for teardown/repair-derived implementation clues and practical test-point kn
 
 Use for hypotheses and circuit interpretation around the global HPF/output-loading differences. Verify calculations against schematics before freezing constants.
 
-## Software / reverse-engineering references
+## Firmware reverse engineering
+
+### ErroneousBosh/j106roms
+
+Public, manually decoded partial disassembly of the JUNO-106 assigner ROM (`ic1.txt`) and module/voice ROM (`ic29.txt`).
+
+Use instruction bytes, addresses and literal ROM table data as strong reverse-engineering evidence for:
+
+- 8253 Mode-3 control words `36/76/B6`;
+- normal count reload versus timer reset/control-word path;
+- 8.8 fixed-point pitch coordinate;
+- note-divisor table and fractional interpolation;
+- attack and decay/release ROM tables;
+- the `$083D` envelope fixed-point multiply routine;
+- future tracing of LFO, portamento and voice-reset state.
+
+Caution: the repository author explicitly calls the disassembly partial, inaccurate and incomplete. Human labels/comments are hypotheses unless corroborated; literal instructions/table values are treated separately.
+
+Repository:
+`https://github.com/ErroneousBosh/j106roms`
+
+## Software / implementation references
 
 ### MAME `src/mame/roland/juno106.cpp`
 
 Use for CPU/timer address-map cross-checks, ROM identity/checksums and future control-firmware harness work. Current driver is a skeleton and not an audio reference.
 
+### Ultramaster KR-106
+
+Modern desktop emulation project with hardware measurements, circuit simulation and firmware-analysis claims. It was useful for locating the `j106roms` provenance and for comparison of candidate filter/chorus/ADSR approaches.
+
+Do not treat its DSP architecture or approximations as primary evidence. GPL-3.0 code is not copied into FM1JUNO unless licensing is deliberately made compatible.
+
+Repository:
+`https://github.com/kayrockscreenprinting/ultramaster_kr106`
+
 ### PatttF/fm-106
 
-Use as an FM-1 platform/performance reference and as a lead to firmware-derived control algorithms. GPL-3.0-only code is not copied into FM1JUNO unless project licensing is deliberately made compatible.
+Current FM-1 implementation derived from KR-106. Use as:
+
+- proof that six-voice Juno-family synthesis is practical on FM-1;
+- platform/integration/performance reference;
+- pointer to existing fixed-point optimisations and host-test workflows.
+
+Do not use its free-running PolyBLEP oscillator, filter, chorus or reconstructed tables as fidelity authority where they differ from primary circuitry/ROM behaviour.
+
+GPL-3.0-only code is not copied into FM1JUNO unless project licensing is deliberately made compatible.
+
+Repository:
+`https://github.com/PatttF/fm-106`
 
 ## JUNO-60 sources
 
