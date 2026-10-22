@@ -12,9 +12,12 @@ This checklist is the gate before fidelity DSP implementation.
 - [x] Recover the core D7811G envelope algorithm and identify the ROM attack + decay/release tables.
 - [x] Confirm Voice On re-arms Attack and that Attack continues from the current envelope level rather than forcing ENV to zero.
 - [ ] Verify complete envelope-table extraction, slider indexing and exact service-loop timing against the module ROM.
-- [x] Recover LFO accumulator/direction/polarity algorithm and rate-table architecture.
+- [x] Recover LFO accumulator/direction/polarity algorithm and rate mapping.
+- [x] Replace the 128-entry LFO-rate dependency with an exact compact piecewise integer coefficient law.
 - [x] Recover two-stage LFO Delay structure: holdoff + digital depth ramp.
-- [ ] Freeze exact normal-play LFO trigger/reset semantics and calibrated control-loop period.
+- [x] Freeze normal automatic LFO-Delay retrigger semantics: arm only when `voiceRun` becomes empty; restart on first subsequent running voice; legato/overlap/sustain do not retrigger.
+- [x] Confirm physical LFO-trigger/MIDI performance modulation is combined after automatic DCO-LFO Delay scaling and therefore bypasses the panel Delay.
+- [ ] Calibrate exact main-loop period/workload variation and physical trigger ADC threshold/hysteresis.
 - [x] Recover Portamento as per-voice constant-step 8.8-pitch-domain glide with overshoot clamp.
 - [x] Recover Portamento control indexing: non-zero 8-bit control -> right shift -> 0..127 coefficient index.
 - [x] Confirm normal user-facing Poly 1 / Poly 2 / Solo-Unison semantics from Roland owner's documentation.
@@ -60,18 +63,37 @@ This checklist is the gate before fidelity DSP implementation.
 - [ ] Characterise noise generator spectrum and bandwidth.
 - [ ] Establish pre-VCF clipping/headroom reference.
 
-## D. 80017A VCF/VCA
+## D. Digital VCF control
 
-- [x] Confirm IR3109 + 2x BA662 internal family/topology.
-- [x] Confirm separate per-voice calibration for resonance, VCA gain, VCF frequency and VCF width.
-- [ ] Freeze passive values from teardown/schematic.
-- [ ] Choose first reference equations for four OTA stages.
-- [ ] Derive resonance loop scaling.
-- [ ] Derive VCF CV -> cutoff mapping.
-- [ ] Derive VCA CV -> gain mapping.
-- [ ] Define self-oscillation and saturation test vectors.
+- [x] Confirm 14-bit VCF control domain and final `0x0000..0x3fff` clamp.
+- [x] Recover exact Cutoff storage law: `cutoff7 << 7` -> `0x0000..0x3f80`.
+- [x] Freeze calculation order: `Cutoff +/- LFO +/- Bender`, then per-voice `+/- ENV`, then signed Key Follow.
+- [x] Recover shared `mul16x8_hi(value,m) = floor(value*m/256)` primitive used by VCF control paths.
+- [x] Recover ENV depth law (`raw7 << 1`) and signed per-voice ENV contribution.
+- [x] Recover Key Follow coordinate: `(pitch>>2)+(pitch>>3)`, Middle-C pivot `0x1680`, `raw7<<1` depth and signed above/below-C4 contribution.
+- [x] Recover VCF-LFO law: doubled panel depth -> LFO-Delay onset scaling -> 16x8 magnitude multiply -> divide by two; maximum strict control magnitude = 4047 before sign.
+- [x] Integrate exact VCF Bender law from Bender path.
+- [ ] Verify exact ordering/spacing of six VCF S/H writes and DAC/S&H settling inside the full service frame.
 
-## E. HPF / global output
+## E. A1QH80017A VCF/VCA
+
+- [x] Confirm physical hybrid contains IR3109 + 2x BA662-class devices plus passives.
+- [x] Confirm four-pole 24 dB/oct low-pass structure and final BA662 voice VCA.
+- [x] Confirm resonance BA662 topology includes both stage-4 feedback and input feed-forward/Q compensation; reject a generic `x-k*y4`-only resonance model.
+- [x] Confirm separate per-voice calibration for Resonance, VCA Gain, VCF Frequency and VCF Width.
+- [x] Freeze Roland service validation anchors: 4.8 Vp-p self-oscillation, 6 Vp-p post-VCA, 248 Hz C4 frequency anchor, 992 Hz C6 width anchor, +/-10 cent interaction tolerance.
+- [x] Establish exposed shared JUNO-6/60 stage family as 68 kOhm / 240 pF and keep exact 106 hybrid passives separately qualified.
+- [x] Record direct-repair measurement hypothesis of ~68 kOhm / ~550-560 ohm / ~250 pF inside opened 80017A units without promoting it to primary truth.
+- [x] Confirm modern 3109-family architectural constraint that stage buffers are not identical (1/3 passive-load vs 2/4 active-load behavior).
+- [x] Choose topology-preserving first reference structure: four explicit nonlinear OTA one-poles + explicit BA662 Q-compensation/resonance block + explicit BA662 VCA.
+- [ ] Freeze vintage IR3109/80017A nonlinear scale, buffer headroom/asymmetry and exact 106 passive set from measurement/fitting.
+- [ ] Derive/freeze numerical resonance-loop resistor/gain scaling for strict 106.
+- [ ] Derive/freeze VCF DAC/S&H code -> IR3109 control-voltage/frequency mapping; use Frequency/Width calibration anchors rather than guessing mV/bit.
+- [ ] Derive/freeze VCA CV -> BA662 gain mapping.
+- [x] Define self-oscillation, large-signal, stage-nonlinearity, 240-vs-250-pF and 1x-vs-2x reference test vectors.
+- [ ] Decide whether warmed-up thermal/supply dynamics have enough audible value to model after static reference behavior passes.
+
+## F. HPF / global output
 
 - [x] Confirm HPF modes: 0 bass boost, 1 flat, 2/3 HPF.
 - [x] Confirm global placement after voice sum.
@@ -80,7 +102,7 @@ This checklist is the gate before fidelity DSP implementation.
 - [ ] Calculate modes 2/3 cutoff/Q from component values.
 - [ ] Model global uPC1252 gain/headroom if audibly relevant.
 
-## F. Chorus
+## G. Chorus
 
 - [x] Confirm dual MN3009 BBD architecture.
 - [x] Confirm dual bias calibration and surrounding filters/amplifiers.
@@ -91,7 +113,7 @@ This checklist is the gate before fidelity DSP implementation.
 - [ ] Characterise noise and bias nonlinearity.
 - [ ] Confirm whether any non-standard I+II state is worth DEEP-only support.
 
-## G. FM-1 target
+## H. FM-1 target
 
 - [x] Confirm 44.1 kHz / 128-frame open-SDK audio contract.
 - [x] Confirm 240x240 display.
