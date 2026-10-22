@@ -11,8 +11,11 @@ This checklist is the gate before fidelity DSP implementation.
 - [ ] Verify exact control-frame period from ROM execution timing or direct capture.
 - [x] Recover the core D7811G envelope algorithm and identify the ROM attack + decay/release tables.
 - [ ] Verify complete envelope-table extraction, slider indexing, retrigger and service-loop timing against the module ROM.
-- [ ] Recover LFO algorithm, waveform, rate law and delay law.
-- [ ] Recover portamento law.
+- [x] Recover LFO accumulator/direction/polarity algorithm and rate-table architecture.
+- [x] Recover two-stage LFO Delay structure: holdoff + digital depth ramp.
+- [ ] Freeze exact normal-play LFO trigger/reset semantics and calibrated control-loop period.
+- [x] Recover Portamento as per-voice constant-step 8.8-pitch-domain glide with overshoot clamp.
+- [ ] Freeze exact Portamento slider indexing and Poly-2/voice-steal interaction.
 - [x] Confirm normal user-facing Poly 1 / Poly 2 / Solo-Unison semantics from Roland owner's documentation.
 - [ ] Freeze exact Poly 1 / Poly 2 allocator, retrigger and voice-steal state machine from assigner/module firmware.
 
