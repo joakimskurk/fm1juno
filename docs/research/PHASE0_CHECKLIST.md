@@ -22,7 +22,8 @@ This checklist is the gate before fidelity DSP implementation.
 - [x] Freeze normal Poly 1 allocator: dynamic voice-order queue, release-to-back ordering and same-note free-voice reuse.
 - [x] Freeze normal Poly 2 allocator: fixed physical first-free scan, no release-age reordering.
 - [x] Freeze normal Poly 1 / Poly 2 note-off behavior and relation to natural release.
-- [ ] Freeze Solo-Unison physical-voice/timer behavior in normal user mode.
+- [x] Confirm normal Solo-Unison sends the same Voice On to all six physical voices and Voice Off to all six without rewriting Poly 1/2 allocation tables.
+- [ ] Freeze exact Solo-Unison held-note priority and physical timer synchronization behavior.
 
 ## B. DCO
 
@@ -40,13 +41,15 @@ This checklist is the gate before fidelity DSP implementation.
 - [x] Freeze pitch-build order: per-voice Portamento pitch + global Base/Tune/LFO/Bender offset -> divisor/DCO-CV conversion.
 - [x] Derive Tune law in 8.8 pitch domain (~+/-127/256 semitone = ~+/-49.6 cents).
 - [x] Confirm LFO pitch and Bender enter the same global 8.8 pitch offset before per-voice table conversion.
+- [x] Recover exact DCO Bender normalization: `p=b*s`, `q=(p>>1)+(p>>2)+(p>>8)`, `bend8_8=q>>4`; maximum = 3063/256 = 11.965 semitones.
+- [x] Recover VCF Bender normalization: `(b * sensitivity) >> 4` in the 12-bit control domain.
 - [x] Confirm ordinary Mode-3 count update is deferred to the next half-cycle/output transition rather than replacing the active half-cycle immediately.
 - [x] Freeze oscillator reset decision: different note + not `voiceRun` requests reset; same note and/or running voice preserves timer phase.
 - [x] Confirm timer reset is independent from envelope re-attack.
 - [x] Derive digital DCO-CV note law: approximately `round(32 * 2^(n/12))`, octave-doubling until DAC saturation, with fractional interpolation.
-- [ ] Complete exact Bender normalization/truncation law.
+- [x] Derive ideal RANGE-network scaling requirement from first principles: conductance 16':8':4' ~= 1:2:4, therefore resistance ratio R16:R8:R4 ~= 4:2:1 before switch/source-impedance corrections.
 - [ ] Verify full control-loop/count-write cadence under representative workloads.
-- [ ] Extract range-selected R85/R86/R87 + C54/current-source values and derive analogue DCO-CV -> ramp-slope transfer.
+- [ ] Extract exact range-selected R85/R86/R87 + C54/current-source values and calibrate the analogue DCO-CV -> ramp-slope transfer.
 - [ ] Determine finite MC5534 ramp-discharge/reset transient.
 
 ## C. Mixer / noise
