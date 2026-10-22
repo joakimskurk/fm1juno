@@ -65,7 +65,7 @@ This checklist is the gate before fidelity DSP implementation.
 - [x] Freeze first-principles ramp law `dV/dt = -Vdco/(Rrange*Cint)` and amplitude condition `|DeltaV| ~= |Vdco|/(Rrange*Cint*f)`.
 - [x] Derive ideal RANGE-network scaling requirement: conductance 16':8':4' ~= 1:2:4, therefore resistance ratio R16:R8:R4 ~= 4:2:1 before switch/source-impedance corrections.
 - [x] Establish working 106 resistor set and mapping as schematic/cross-check evidence: 16'/R85 ~= 399 kOhm, 8'/R86 ~= 200 kOhm, 4'/R87 ~= 100 kOhm. Keep configurable until a clean primary designator/value read is archived.
-- [x] Establish working ramp-capacitor value `Cint ~= 1 nF` as schematic/cross-check evidence, not yet primary-frozen.
+- [x] Triangulate `Cint ~= 1 nF` independently from ROM DCO-CV codes/divisors + Roland 0..-10 V conditioned DCO-CV range + resistor set + ~12 Vpp target.
 - [x] Reject per-cycle amplitude normalization: strict model should naturally retain small note/range level error around the ~12 Vpp design target.
 - [x] Require architecturally finite/configurable ramp reset rather than permanently assuming an instantaneous mathematical saw discontinuity.
 - [ ] Verify full control-loop/count-write cadence under representative workloads.
@@ -74,13 +74,26 @@ This checklist is the gate before fidelity DSP implementation.
 - [ ] Measure DCO-CV DAC/S&H loaded voltage law, per-voice droop/output impedance and 4052 on-resistance contribution.
 - [ ] Measure the actual saw-amplitude error curve across keyboard/ranges and fit model tolerance/headroom.
 
-## C. Mixer / noise
+## C. Source mixer / noise
 
-- [ ] Extract saw/pulse/sub/noise source gains from schematic.
-- [ ] Derive sub-level law.
-- [ ] Derive noise-level law.
-- [ ] Characterise noise generator spectrum and bandwidth.
-- [ ] Establish pre-VCF clipping/headroom reference.
+- [x] Freeze source topology as per-voice MC5534 WAVE node + separate per-voice SUB node + one common physical NOISE source feeding all six voice input paths.
+- [x] Confirm SAW and PULSE share the MC5534 ramp/timing system; do not model them as unrelated free-running oscillators.
+- [x] Confirm SAW gating and PULSE/PWM disabling are separate hardware/control actions.
+- [x] Recover exact MANUAL PWM integer law: `pwm_depth = raw7<<1`, `pwm_code = 0x3fff - floor(0x3fff*pwm_depth/256)`; PULSE OFF forces code 0.
+- [x] Cross-check PWM firmware against Roland analogue anchors: code 0 -> comparator-off region (~-0.8 V); full reference -> ~+6 V / 50%; panel maximum predicts ~+0.69 V, close to service ~+0.6 V / 95%.
+- [x] Recover SUB LEVEL firmware law: `raw7 << 7` -> `0x0000..0x3f80`.
+- [x] Confirm SUB amplitude is controlled through oscillator/transistor collector-supply behavior rather than assuming a post-oscillator normalized digital gain.
+- [x] Recover NOISE LEVEL firmware law: `raw7 << 7` -> `0x0000..0x3f80`.
+- [x] Confirm only one common physical noise generator; strict engine must not instantiate six independent noise streams.
+- [x] Confirm selected 2SC945P noise transistor in Roland parts list.
+- [x] Establish ~5 kHz post-noise-VCA bandwidth target from original-hardware repair evidence; retain exact RC constants as open pending primary extraction.
+- [x] Freeze Roland factory noise anchor: after VCA Gain adjustment, Bank 6 / held key / TP8 -> adjust VR32 for 4 Vp-p.
+- [x] Reject enabled-source-count normalization before VCF; preserve hardware-voltage drive/headroom.
+- [ ] Extract/freeze exact per-voice WAVE-to-80017A, SUB-to-80017A and common-NOISE fan-out mixer resistor/gain values from clean schematic or measurement.
+- [ ] Derive/freeze SUB analogue control-voltage-to-amplitude transfer curve.
+- [ ] Derive/freeze NOISE control-voltage-to-amplitude transfer curve and exact RC spectral shape.
+- [ ] Establish maximum pre-VCF voltage, DC/coupling behavior and clipping/compression mechanism for individual and combined sources.
+- [ ] Measure whether source-dependent loading at the 80017A input is significant.
 
 ## D. Digital VCF control
 
