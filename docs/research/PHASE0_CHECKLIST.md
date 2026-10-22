@@ -9,6 +9,10 @@ This checklist is the gate before fidelity DSP implementation.
 - [x] Confirm multiplexed DAC/S&H control architecture.
 - [x] Confirm ~4.2 ms complete control service frame from Roland timing diagram.
 - [ ] Verify exact control-frame period from ROM execution timing or direct capture.
+- [x] Map the ordered module main-loop pipeline so the ~4.2 ms frame is not treated as one atomic control update.
+- [x] Confirm prior-LFO/current-frame causality: early pitch/VCF calculation uses the stored LFO state before the accumulator is advanced near the end of the pass.
+- [x] Confirm panel Tune/Bender/Portamento/LFO-trigger ADC processing occurs after current-pass DCO/VCF servicing and therefore naturally feeds a later pass.
+- [ ] Calibrate fractional in-frame timing of the important DAC/S&H and per-voice DCO slots; quantify serial/ADC interrupt jitter.
 - [x] Recover the core D7811G envelope algorithm and identify the ROM attack + decay/release tables.
 - [x] Confirm Voice On re-arms Attack and that Attack continues from the current envelope level rather than forcing ENV to zero.
 - [ ] Verify complete envelope-table extraction, slider indexing and exact service-loop timing against the module ROM.
@@ -26,7 +30,12 @@ This checklist is the gate before fidelity DSP implementation.
 - [x] Freeze normal Poly 2 allocator: fixed physical first-free scan, no release-age reordering.
 - [x] Freeze normal Poly 1 / Poly 2 note-off behavior and relation to natural release.
 - [x] Confirm normal Solo-Unison sends the same Voice On to all six physical voices and Voice Off to all six without rewriting Poly 1/2 allocation tables.
-- [ ] Freeze exact Solo-Unison held-note priority and physical timer synchronization behavior.
+- [x] Recover Solo-Unison `$FFD0` as a per-note-scan arbitration latch rather than persistent held-note state.
+- [x] Freeze Solo-Unison sequential new-note priority, one-event-per-scan arbitration and note-off -> clear-history -> held-note reconstruction behavior.
+- [x] Confirm truly simultaneous Solo-Unison changes are scan-order dependent rather than a generic timestamped note stack.
+- [x] Confirm Solo-Unison serial link timing: 31.25 kbit/s; nominal 13-byte Note On burst ~= 4.16 ms and 7-byte Note Off burst ~= 2.24 ms.
+- [x] Freeze normal Solo-Unison timer-reset semantics: first different note from non-running state requests independent resets; legato different-note changes while running preserve timer phase and still re-arm ENV.
+- [ ] Hardware/cycle-harness verification of exact Solo-Unison fallback scan priority at keyboard range edges and burst-vs-DCO-slot reset staggering.
 
 ## B. DCO
 
@@ -49,6 +58,7 @@ This checklist is the gate before fidelity DSP implementation.
 - [x] Confirm ordinary Mode-3 count update is deferred to the next half-cycle/output transition rather than replacing the active half-cycle immediately.
 - [x] Freeze oscillator reset decision: different note + not `voiceRun` requests reset; same note and/or running voice preserves timer phase.
 - [x] Confirm timer reset is independent from envelope re-attack.
+- [x] Confirm reset requests are only flags in the serial ISR and are consumed later in sequential physical-voice DCO service slots.
 - [x] Derive digital DCO-CV note law: approximately `round(32 * 2^(n/12))`, octave-doubling until DAC saturation, with fractional interpolation.
 - [x] Derive ideal RANGE-network scaling requirement from first principles: conductance 16':8':4' ~= 1:2:4, therefore resistance ratio R16:R8:R4 ~= 4:2:1 before switch/source-impedance corrections.
 - [ ] Verify full control-loop/count-write cadence under representative workloads.
