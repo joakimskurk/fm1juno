@@ -9,10 +9,12 @@ This checklist is the gate before fidelity DSP implementation.
 - [x] Confirm multiplexed DAC/S&H control architecture.
 - [x] Confirm ~4.2 ms complete control service frame from Roland timing diagram.
 - [ ] Verify exact control-frame period from ROM execution timing or direct capture.
-- [ ] Recover or independently verify D7811G envelope algorithm and all lookup tables.
+- [x] Recover the core D7811G envelope algorithm and identify the ROM attack + decay/release tables.
+- [ ] Verify complete envelope-table extraction, slider indexing, retrigger and service-loop timing against the module ROM.
 - [ ] Recover LFO algorithm, waveform, rate law and delay law.
 - [ ] Recover portamento law.
-- [ ] Freeze normal Poly 1 / Poly 2 allocator, retrigger and voice stealing.
+- [x] Confirm normal user-facing Poly 1 / Poly 2 / Solo-Unison semantics from Roland owner's documentation.
+- [ ] Freeze exact Poly 1 / Poly 2 allocator, retrigger and voice-steal state machine from assigner/module firmware.
 
 ## B. DCO
 
@@ -23,11 +25,14 @@ This checklist is the gate before fidelity DSP implementation.
 - [x] Confirm MC5534 analogue-inspired saw/PWM/sub generation.
 - [x] Confirm ~12 Vpp saw/pulse amplitude compensation target.
 - [x] Confirm PWM calibration anchors.
-- [ ] Identify 8253 operating mode and exact output/count relation.
-- [ ] Recover timer count generation / note table from module ROM.
-- [ ] Determine count-write cadence and phase behaviour when count changes.
+- [x] Identify 8253 operating mode: Mode 3, binary, LSB then MSB (`36/76/B6`).
+- [x] Confirm Mode-3 count relation and odd/even duty behaviour from 8253 documentation.
+- [x] Locate module-ROM note-divisor table and 8.8-semitone interpolation path.
+- [x] Confirm distinct ordinary count reload vs reset/control-word + reload paths.
+- [ ] Finish exact pitch-build order/scaling for LFO, bender, portamento and tune.
+- [ ] Determine full count-write cadence and 8253 reload timing consequences during modulation.
 - [ ] Derive DCO-CV/range resistor ramp slope law from schematic.
-- [ ] Determine oscillator free-run/retrigger phase behaviour.
+- [ ] Freeze oscillator reset/retrigger conditions from `resetVoiceBits` / allocator tracing.
 
 ## C. Mixer / noise
 
