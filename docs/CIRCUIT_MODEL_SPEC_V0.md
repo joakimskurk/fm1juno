@@ -24,11 +24,13 @@ The reference engine should distinguish four time domains.
 
 ### 1.2 DCO event domain
 
-Timer terminal-count / edge events derived from a shared master-clock concept and integer programmable counts. These events reset/trigger analogue-inspired waveform generation.
+8253 Mode-3 count/edge events derived from a shared master-clock concept and integer programmable counts. These timing edges reset/trigger the analogue-inspired waveform generator.
 
 ### 1.3 106 control-frame domain
 
-Multiplexed DAC/S&H control service. Primary-source timing target: approximately 4.2 ms per full service cycle (~238 Hz). Parameters represented through this domain must support quantised updates at this cadence in authentic mode.
+Multiplexed DAC/S&H control service. Primary-source timing target: approximately 4.2 ms per full service cycle (~238 Hz nominal from the service drawing). Reverse-engineering/hardware work points to ~4.23 ms / ~236 Hz as a stronger calibration target, but exact loop timing is not yet frozen because firmware workload may perturb it.
+
+Parameters represented through this domain must support quantised updates at this cadence in authentic mode.
 
 ### 1.4 UI/MIDI domain
 
@@ -41,14 +43,16 @@ Authentic polyphony: 6 voices.
 Per voice state:
 
 - assignment state: idle / held / released / stolen;
-- key number and velocity placeholder;
-- note age / allocation ordinal;
+- key number and note age / allocation ordinal;
+- current 8.8 fixed-point pitch coordinate;
 - current DCO range;
-- programmable timer count and phase/edge state;
+- integer 8253 timer count;
+- Mode-3 timer state and output phase;
+- pending normal count reload vs reset-and-reload state;
 - DCO ramp capacitor state;
 - pulse comparator state;
 - sub divide state;
-- digital-envelope state;
+- 14-bit digital-envelope state;
 - sampled DCO CV;
 - sampled PWM CV;
 - sampled VCF CV;
@@ -72,36 +76,66 @@ Range divider:
 
 This range division occurs before the two 8253 timer ICs.
 
-### 3.2 Timer counts
+### 3.2 Confirmed 8253 programming mode
 
-Each voice is one counter in a 16-bit programmable interval timer. Divide data is computed from:
+The public module-ROM disassembly shows a dedicated setup routine that writes:
 
-- key pitch;
-- LFO pitch modulation;
-- bender;
-- portamento;
-- tune.
+- `0x36` to counter 0;
+- `0x76` to counter 1;
+- `0xB6` to counter 2.
 
-Open item: identify exact 8253 mode and whether the audible edge period corresponds directly to N/fclk, 2N/fclk or a mode-dependent duty pattern. Until resolved, reference code must isolate this relation behind a `Timer106` abstraction rather than embedding a guessed formula throughout the oscillator.
+These are 8253 **Mode 3 square-wave-generator** control words with binary counting and LSB-then-MSB count loading.
 
-### 3.3 Count quantisation
+Therefore strict `Timer106` semantics are now defined:
 
-Authentic mode must store and update an integer count. Frequency therefore follows timer quantisation rather than an unconstrained floating phase increment.
+- output repetition frequency is `f_timer / N` for integer count `N`;
+- for even `N`, high and low durations are each `N/2` timer clocks;
+- for odd `N`, high duration is `(N+1)/2` clocks and low duration `(N-1)/2` clocks;
+- writing a control word/reset path and loading a new count is semantically distinct from merely loading a new count while a voice is already running.
 
-Required validation vectors once timer mode is resolved:
+### 3.3 Pitch coordinate and count generation
 
-- MIDI/key C2, C3, C4, C5, C6 at all three ranges;
-- +/-50 cent tune extremes;
+Module firmware handles pitch in an 8.8 fixed-point semitone coordinate:
+
+- upper byte: semitone;
+- lower byte: 1/256 semitone fraction.
+
+The pitch-build routine begins from a fixed base value and adds/subtracts Tune, LFO and other modulation terms before conversion to a timer count.
+
+The ROM contains a 16-bit note-divisor table beginning at `$0F30`. The count-conversion routine:
+
+1. selects the integer-note table entry;
+2. fetches the next-note divisor;
+3. computes their difference;
+4. scales that difference by the 8-bit fractional pitch amount;
+5. subtracts the interpolation amount from the selected divisor;
+6. writes the resulting integer count LSB then MSB to the selected 8253 channel.
+
+Strict mode should implement this ROM-domain path rather than computing `round(clock / ideal_frequency)` directly. An ideal-frequency path may remain as an A/B diagnostic.
+
+### 3.4 Count reload vs oscillator reset
+
+The ROM has two paths:
+
+**Running voice / ordinary modulation:** load the new divisor LSB then MSB without rewriting the Mode-3 control word.
+
+**Voice reset:** select a per-counter `36/76/B6` control word, write it to the appropriate 8253 command register, then return to the normal count-load path.
+
+This implies that phase/retrigger behaviour belongs in the control/allocator model. Do not reset oscillator phase for every pitch update or every generic MIDI event.
+
+Open: freeze the exact allocator/retrigger conditions that set the ROM's voice-reset bits.
+
+### 3.5 Required DCO validation vectors
+
+- C notes across keyboard and all three ranges using ROM table/count path;
+- all twelve semitone table entries and fractional interpolation midpoints;
+- +/-50-cent Tune extremes;
 - max LFO pitch modulation;
-- bender extremes;
-- slow and fast portamento trajectories;
-- unison/shared-clock phase behaviour.
-
-### 3.4 DCO update timing
-
-Do not assume timer count changes continuously every audio sample. Count writes are CPU/control events. The reference engine should permit count updates at control/event boundaries and test the audible consequence of updating immediately vs next waveform cycle.
-
-Exact write cadence is open pending ROM analysis/direct measurement.
+- Bender extremes;
+- slow and fast Portamento trajectories;
+- ordinary count reload while a Mode-3 cycle is active;
+- reset-and-reload phase behaviour;
+- Solo-Unison/shared-clock phase behaviour.
 
 ## 4. MC5534-inspired wave generator
 
@@ -111,7 +145,7 @@ The wave generator is modelled as analogue waveform formation triggered by DCO t
 
 State variable represents the ramp capacitor.
 
-On each DCO reset edge:
+On each relevant DCO timing transition:
 
 1. discharge/reset the ramp state with a finite reset characteristic if evidence supports it;
 2. begin charge toward the next edge using a slope determined by sampled DCO CV and range-dependent scaling;
@@ -175,33 +209,68 @@ Open: exact source gains and noise spectrum/amplitude law.
 
 ## 6. Digital envelope / CV generator
 
-The 106 envelope is software-generated by the slave CPU.
+The 106 envelope is software-generated by the slave CPU and is now sufficiently understood to reject a generic ADSR implementation.
 
-Nominal segment ranges:
+Nominal front-panel ranges:
 
 - A: 1.5 ms–3 s
 - D: 1.5 ms–12 s
 - S: 0–100%
 - R: 1.5 ms–12 s
 
-Architecture:
+### 6.1 Confirmed ROM representation
 
-1. key/voice events update envelope state;
-2. envelope algorithm computes a control value in the control domain;
-3. ENV contribution is folded into the composite VCF CV and/or VCA CV;
-4. values reach analogue circuitry through the multiplexed DAC/S&H system.
+Envelope level is a 14-bit integer domain with peak around `0x3FFF`.
 
-Strict 106 mode should expose the ~4.2 ms service-frame character. Optional interpolation may exist as an A/B diagnostic but must not become the default until hardware comparison supports it.
+The module ROM contains:
 
-Open:
+- a 16-bit Attack increment table at `$0B60`;
+- a shared 16-bit Decay/Release coefficient table at `$0D60`;
+- a fixed-point decay helper at `$083D`.
 
-- segment law/curve;
-- parameter-to-time mapping;
-- numerical resolution;
-- retrigger level/state;
-- exact relation between service frame and ENV arithmetic step.
+### 6.2 Attack
 
-These are high priority for hardware capture or ROM analysis.
+Attack is an **additive integer ramp**. Each envelope/control tick adds the table-derived Attack increment until the peak condition is reached.
+
+The ROM attack table begins:
+
+```text
+4000 2000 1000 0AAA 0800 0666 0555 0492 ...
+```
+
+This is fundamentally different from the JUNO-60 IR3R01 RC attack.
+
+### 6.3 Decay and release
+
+The ROM's `CalcDecay` routine uses three 8x8 multiply partial products. With `value = VH:VL` and `coeff = CH:CL`, the resulting approximation is equivalent to:
+
+```text
+VH*CH + ((VH*CL) >> 8) + ((VL*CH) >> 8)
+```
+
+The low-low product is omitted. This truncation is part of strict firmware behaviour.
+
+Decay applies the operation to the difference between current envelope and Sustain, then restores the Sustain offset. Release applies the same style of multiply toward zero.
+
+The shared coefficient table begins:
+
+```text
+1000 3000 5000 7000 9000 A000 A800 B000
+B800 C000 C800 D000 D800 E000 E800 F000
+F080 F100 F180 F200 F280 F300 F380 F400 ...
+```
+
+### 6.4 Service cadence and analogue reconstruction
+
+The digital envelope result reaches VCF/VCA control through the multiplexed DAC/S&H control system. Strict mode should therefore preserve the firmware/control-frame cadence rather than silently evaluating ADSR equations per audio sample.
+
+Open questions are now narrower:
+
+- exact slider/index transformations before table lookup;
+- precise retrigger state/level rules for all allocator cases;
+- exact loop period under different workload/voice states;
+- S/H and downstream RC settling shape;
+- whether audio-rate reconstruction should be zero-order hold plus analogue RC, rather than linear interpolation.
 
 ## 7. VCF — 80017A topology
 
@@ -332,30 +401,32 @@ High-priority measurement requirement: capture I and II rate, delay min/max, ste
 
 Primary nominal LFO range: 0.1–30 Hz. Delay time: 0–3 s.
 
-LFO affects at least DCO and VCF, and modulation/bender controls are read by the slave CPU.
+LFO affects at least DCO and VCF, and modulation/bender controls are read by the slave CPU. ROM tracing already confirms LFO pitch amount is added/subtracted in the 8.8 pitch-build domain before timer-divisor conversion.
 
 Open:
 
-- exact waveform shape and symmetry;
-- rate law;
+- exact LFO accumulator/waveform shape and symmetry;
+- rate law/table;
 - delay envelope law;
 - trigger-sensitivity semantics;
-- internal update resolution.
+- exact bender scaling;
+- portamento update law and interaction with Poly 2.
 
-Until measured, use no generic sine-LFO assumption in the locked model. A temporary diagnostic LFO may be used only behind a clearly named hypothesis flag.
+Until recovered, use no generic sine-LFO assumption in the locked model. A temporary diagnostic LFO may be used only behind a clearly named hypothesis flag.
 
 ## 13. Voice allocation / retrigger
 
 Allocator must be a separate module from DSP voices so normal-mode behaviour can be corrected without touching audio blocks.
 
-Known service-test behaviours provide evidence for:
+Roland owner documentation confirms:
 
-- ordered/non-rotary assignment;
-- rotary/cyclic assignment;
-- seventh-note stealing;
-- six-voice unison test mode.
+- `POLY 1`: normal six-voice polyphony, intended for natural independent releases;
+- `POLY 2`: also one voice per key, but only the last note/note group retains natural release; designed for portamento use; if six keys are simultaneously held, additional keys do not sound;
+- `POLY 1 + POLY 2`: Solo-Unison, monophonic with all six voices assigned to the played key.
 
-Normal `POLY 1` and `POLY 2` semantics remain to be frozen from owner documentation + tests.
+Service-test modes separately demonstrate rotary, non-rotary and six-voice assignment primitives, but those test-button labels must not be confused directly with normal user-mode behaviour.
+
+Open: recover the exact normal-mode assigner state machine, release stealing, same-note retrigger and the conditions that cause module `resetVoiceBits`.
 
 ## 14. MODEL_60 borrowing policy
 
@@ -381,9 +452,14 @@ Control106
   tick_control_frame(...)
   build_voice_targets(...)
 
+Pitch106
+  build_pitch_8_8(...)
+  pitch_to_timer_count(...)
+
 Timer106[6]
   set_range(...)
-  set_count(...)
+  load_count(...)
+  reset_and_load_count(...)
   advance_audio_time(...)
   emit_edges(...)
 
@@ -394,9 +470,10 @@ Wave5534[6]
   render(...)
 
 Envelope106[6]
+  set_rom_indices(...)
   note_on(...)
   note_off(...)
-  tick(...)
+  tick_control_frame(...)
 
 Filter80017[6]
   set_vcf_cv(...)
@@ -420,16 +497,18 @@ Chorus106
 
 Before implementation is declared ready to begin, Phase 0 should resolve or consciously defer every item below:
 
-- [ ] 8253 timer mode/count relationship
-- [ ] DCO note/count table or derivation
+- [x] 8253 timer mode/count relationship
+- [x] Locate the ROM note-divisor table and interpolation mechanism
+- [ ] Complete the pitch-build/modulation law and range-boundary handling
 - [ ] DCO CV/ramp slope law
 - [ ] source mixer gains/headroom
-- [ ] exact ENV curve/time mapping or documented measurement plan
+- [x] Core 106 ENV algorithm/table architecture
+- [ ] Complete ENV slider/retrigger/control-loop timing validation
 - [ ] LFO waveform/rate/delay behaviour or documented measurement plan
 - [ ] 80017A circuit constants sufficient for first reference filter
 - [ ] 106 HPF transfer functions
 - [ ] 106 chorus measured constants or measurement plan
-- [ ] normal Poly 1/Poly 2 allocation/retrigger semantics
+- [ ] exact normal Poly 1/Poly 2 allocator/retrigger state machine
 - [ ] FM-1 CPU/SRAM budget table prepared for Phase 4 profiling
 
 Only then should the first reference DSP implementation be treated as a fidelity build rather than an exploratory prototype.
