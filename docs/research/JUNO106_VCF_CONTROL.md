@@ -12,7 +12,7 @@ Source basis:
 
 Human labels in the public disassembly remain provisional. Arithmetic/order below is based on literal instructions and cross-checkable constants.
 
-## 1. Domain and clamp
+## 1. Domain and exact Cutoff scaling
 
 The final per-voice VCF control is a 14-bit unsigned value:
 
@@ -20,15 +20,23 @@ The final per-voice VCF control is a 14-bit unsigned value:
 0x0000 .. 0x3fff
 ```
 
-The front-panel Cutoff contribution is already expanded into approximately:
+The incoming panel/SysEx Cutoff parameter is `0..127` and uses the ROM's common `store16Bit` path:
 
 ```text
-0x0000 .. 0x3f80
+cutoff_14 = cutoff_7bit << 7
 ```
 
-before the composite VCF calculation begins.
+Therefore:
 
-Strict mode must preserve the integer domain and saturation/underflow behavior before converting to any analogue/log-frequency representation.
+```text
+0   -> 0x0000
+1   -> 0x0080
+127 -> 0x3f80
+```
+
+This is exact firmware behavior, not an approximation.
+
+Strict mode must preserve this integer domain and later saturation/underflow behavior before converting to any analogue/log-frequency representation.
 
 ## 2. Calculation order
 
@@ -39,7 +47,7 @@ The module CPU builds VCF control in two stages.
 The routine begins with front-panel Cutoff, then applies signed LFO and signed Bender:
 
 ```text
-global_vcf = cutoff
+global_vcf = cutoff_14
            + signed_lfo_vcf
            + signed_bender_vcf
 ```
@@ -59,7 +67,29 @@ For each physical voice, the shared base is then modified by:
 
 Therefore ENV and Key Follow are genuinely per-voice control terms, while panel Cutoff, global LFO and Bender are computed once and reused.
 
-## 3. ENV-to-VCF arithmetic
+## 3. Shared 16x8 scaled-multiply primitive
+
+Several VCF-control paths use the same uPD7811 arithmetic pattern.
+
+Given a 16-bit value:
+
+```text
+value = VH:VL
+```
+
+and 8-bit multiplier `m`, the instruction sequence computes:
+
+```text
+mul16x8_hi(value, m)
+    = (VH * m) + ((VL * m) >> 8)
+    = floor(value * m / 256)
+```
+
+The two products are performed as separate 8x8 multiplies, so strict code should retain explicit integer truncation.
+
+This helper is used below for ENV, Key Follow and VCF LFO scaling.
+
+## 4. ENV-to-VCF arithmetic
 
 Let:
 
@@ -68,13 +98,18 @@ env       = current 14-bit envelope, 0..0x3fff
 env_depth = VCF ENV parameter, 0..254
 ```
 
-The ROM forms the scaled ENV contribution with two 8x8 multiplies equivalent to:
+The panel parameter is doubled on receipt:
 
 ```text
-env_vcf = floor(env * env_depth / 256)
+env_depth = raw_env_depth_7bit << 1
 ```
 
-subject to the exact partial-product/truncation order of the CPU.
+The scaled ENV contribution is:
+
+```text
+env_vcf = mul16x8_hi(env, env_depth)
+        = floor(env * env_depth / 256)
+```
 
 The VCF ENV polarity switch then selects:
 
@@ -96,7 +131,7 @@ Important consequences:
 - inverted ENV uses subtraction in the same 14-bit control domain;
 - strict implementation should preserve integer truncation before any analogue cutoff mapping.
 
-## 4. Key Follow coordinate
+## 5. Key Follow coordinate
 
 Key Follow uses the physical voice's current **8.8 pitch state**, not merely raw MIDI note number.
 
@@ -126,15 +161,15 @@ This equals:
 
 so the Key Follow zero point is exactly Middle C / MIDI note 60 in this coordinate.
 
-## 5. Key Follow magnitude and direction
+## 6. Key Follow magnitude and direction
 
-Let:
+The incoming Key Follow parameter is likewise doubled:
 
 ```text
-key_depth = VCF Key Follow parameter, 0..254
+key_depth = raw_key_follow_7bit << 1   // 0..254
 ```
 
-The firmware computes distance from the Middle-C pivot in the `3/8 pitch` coordinate:
+The firmware computes distance from the Middle-C pivot:
 
 ```text
 delta = abs(pitch_3_8 - 0x1680)
@@ -143,10 +178,9 @@ delta = abs(pitch_3_8 - 0x1680)
 and then:
 
 ```text
-key_vcf = floor(delta * key_depth / 256)
+key_vcf = mul16x8_hi(delta, key_depth)
+        = floor(delta * key_depth / 256)
 ```
-
-using the same style of two-byte partial multiplication.
 
 Direction is determined by pitch relative to Middle C:
 
@@ -156,30 +190,66 @@ pitch < C4: vcf -= key_vcf
 pitch = C4: zero contribution
 ```
 
-Because the source is the current per-voice 8.8 pitch state, Portamento can continuously move the Key Follow control in firmware-rate steps.
+Because the source is the current per-voice 8.8 pitch state, Portamento moves Key Follow in the same firmware-rate pitch steps.
 
 This is more faithful than implementing Key Follow as a post-hoc `Hz *= 2^(notes*k)` factor.
 
-## 6. Final saturation
+## 7. Exact VCF-LFO magnitude law
 
-After ENV and Key Follow, the routine resolves the accumulated overflow/underflow state and clamps the per-voice result:
+VCF-LFO depth is a separate panel parameter from DCO-LFO depth.
+
+On receipt:
 
 ```text
-if underflow:
-    vcf = 0x0000
-else if overflow / >0x3fff:
-    vcf = 0x3fff
-else:
-    vcf = accumulated_value
+vcf_lfo_depth = raw_vcf_lfo_7bit << 1   // 0..254
 ```
 
-The clamped result is then written through the shared DAC/multiplexer to that physical voice's VCF sample-and-hold.
+The automatic LFO Delay produces an onset multiplier:
 
-Strict `MODEL_106` therefore needs a control-domain saturation step **before** the analogue filter law.
+```text
+onset = 0..255
+```
 
-## 7. Bender magnitude
+The panel VCF-LFO depth is first scaled by that onset:
 
-The already-frozen Bender path supplies VCF Bender magnitude as:
+```text
+depth_after_delay = floor(vcf_lfo_depth * onset / 256)
+```
+
+Then the current firmware LFO magnitude `lfo_mag` (`0..0x1fff`) is scaled with the shared 16x8 helper and divided by two:
+
+```text
+vcf_lfo_signal = mul16x8_hi(lfo_mag, depth_after_delay) >> 1
+```
+
+Equivalently:
+
+```text
+vcf_lfo_signal = floor(lfo_mag * depth_after_delay / 256) >> 1
+```
+
+with sign applied later from the LFO polarity bit.
+
+At maximum nominal panel depth and completed Delay:
+
+```text
+vcf_lfo_depth  = 254
+onset           = 255
+depth_after_delay = floor(254*255/256) = 253
+lfo_mag max     = 8191
+mul16x8_hi      = floor(8191*253/256) = 8095
+vcf_lfo_signal  = 8095 >> 1 = 4047
+```
+
+So maximum VCF-LFO modulation naturally lands near a 12-bit control span without inserting an arbitrary floating-point "octave depth" constant.
+
+This is an important structural cross-check against the service specification's large VCF-LFO range.
+
+Unlike the DCO pitch performance-modulation path, this VCF-LFO calculation uses the panel depth/onset path directly; the separately recovered performance DCO-LFO contribution should not be assumed to modulate VCF unless a distinct ROM path proves it.
+
+## 8. Bender magnitude
+
+The frozen Bender path supplies VCF Bender magnitude as:
 
 ```text
 vcf_bend = (bend_magnitude * vcf_bend_sensitivity) >> 4
@@ -193,58 +263,93 @@ At full 8-bit magnitude/sensitivity:
 255 * 255 >> 4 = 4064
 ```
 
-which sits just below the 12-bit full-scale region and feeds the global VCF calculation before ENV/Key Follow.
+which likewise sits just below the 12-bit full-scale region and feeds the global VCF calculation before ENV/Key Follow.
 
-## 8. LFO contribution
+## 9. Global VCF composition
 
-The LFO VCF path uses the same integer LFO magnitude/polarity generator as DCO modulation, but a separate VCF depth scaler.
-
-Architectural freeze:
-
-- LFO magnitude is generated in firmware/control rate;
-- its requested VCF depth is multiplied into a control-domain quantity;
-- sign is applied in the global VCF base before per-voice ENV and Key Follow;
-- strict mode must not inject an independent audio-rate LFO directly into filter Hz.
-
-A compact clean law for the VCF LFO-depth parameter remains a small follow-up item if it cannot be derived without retaining a ROM lookup.
-
-## 9. Clean implementation form
+The firmware order is:
 
 ```text
-uint16 build_vcf_global(...)
+x = cutoff_14
+x = signed_add_or_sub(x, vcf_lfo_signal, lfo_polarity)
+x = signed_add_or_sub(x, vcf_bend, bend_polarity)
+```
+
+This global intermediate is then reused for all six voices.
+
+Overflow/underflow state from these operations is carried into the later per-voice clamp logic rather than silently wrapping.
+
+## 10. Per-voice ENV + Key Follow composition
+
+For each voice:
+
+```text
+x_voice = global_vcf
+
+env_amt = mul16x8_hi(env14[voice], env_depth)
+x_voice = env_positive ? x_voice + env_amt
+                       : x_voice - env_amt
+
+p38      = (pitch8_8[voice] >> 2) + (pitch8_8[voice] >> 3)
+delta    = abs(p38 - 0x1680)
+key_amt  = mul16x8_hi(delta, key_depth)
+x_voice += (p38 >= 0x1680) ? key_amt : -key_amt
+```
+
+The result is then saturated to the 14-bit DAC-control domain.
+
+## 11. Final saturation
+
+After ENV and Key Follow, the routine resolves accumulated overflow/underflow and clamps:
+
+```text
+if underflow:
+    vcf = 0x0000
+else if overflow / >0x3fff:
+    vcf = 0x3fff
+else:
+    vcf = accumulated_value
+```
+
+The clamped result is written through the shared DAC/multiplexer to that physical voice's VCF sample-and-hold.
+
+Strict `MODEL_106` therefore needs control-domain saturation **before** the analogue filter law.
+
+## 12. Clean implementation form
+
+```text
+uint16 mul16x8_hi(uint16 value, uint8 m)
 {
-    signed32 x = cutoff_14;
-    x += signed_lfo_vcf;
-    x += signed_bender_vcf;
-    // preserve overflow/underflow intent
-    return intermediate;
+    return ((value >> 8) * m) + (((value & 0xff) * m) >> 8);
 }
 
-uint16 build_vcf_voice(global, env14, env_depth, env_positive,
-                       pitch8_8, key_depth)
+uint16 cutoff_from_panel(uint8 p)
 {
-    env_amt = rom_mul16x8(env14, env_depth);
-    x = env_positive ? global + env_amt : global - env_amt;
+    return (uint16)p << 7;
+}
 
-    p38 = (pitch8_8 >> 2) + (pitch8_8 >> 3);
-    delta = abs(p38 - 0x1680);
-    key_amt = rom_mul16x8(delta, key_depth);
-    x += (p38 >= 0x1680) ? key_amt : -key_amt;
-
-    return clamp14_with_rom_overflow_semantics(x);
+uint16 vcf_lfo_from_panel(uint8 depth7, uint8 onset, uint16 lfoMag)
+{
+    uint8 d = depth7 << 1;
+    uint8 dDelayed = (d * onset) >> 8;
+    return mul16x8_hi(lfoMag, dDelayed) >> 1;
 }
 ```
 
-The eventual implementation should expose the ROM-style multiply as a shared tested primitive so ENV, Key Follow and other firmware paths do not silently use different rounding.
+The actual global/per-voice sum functions should preserve the ROM's overflow/borrow intent explicitly rather than rely on unsigned C wrapping.
 
-## 10. Why this matters for the analogue model
+## 13. Why this matters for the analogue model
 
-The A1QH80017A should not be asked to reconstruct panel semantics.
+The A1QH80017A should not reconstruct panel semantics.
 
 Its strict interface should receive something close to the actual hardware boundary:
 
 ```text
-14-bit sampled VCF control -> S/H reconstruction -> analogue VCF-CV law -> IR3109 stages
+14-bit sampled VCF control
+    -> DAC/S&H voltage
+    -> per-voice Frequency/Width calibration
+    -> IR3109 exponential converter
+    -> four analogue filter stages
 ```
 
 This separation lets us independently test:
@@ -256,7 +361,21 @@ This separation lets us independently test:
 
 It also prevents compensation errors where a wrong digital law is accidentally 'fixed' by tuning the analogue model.
 
-## 11. Verification vectors
+## 14. Verification vectors
+
+### Cutoff
+
+- every 7-bit panel value against `p<<7`;
+- endpoints `0 -> 0x0000`, `127 -> 0x3f80`.
+
+### VCF LFO
+
+- depth 0, 1, 63, 64, 126, 127;
+- onset 0, 1, 127, 254, 255;
+- LFO magnitude 0, 1, midpoint, 0x1fff;
+- maximum path must yield 4047 before sign;
+- positive and negative LFO polarity;
+- verify integer truncation at both multiplication stages.
 
 ### ENV
 
@@ -270,7 +389,7 @@ It also prevents compensation errors where a wrong digital law is accidentally '
 
 - pitches C2, C3, C4, C5, C6;
 - exact Middle C must yield zero Key Follow contribution;
-- quarter/semitone fractions around C4 to verify 8.8 arithmetic;
+- fractional 8.8 pitches around C4;
 - depth = 0, 127, 254;
 - Portamento sweep through C4 to verify sign change without discontinuity beyond integer quantization.
 
@@ -279,16 +398,15 @@ It also prevents compensation errors where a wrong digital law is accidentally '
 - Cutoff near 0 plus negative ENV/LFO/Bend;
 - Cutoff near max plus positive ENV/LFO/Bend;
 - positive ENV + negative LFO + positive Bend + Key Follow below C4;
-- same patch on all six voices with different current Portamento pitches;
+- same patch on all six voices with different Portamento pitch states;
 - final clamp exactly at 0 and `0x3fff`.
 
-## 12. Remaining digital VCF-control work
+## 15. Remaining digital VCF-control work
 
-Narrow items only:
+The arithmetic law is now essentially frozen. Remaining work is timing/edge detail:
 
-- derive/verify compact VCF-LFO depth mapping;
-- verify exact Cutoff panel scaling into `0x0000..0x3f80`;
-- consolidate the common 16x8 partial-multiply primitive and prove its truncation against representative ROM paths;
-- verify precise timing/order of per-voice VCF S/H writes inside one full control-service cycle.
+- verify precise order and spacing of the six per-voice VCF S/H writes inside one complete control-service cycle;
+- verify how DAC/S&H settling shapes each stepped code before the IR3109 CV input;
+- prove any subtle carry/borrow corner cases against an executable CPU/ROM reference when available.
 
-The overall VCF-control architecture and arithmetic order are now frozen.
+No generic floating VCF-modulation law is required for strict mode.
