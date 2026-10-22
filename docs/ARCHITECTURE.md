@@ -12,7 +12,7 @@ Profiles:
 - `MODEL_106`
 - `MODEL_DEEP`
 
-The shared blocks are oscillator/wave generation, mixer, four-pole low-pass topology, resonance path, VCA and BBD chorus. Model-specific behaviour lives primarily in control generation, envelope behaviour, HPF/output loading, calibration/spread and parameter laws.
+The shared blocks are oscillator/wave generation, mixer, four-pole low-pass topology, resonance path, VCA and BBD chorus. Model-specific behaviour lives primarily in DCO clock/control generation, envelope behaviour, HPF/output loading, calibration/spread and parameter laws.
 
 ## 2. Voice signal path
 
@@ -25,7 +25,7 @@ Per voice state should include:
 - DCO timer phase/count state
 - LFO contribution
 - pitch bend
-- portamento state
+- portamento state where applicable
 - envelope state
 - filter/VCA calibration offsets
 - optional DEEP voice-card tolerances
@@ -34,22 +34,39 @@ Authentic profiles use six voices.
 
 ### 2.2 DCO timing core
 
-The JUNO DCO is not merely a digital saw oscillator. The intended model separates **period timing** from **waveform generation**.
+The JUNO DCO is not merely a digital saw oscillator. The intended model separates **period timing** from **analogue waveform generation**.
 
-For the 106 profile:
+#### MODEL_60
 
-1. derive period/count from key + LFO + bend + portamento + tune;
-2. use range-dependent master-clock behaviour corresponding to the original 4'/8'/16' division scheme;
-3. update period at cycle boundaries rather than continuously inside the cycle;
-4. retain a shared master-clock concept across voices;
-5. generate the audio waveform from an analogue-inspired charge/reset model;
-6. derive pulse by comparison against the saw/ramp and sub by divide-by-two behaviour.
+The service description confirms a hybrid architecture that is materially different from the 106:
 
-This is important for glide/LFO stepping, phase relationships and unison behaviour.
+1. an LC master oscillator runs around 1.9 MHz;
+2. BENDER, LFO and rear-panel TUNE voltages control that common master oscillator directly;
+3. the master-clock range is roughly 1–3.5 MHz under combined modulation;
+4. two μPD8253 programmable timer ICs divide that clock using note/key divisors supplied by the CPU;
+5. the timer square-wave edges reset the analogue saw integrators;
+6. per-voice KCV is converted to an analogue voltage and combined with tune/LFO/bender-related control in the waveform-conversion circuitry to maintain saw amplitude across key range;
+7. the pulse is formed by comparing the saw against PWM control, while the sub oscillator is divided by two.
 
-For the 60 profile, the exact DCO control/modulation path needs an additional schematic pass and measurement validation before it is frozen. It should not simply inherit the 106 control law.
+This means 60 pitch modulation is partly embodied in a continuously voltage-controlled **shared clock before the digital dividers**, not in six independent digital phase increments. The model should preserve that distinction.
 
-Aliasing control should be separate from the model: preserve the intended reset/ramp shape, then use band-limited discontinuities and/or limited oversampling where necessary.
+#### MODEL_106
+
+The 106 moves the modulation arithmetic into the digital control path:
+
+1. a fixed 8 MHz master oscillator feeds a range divider;
+2. range selection produces the effective timer clocks for 4'/8'/16';
+3. the slave CPU derives divide data from key + LFO + bend + portamento + tune;
+4. two 8253 timer ICs generate six audio-rate rectangular timing signals;
+5. MC5534/MC5534A wave-generator circuitry converts those timing signals into saw, pulse/PWM and divide-by-two sub waveforms;
+6. DCO CV is used in the analogue wave generator to maintain waveform amplitude across frequency/range;
+7. timer-period changes are naturally quantised to the programmable-counter/control-update behaviour rather than continuously bending an analogue master clock.
+
+This is important for glide/LFO stepping, shared-clock phase relationships and unison behaviour.
+
+#### DSP strategy
+
+Do not emulate either machine as a free-running generic digital saw. Model the clock/timer events and the charge/reset relationship, then solve aliasing separately. Candidate techniques are band-limited reset discontinuities (minBLEP/polyBLEP-like correction) and selective oversampling. Preserve circuit behaviour first; optimise the anti-aliasing implementation second.
 
 ### 2.3 Wave mixer
 
@@ -78,9 +95,9 @@ Do not commit to 4× oversampling before FM-1 profiling.
 
 ### 2.5 Envelope and VCA
 
-`MODEL_60` should reproduce the analogue envelope character associated with the IR3R01-based voice architecture, including component/voice variation where it is audible and measurable.
+`MODEL_60` should reproduce the analogue IR3R01 per-voice envelope architecture, including its timing curves and small voice-to-voice variation where measurable. The same envelope can address the VCF/VCA and the 60's ENV PWM path according to the original routing.
 
-`MODEL_106` should reproduce digitally generated envelope/control behaviour, including update cadence and parameter quantisation where relevant.
+`MODEL_106` should reproduce its CPU-generated envelope/control behaviour, including update cadence and parameter quantisation where relevant. The original 106 PWM source is MAN/LFO rather than the 60's ENV/MAN/LFO routing.
 
 Both feed the voice VCA model. The goal is to model envelope *shape and timing*, not only match nominal A/D/S/R endpoints.
 
@@ -101,7 +118,8 @@ Model the chorus as an actual dual variable-delay/BBD-inspired subsystem:
 
 - mono input to two delayed paths;
 - two 256-stage MN3009-like BBD paths;
-- opposite-phase modulation between left/right;
+- MN3101-style clock/driver behaviour abstracted into the delay-time model;
+- opposite-phase modulation between left/right in the normal stereo modes;
 - pre/post bandwidth limitation;
 - clock/delay quantisation where audible;
 - mild signal-path nonlinearity;
@@ -114,7 +132,7 @@ Measured JUNO-60 reference targets for initial calibration:
 - Chorus II: ~0.863 Hz, ~1.66–5.35 ms delay range.
 - I+II: ~9.75 Hz, ~3.3–3.7 ms in the independent measurement set.
 
-Treat these as calibration references, not immutable truth; validate against service documentation and additional captures.
+Treat these as calibration references, not immutable truth; validate against service documentation and additional captures. The 106 uses the same MN3009/MN3101 BBD family but gets its own calibration pass rather than inheriting the 60 constants blindly.
 
 ## 3. Modulation/control
 
@@ -122,7 +140,7 @@ Authentic surface:
 
 - DCO range 16'/8'/4'
 - saw / pulse / sub / noise
-- PWM with appropriate MAN/LFO/ENV routing per model
+- PWM with model-correct MAN/LFO/ENV routing
 - resonant VCF
 - positive/negative envelope modulation where present
 - key follow
@@ -130,9 +148,9 @@ Authentic surface:
 - ADSR
 - LFO rate/delay and trigger behaviour
 - pitch bend
-- portamento where applicable
+- portamento on the 106 profile
 - hold / key transpose / arpeggiator behaviour for the 60 profile
-- original 106 performance/poly behaviour where applicable
+- original 106 performance/poly behaviour and MIDI handling where applicable
 
 DEEP surface may add a second modulation envelope, velocity/aftertouch routing, expanded LFO shapes/ranges and clock sync, but these must live outside the authentic profile state.
 
