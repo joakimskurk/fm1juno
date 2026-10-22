@@ -44,7 +44,7 @@ This checklist is the gate before fidelity DSP implementation.
 - [x] Confirm two 8253 devices / six counters.
 - [x] Confirm key + LFO + bend + portamento + tune feed divide data.
 - [x] Confirm MC5534 analogue-inspired saw/PWM/sub generation.
-- [x] Confirm ~12 Vpp saw/pulse amplitude compensation target.
+- [x] Confirm ~12 Vpp saw/pulse amplitude-compensation target.
 - [x] Confirm PWM calibration anchors.
 - [x] Identify 8253 operating mode: Mode 3, binary, LSB then MSB (`36/76/B6`).
 - [x] Confirm Mode-3 count relation and odd/even duty behavior from 8253 documentation.
@@ -60,10 +60,19 @@ This checklist is the gate before fidelity DSP implementation.
 - [x] Confirm timer reset is independent from envelope re-attack.
 - [x] Confirm reset requests are only flags in the serial ISR and are consumed later in sequential physical-voice DCO service slots.
 - [x] Derive digital DCO-CV note law: approximately `round(32 * 2^(n/12))`, octave-doubling until DAC saturation, with fractional interpolation.
-- [x] Derive ideal RANGE-network scaling requirement from first principles: conductance 16':8':4' ~= 1:2:4, therefore resistance ratio R16:R8:R4 ~= 4:2:1 before switch/source-impedance corrections.
+- [x] Confirm Roland DCO-CV zero-offset calibration: DAC forced to 0 V and VR33 trimmed to 0 V at TP3.
+- [x] Confirm physical MC5534 source topology: held DCO CV -> RANGE-selected resistor -> ramp capacitor; positive DCO edge initiates capacitor discharge/reset; PWM compares the same physical ramp against held PWM CV; SUB derives from DCO timing divide-by-two.
+- [x] Freeze first-principles ramp law `dV/dt = -Vdco/(Rrange*Cint)` and amplitude condition `|DeltaV| ~= |Vdco|/(Rrange*Cint*f)`.
+- [x] Derive ideal RANGE-network scaling requirement: conductance 16':8':4' ~= 1:2:4, therefore resistance ratio R16:R8:R4 ~= 4:2:1 before switch/source-impedance corrections.
+- [x] Establish working 106 resistor set and mapping as schematic/cross-check evidence: 16'/R85 ~= 399 kOhm, 8'/R86 ~= 200 kOhm, 4'/R87 ~= 100 kOhm. Keep configurable until a clean primary designator/value read is archived.
+- [x] Establish working ramp-capacitor value `Cint ~= 1 nF` as schematic/cross-check evidence, not yet primary-frozen.
+- [x] Reject per-cycle amplitude normalization: strict model should naturally retain small note/range level error around the ~12 Vpp design target.
+- [x] Require architecturally finite/configurable ramp reset rather than permanently assuming an instantaneous mathematical saw discontinuity.
 - [ ] Verify full control-loop/count-write cadence under representative workloads.
-- [ ] Extract exact range-selected R85/R86/R87 + C54/current-source values and calibrate the analogue DCO-CV -> ramp-slope transfer.
-- [ ] Determine finite MC5534 ramp-discharge/reset transient.
+- [ ] Archive a clean primary value read or direct board measurement for R85/R86/R87 and C54.
+- [ ] Determine strict 106 MC5534 reset-network values, reset-transistor conduction time, residual voltage and recovery/slew behavior; do not import 60 values silently.
+- [ ] Measure DCO-CV DAC/S&H loaded voltage law, per-voice droop/output impedance and 4052 on-resistance contribution.
+- [ ] Measure the actual saw-amplitude error curve across keyboard/ranges and fit model tolerance/headroom.
 
 ## C. Mixer / noise
 
