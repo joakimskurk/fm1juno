@@ -1,52 +1,72 @@
 # JUNO-106 chorus netlist workspace
 
-Status: Phase 0 transcription workspace. **Do not treat anything in this directory as a runnable/frozen circuit model until it is explicitly marked VERIFIED.**
+Status: **Phase-0 machine-readable chorus transcription complete for the architecture gate.** A full transistor-level SPICE model is deliberately **not** claimed where the public scan cannot support every micro-junction without guessing.
 
-The source of truth is the original Roland JUNO-106 Service Notes jack-board schematic. Reconstruction/clone schematics may be used to resolve legibility only when the Roland image is ambiguous, and any such use must remain labelled as a cross-check.
+The source of truth is the original Roland JUNO-106 Service Notes jack-board schematic. Panasonic MN3009/MN3101 documentation supplies device pin semantics. Reconstruction/clone schematics may be used only as labelled cross-checks.
 
-## Why there is no guessed `.cir` yet
+## Current artifacts
 
-A plausible SPICE file is more dangerous than an incomplete evidence map: once it runs, guessed nodes can easily become de-facto constants. The current sequence is therefore:
+- `juno106_chorus_primary_pinmap.csv` — pin-level map for IC8/IC9/IC10/IC11 plus verified IC6 functional summing nodes.
+- `juno106_chorus_nodes.csv` — named physical signal/control nodes and confidence state.
+- `juno106_chorus_output_mix_reference.cir` — **verified limited SPICE subcircuit** for the original IC6 dry/wet summers.
+- `../data/juno106_chorus_component_evidence.csv` — per-component value/evidence map.
+- `../data/juno106_chorus_calibration_v0.yaml` — centralized strict calibration and `MEASURE_PENDING` quantities.
+- `../JUNO106_CHORUS_TRANSCRIPTION_COMPLETENESS.md` — exact boundary between verified transcription and scan/measurement-limited detail.
+
+## Why there is no guessed full `.cir`
+
+A plausible runnable circuit is more dangerous than an explicit incomplete micro-net: guessed nodes quickly become de-facto constants.
+
+The evidence-preserving sequence is:
 
 ```text
 Roland schematic
- -> node/component evidence table
- -> mirror-pair cross-check
- -> second-pass visual verification
- -> literal netlist transcription
- -> DC/AC sanity checks
- -> physical-unit measurement comparison
- -> fitted DSP
+ -> exact device pin map
+ -> original component/value evidence
+ -> verified physical node graph
+ -> verified subcircuits where connections are unambiguous
+ -> named scan-limited detail where they are not
+ -> physical measurement / continuity closure
+ -> fitted reference DSP
 ```
 
-The first machine-readable topology artifact is:
-
-- `juno106_chorus_nodes.csv`
-
-Component/value evidence shared with the wider chorus research lives in:
-
-- `../data/juno106_chorus_component_evidence.csv`
+A future full transistor-level `.cir` may be added after continuity/clean-scan verification. It is **not required to redesign Chorus106** because the block boundaries are already frozen.
 
 ## Naming contract
 
-Physical names are preferred over DSP names.
-
-Examples:
+Physical names are preferred over DSP interpretations.
 
 ```text
-CH_IN                 post-global-VCA signal entering chorus section
-BBD_A_IN              IC8 MN3009 audio input-side node
-BBD_A_OUT             IC8 output-combine node
-TP1_WET_A             Roland TP1 wet/calibration node
-BBD_B_IN              IC10 MN3009 audio input-side node
-BBD_B_OUT             IC10 output-combine node
-TP2_WET_B             Roland TP2 wet/calibration node
-CTRL_A_TP3            Roland TP3 chorus-control probe
-CTRL_B_TP4            Roland TP4 complementary chorus-control probe
-OUT_MIX_A              passive/active mix network feeding output A
-OUT_MIX_B              passive/active mix network feeding output B
-SIG_OUT_1              Roland jack-board SIG.OUT 1
-SIG_OUT_2              Roland jack-board SIG.OUT 2
+CH_IN
+CH_DRY
+BBD_A_IN
+BBD_A_OUT1
+BBD_A_OUT2
+BBD_A_OUT_SUM
+TP1_WET_A
+CLOCK_A_CP1
+CLOCK_A_CP2
+VGG_A
+OSC_A_COMMON
+CTRL_A_TP3
+
+BBD_B_IN
+BBD_B_OUT1
+BBD_B_OUT2
+BBD_B_OUT_SUM
+TP2_WET_B
+CLOCK_B_CP1
+CLOCK_B_CP2
+VGG_B
+OSC_B_COMMON
+CTRL_B_TP4
+
+IC6_A_SUM
+IC6_A_OUT
+IC6_B_SUM
+IC6_B_OUT
+SIG_OUT_1
+SIG_OUT_2
 ```
 
 Do not name an analogue node `dry55`, `wet45`, `lowpass14k` or similar interpretation-derived labels.
@@ -57,47 +77,100 @@ Do not name an analogue node `dry55`, `wet45`, `lowpass14k` or similar interpret
 PRIMARY_VISIBLE
 PRIMARY_VALUE_VISIBLE
 PRIMARY_CONNECTION_VERIFIED
-PRIMARY_MIRROR_VERIFIED
+PRIMARY_VISIBLE_NODE_DETAIL_PENDING
+PRIMARY_VISIBLE_OUTPUT_DETAIL_PENDING
 CROSS_CHECK_ONLY
-RESCAN_REQUIRED
-MEASURE_REQUIRED
+MEASURE_PENDING
 ```
 
-A value may be visible while its exact node attachment is not yet verified. Those are separate facts.
+A component value being legible and its exact small-signal transfer being known are different facts.
 
-## Mirror-pair check
+## Verified BBD/clock core
 
-The original chorus is intentionally close to bilateral/mirrored. During transcription, channel-A and channel-B elements must be checked as pairs rather than independently guessed.
-
-High-level pair anchors:
+The current pin map explicitly preserves:
 
 ```text
-IC8  <-> IC10   MN3009
-IC9  <-> IC11   MN3101
-VR1  <-> VR2    BBD bias
-TP1  <-> TP2    wet/calibration output
-R124 <-> R137   clock timing resistor, 8.2 kOhm
-C53  <-> C57    clock timing capacitor, 150 pF
-R71  <-> R73    output-region checkpoint, 47 kOhm
-R70  <-> R67    output-region checkpoint, 100 kOhm
-R72  <-> R74    output-region checkpoint, 39 kOhm
-R54  <-> R57    output-region checkpoint, 15 kOhm
+MN3101 CP1/CP2 -> MN3009 CP1/CP2
+MN3101 VGG_OUT -> MN3009 VGG
+MN3101 1.8k / 8.2k / 150p oscillator network
+MN3009 OUT1/OUT2 -> equal 3.3k output combining resistors
 ```
 
-The last four resistor pairs are transcription checkpoints and remain `SCHEMATIC_READ_CHECK_REQUIRED` until their node connections are traced end-to-end.
+for both channels.
 
-## Verification gate for the first SPICE file
+This is enough to freeze the clock/delay architecture and BBD output-pair boundary without inventing filter coefficients.
 
-A `.cir` file may be promoted from scaffold to `VERIFIED_TOPOLOGY_V0` only when:
+## Verified IC6 summer
 
-1. every component around IC8/IC10 and IC9/IC11 has a Roland designator;
-2. all visible values have been read twice from the primary scan;
-3. mirrored A/B branches have been compared for intentional vs accidental differences;
-4. TP1..TP4 and all BBD/driver pins are present;
-5. dry path into both output summers is explicitly traced;
-6. IC6 feedback/input networks are explicitly traced;
-7. mute/output transistors and output loading are retained or explicitly justified away;
-8. power/bias rails needed for DC/headroom analysis are retained;
-9. every unreadable item is a named placeholder, never a guessed value.
+Original mirrored values:
 
-Only after that should AC transfer functions be calculated.
+```text
+A: wet R71=47k, dry R70=100k, feedback R72=39k
+B: wet R73=47k, dry R67=100k, feedback R74=39k
+```
+
+Ideal law:
+
+```text
+Vout = -0.39*Vdry - 0.8297872340425532*Vwet
+```
+
+The executable reference is `juno106_chorus_output_mix_reference.cir`.
+
+## Corrected output-region checkpoint
+
+Primary schematic re-read gives:
+
+```text
+R54 = 1.5 kOhm
+R57 = 1.5 kOhm
+```
+
+The older `15 kOhm` transcription is superseded everywhere in current chorus authority documents.
+
+## Scan-limited networks
+
+The original wet path clearly establishes the multi-element analogue architecture and major mirrored component families, but some transistor/RC micro-junctions are not safe to promote into a full SPICE net solely from the public scan.
+
+These remain named boundaries:
+
+```text
+C44/R122/VR1 -> BBD_A_IN
+C47/R113/VR2 -> BBD_B_IN
+
+BBD_A_OUT_SUM -> mirrored active-RC wet filter -> TP1
+BBD_B_OUT_SUM -> mirrored active-RC wet filter -> TP2
+
+IC6_A_OUT -> coupling/mute/output -> SIG_OUT_1
+IC6_B_OUT -> coupling/mute/output -> SIG_OUT_2
+```
+
+Their exact transfer functions are physical calibration targets, not architectural unknowns.
+
+## Full-transistor SPICE promotion gate
+
+A future complete original-jack-board `.cir` may be labeled `VERIFIED_TRANSISTOR_TOPOLOGY` only when:
+
+1. every small passive/transistor junction around the two wet paths is traced from a clean primary drawing or board continuity;
+2. intentional A/B asymmetries are distinguished from scan ambiguity;
+3. post-IC6 mute/output loading is traced completely;
+4. DC operating points are checked against original rails;
+5. the model is compared with real-unit transfer/headroom data.
+
+Until then, no guessed topology is allowed.
+
+## Phase-0 conclusion
+
+For the chorus architecture gate we now have:
+
+```text
+[x] machine-readable BBD/driver pin map
+[x] named original node graph
+[x] original component evidence map
+[x] exact clock/delay semantics
+[x] exact dry/wet summer subcircuit
+[x] explicit scan-limited boundaries
+[x] centralized measurement/calibration backlog
+```
+
+This satisfies the Phase-0 transcription requirement without creating a false sense of precision.
