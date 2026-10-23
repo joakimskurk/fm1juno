@@ -8,7 +8,7 @@ For implementation decisions, use this order:
 
 1. **Newest specialized research/spec document for the block in question.**
 2. [`PHASE0_REFERENCE_ARCHITECTURE.md`](PHASE0_REFERENCE_ARCHITECTURE.md) — compact current integration/index.
-3. [`research/PHASE0_CHECKLIST.md`](research/PHASE0_CHECKLIST.md) — Phase-0 gate and open items.
+3. [`research/PHASE0_CHECKLIST.md`](research/PHASE0_CHECKLIST.md) plus newer block-specific closure records — Phase-0 gate and open items.
 4. [`research/PHASE0_MEASUREMENT_PLAN.md`](research/PHASE0_MEASUREMENT_PLAN.md) — how unresolved physical constants are closed.
 5. [`research/FM1_TARGET_BUDGET.md`](research/FM1_TARGET_BUDGET.md) — current FM-1 deployment/CPU/memory contract.
 6. [`PHASE1_REFERENCE_ENGINE_PLAN.md`](PHASE1_REFERENCE_ENGINE_PLAN.md) — implementation sequence and test architecture.
@@ -51,9 +51,16 @@ Strict `MODEL_106` must not inherit 60-specific clock, IR3R01 envelope, HPF load
 - [`research/JUNO106_VCF_CONTROL.md`](research/JUNO106_VCF_CONTROL.md)
 - [`research/JUNO106_80017A_TOPOLOGY.md`](research/JUNO106_80017A_TOPOLOGY.md)
 
-### Global output
+### Global HPF / output — Phase-0 frozen architecture
 
-- [`research/JUNO106_HPF_GLOBAL_OUTPUT.md`](research/JUNO106_HPF_GLOBAL_OUTPUT.md)
+- [`research/JUNO106_HPF_GLOBAL_OUTPUT.md`](research/JUNO106_HPF_GLOBAL_OUTPUT.md) — authoritative compact index; state `GLOBAL_OUTPUT_PHASE0_ARCHITECTURE_FROZEN`.
+- [`research/JUNO106_GLOBAL_OUTPUT_REFERENCE_MODEL.md`](research/JUNO106_GLOBAL_OUTPUT_REFERENCE_MODEL.md) — implementation and closure contract.
+- [`research/GLOBAL_OUTPUT_PHASE0_CLOSURE.md`](research/GLOBAL_OUTPUT_PHASE0_CLOSURE.md) — block-specific Phase-0 gate; supersedes older Section-F wording where they conflict.
+- [`research/data/juno106_global_output_calibration_v0.yaml`](research/data/juno106_global_output_calibration_v0.yaml) — centralized strict calibration / `MEASURE_PENDING` values.
+- [`research/data/juno106_global_output_evidence.csv`](research/data/juno106_global_output_evidence.csv) — per-fact evidence state.
+- [`research/netlists/juno106_hpf23_component_reference.cir`](research/netlists/juno106_hpf23_component_reference.cir) — verified component-ideal HPF2/3 reference.
+
+Remaining original-hardware captures are calibration backlog. They must replace `MEASURE_PENDING` values before claiming final hardware-calibrated strict fidelity, but they do not reopen the frozen global-output graph unless measurements contradict primary evidence.
 
 ### Chorus — Phase-0 frozen architecture
 
@@ -87,7 +94,7 @@ These files are retained because they show why the architecture evolved, but the
 - [`REFERENCES.md`](REFERENCES.md)
 - [`CIRCUIT_MODEL_SPEC_V0.md`](CIRCUIT_MODEL_SPEC_V0.md)
 
-In particular, old JUNO-60 chorus numbers in baseline documents must never be reused as strict 106 constants. The current chorus specs deliberately removed that shortcut.
+In particular, old JUNO-60 chorus numbers or HPF/output-loading assumptions in baseline documents must never be reused as strict 106 constants. Newer block-specific specs deliberately remove those shortcuts.
 
 ## 5. Evidence labels
 
