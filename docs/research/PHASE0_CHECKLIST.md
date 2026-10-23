@@ -134,30 +134,48 @@ This checklist is the gate before fidelity DSP implementation.
 - [ ] Calculate modes 2/3 cutoff/Q from component values.
 - [ ] Model global uPC1252 gain/headroom if audibly relevant.
 
-## G. Chorus
+## G. Chorus — `CHORUS_PHASE0_FROZEN`
 
-- [x] Confirm global post-voice/post-HPF chorus placement on JACK BOARD.
+Architecture / implementation gate:
+
+- [x] Confirm global post-voice/post-HPF/global-VCA chorus placement on JACK BOARD.
 - [x] Confirm dual MN3009 BBD architecture and dual MN3101 driver/clock architecture.
 - [x] Confirm two separately bias-adjusted BBD paths with Roland TP1/TP2 + VR1/VR2 service procedure.
 - [x] Freeze stereo architecture as two physical delay paths with opposite modulation polarity; nominal 180-degree relationship.
-- [x] Confirm dry signal is mixed with the delayed signal; reject a 100%-wet strict 106 chorus model.
-- [x] Establish 55% dry / 45% wet as a 106-focused hardware-reconstruction working calibration, pending direct original-unit gain measurement.
-- [x] Confirm one physical chorus topology is reused by I and II; treat mode difference primarily as LFO/clock preset until contrary evidence appears.
-- [x] Establish triangle-like driver modulation from direct physical-106 clock capture work; retain non-ideal trajectory capability rather than forcing a perfect mathematical triangle.
-- [x] Freeze strict original user modes as OFF / I / II; do not import Juno-6/60 I+II fast-mode behavior into strict 106.
-- [x] Require clock-domain-to-delay modeling with an explicit MN3009 clock convention; do not bury an unknown factor-of-two in a generic delay formula.
-- [x] Require pre-BBD and post-BBD filtering; do not import KR106's published Juno-6 filter fit as a strict 106 constant.
-- [x] Separate chorus BBD/device/clock noise from the front-panel synthesizer NOISE source.
-- [x] Define a physical-106 measurement plan for driver clocks, absolute delay, dry/wet gain, filtering, bias/headroom and noise.
-- [ ] Freeze exact original-106 Mode I LFO/clock rate from direct capture.
-- [ ] Freeze exact original-106 Mode II LFO/clock rate from direct capture.
-- [ ] Establish min/mean/max BBD clock frequency and exact clock-to-delay convention.
-- [ ] Establish center/min/max delay per channel and measured L/R phase error from ideal 180 degrees.
-- [ ] Calculate/freeze exact 106 pre/post BBD filter transfer functions and clock-dependent bandwidth.
-- [ ] Verify original 106 dry/wet analogue voltage gains and mono-summing gain.
-- [ ] Characterise factory-calibrated BBD bias/headroom/nonlinear clipping curve.
-- [ ] Characterise factory-new chorus noise, clock feedthrough and L/R noise correlation.
-- [ ] Decide whether any undocumented physical two-button state is stable enough to preserve as an explicitly DEEP-only curiosity.
+- [x] Confirm dry signal is mixed with delayed signal; reject a 100%-wet strict 106 chorus model.
+- [x] Freeze strict original user modes as OFF / I / II; do not import Juno-6/60 I+II behavior into strict 106.
+- [x] Establish triangle-like/non-ideal driver trajectory requirement from physical-106 capture work.
+- [x] Freeze unambiguous clock domains: `f_cp = f_osc/2` and MN3009 `t_delay = 128/f_cp`.
+- [x] Map original mirrored MN3101 timing networks: A `R123=1.8k / R124=8.2k / C53=150p`; B `R136=1.8k / R137=8.2k / C57=150p`.
+- [x] Map original mirrored BBD audio/filter component families from the Roland jack-board schematic.
+- [x] Require multi-element pre/post BBD filtering; reject a generic Juno-6-derived one-pole filter as strict 106 truth.
+- [x] Derive exact original IC6 dry/wet summer law: `Gdry=-39/100=-0.39`, `Gwet=-39/47=-0.829787234...` per channel before later output/loading effects.
+- [x] Keep approximately 55% dry / 45% wet only as a completed-output 106-reconstruction calibration target, not normalized DSP coefficients.
+- [x] Correct output-region schematic transcription: `R54/R57 = 1.5 kOhm`, superseding the earlier 15-kOhm misread.
+- [x] Freeze separate BBD bias/headroom/nonlinearity state and factory symmetrical-clipping calibration rule.
+- [x] Separate BBD/device/clock noise from the front-panel synthesizer NOISE source.
+- [x] Retain post-IC6 output/mute/jack loading as its own physical reference block.
+- [x] Define stereo renderer and explicit original-jack-law mono renderer contracts.
+- [x] Centralize all provisional/measured chorus constants in `data/juno106_chorus_calibration_v0.yaml`.
+- [x] Add verified original-output-summer SPICE subcircuit and deterministic reference invariants.
+- [x] Define a physical-106 measurement plan for every remaining clock/delay/filter/gain/headroom/noise constant.
+- [x] Freeze implementation contract in `JUNO106_CHORUS_REFERENCE_MODEL.md`.
+- [x] **CHORUS PHASE-0 ARCHITECTURE GATE CLOSED.**
+
+### Chorus calibration backlog — `MEASURE_PENDING`, not architecture blockers
+
+These remain unchecked until a healthy original JUNO-106 is captured. They must replace provisional values before claiming final hardware-calibrated strict fidelity, but Phase-0 does not invent them.
+
+- [ ] Capture exact original-106 Mode-I clock/LFO trajectory and rate.
+- [ ] Capture exact original-106 Mode-II clock/LFO trajectory and rate.
+- [ ] Measure min/mean/max `f_cp(t)` per channel/mode and A/B phase/mismatch.
+- [ ] Validate center/min/max absolute audio delay against the exact `128/f_cp` identity.
+- [ ] Measure complex wet-path transfer and clock-dependent BBD insertion loss/bandwidth.
+- [ ] Measure completed-output dry/wet voltage contributions and exact mono-normal jack gain/loading.
+- [ ] Characterise factory-calibrated BBD positive/negative headroom and nonlinear clipping curve.
+- [ ] Characterise factory-new BBD/device noise, clock feedthrough and L/R correlation.
+
+Any optional undocumented two-button behavior is a future `DEEP` research item and is not part of the strict-106 Phase-0 gate.
 
 ## H. FM-1 target
 
@@ -175,6 +193,8 @@ This checklist is the gate before fidelity DSP implementation.
 Phase 1 fidelity implementation begins only when unresolved items either:
 
 1. have evidence-backed answers, or
-2. have a written hypothesis plus an explicit measurement/verification test.
+2. have a written hypothesis/calibration placeholder plus an explicit measurement/verification test.
+
+An unchecked item explicitly classified as `MEASURE_PENDING` does **not** require a guessed constant to close the architecture gate; it must remain centralized and replaceable until measured.
 
 No generic VA assumption is allowed to silently cross this gate.
