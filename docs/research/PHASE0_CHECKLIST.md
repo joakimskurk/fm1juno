@@ -136,14 +136,28 @@ This checklist is the gate before fidelity DSP implementation.
 
 ## G. Chorus
 
-- [x] Confirm dual MN3009 BBD architecture.
-- [x] Confirm dual bias calibration and surrounding filters/amplifiers.
-- [ ] Derive I and II oscillator/clock circuits from 106 schematic.
-- [ ] Establish min/max BBD clock frequency and corresponding delay.
-- [ ] Establish stereo phase relation.
-- [ ] Calculate pre/de-emphasis / reconstruction bandwidth.
-- [ ] Characterise noise and bias nonlinearity.
-- [ ] Confirm whether any non-standard I+II state is worth DEEP-only support.
+- [x] Confirm global post-voice/post-HPF chorus placement on JACK BOARD.
+- [x] Confirm dual MN3009 BBD architecture and dual MN3101 driver/clock architecture.
+- [x] Confirm two separately bias-adjusted BBD paths with Roland TP1/TP2 + VR1/VR2 service procedure.
+- [x] Freeze stereo architecture as two physical delay paths with opposite modulation polarity; nominal 180-degree relationship.
+- [x] Confirm dry signal is mixed with the delayed signal; reject a 100%-wet strict 106 chorus model.
+- [x] Establish 55% dry / 45% wet as a 106-focused hardware-reconstruction working calibration, pending direct original-unit gain measurement.
+- [x] Confirm one physical chorus topology is reused by I and II; treat mode difference primarily as LFO/clock preset until contrary evidence appears.
+- [x] Establish triangle-like driver modulation from direct physical-106 clock capture work; retain non-ideal trajectory capability rather than forcing a perfect mathematical triangle.
+- [x] Freeze strict original user modes as OFF / I / II; do not import Juno-6/60 I+II fast-mode behavior into strict 106.
+- [x] Require clock-domain-to-delay modeling with an explicit MN3009 clock convention; do not bury an unknown factor-of-two in a generic delay formula.
+- [x] Require pre-BBD and post-BBD filtering; do not import KR106's published Juno-6 filter fit as a strict 106 constant.
+- [x] Separate chorus BBD/device/clock noise from the front-panel synthesizer NOISE source.
+- [x] Define a physical-106 measurement plan for driver clocks, absolute delay, dry/wet gain, filtering, bias/headroom and noise.
+- [ ] Freeze exact original-106 Mode I LFO/clock rate from direct capture.
+- [ ] Freeze exact original-106 Mode II LFO/clock rate from direct capture.
+- [ ] Establish min/mean/max BBD clock frequency and exact clock-to-delay convention.
+- [ ] Establish center/min/max delay per channel and measured L/R phase error from ideal 180 degrees.
+- [ ] Calculate/freeze exact 106 pre/post BBD filter transfer functions and clock-dependent bandwidth.
+- [ ] Verify original 106 dry/wet analogue voltage gains and mono-summing gain.
+- [ ] Characterise factory-calibrated BBD bias/headroom/nonlinear clipping curve.
+- [ ] Characterise factory-new chorus noise, clock feedthrough and L/R noise correlation.
+- [ ] Decide whether any undocumented physical two-button state is stable enough to preserve as an explicitly DEEP-only curiosity.
 
 ## H. FM-1 target
 
