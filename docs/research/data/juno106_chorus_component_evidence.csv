@@ -3,13 +3,35 @@ IC8,MN3009,,BBD channel A,PRIMARY_CONFIRMED,Roland Service Notes p15,Direct sche
 IC9,MN3101,,BBD clock/driver channel A,PRIMARY_CONFIRMED,Roland Service Notes p15,Direct schematic label
 IC10,MN3009,,BBD channel B,PRIMARY_CONFIRMED,Roland Service Notes p15,Direct schematic label
 IC11,MN3101,,BBD clock/driver channel B,PRIMARY_CONFIRMED,Roland Service Notes p15,Direct schematic label
-IC6,TA75558S,,dual op-amp final stereo output section,PRIMARY_CONFIRMED,Roland Service Notes p15,Direct schematic label
+IC6,TA75558S,,dual op-amp stereo output section,PRIMARY_CONFIRMED,Roland Service Notes p15,Direct schematic label; keep separate from following mute/output transistors
 VR1,BIAS,,BBD bias channel A,PRIMARY_CONFIRMED,Roland Service Notes p15 + adjustment procedure,TP1 calibration
 VR2,BIAS,,BBD bias channel B,PRIMARY_CONFIRMED,Roland Service Notes p15 + adjustment procedure,TP2 calibration
 TP1,CH_A,,chorus channel A calibration/test node,PRIMARY_CONFIRMED,Roland Service Notes p15 + adjustment procedure,Wet-path probe before final output section
 TP2,CH_B,,chorus channel B calibration/test node,PRIMARY_CONFIRMED,Roland Service Notes p15 + adjustment procedure,Wet-path probe before final output section
 TP3,LFO_A,,chorus control/LFO probe,PRIMARY_CONFIRMED,Roland Service Notes p15,Complementary control probe
 TP4,LFO_B,,chorus control/LFO probe,PRIMARY_CONFIRMED,Roland Service Notes p15,Complementary control probe
+C44,0.1,uF,BBD channel A input coupling/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Value/designator readable; exact node role to be verified in formal pin-level pass
+C47,0.1,uF,BBD channel B input coupling/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored value/designator readable; exact node role to be verified in formal pin-level pass
+R122,10,kOhm,BBD channel A input/bias region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Readable at IC8 input region; connection to be traced formally
+R113,10,kOhm,BBD channel B input/bias region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored readable value; connection to be traced formally
+R118,3.3,kOhm,BBD channel A output-combine/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Readable directly after IC8; pin-level connection still to be encoded
+R119,3.3,kOhm,BBD channel A output-combine/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Readable directly after IC8; pin-level connection still to be encoded
+R111,3.3,kOhm,BBD channel B output-combine/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirror of channel-A family
+R112,3.3,kOhm,BBD channel B output-combine/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirror of channel-A family
+R98,22,kOhm,BBD channel A post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Value/designator readable; exact node attachment awaits formal trace
+R97,22,kOhm,BBD channel A post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Value/designator readable; exact node attachment awaits formal trace
+R96,22,kOhm,BBD channel A post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Value/designator readable; exact node attachment awaits formal trace
+R95,22,kOhm,BBD channel A post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Value/designator readable; exact node attachment awaits formal trace
+R107,22,kOhm,BBD channel B post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored readable value
+R101,22,kOhm,BBD channel B post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored readable value
+R106,22,kOhm,BBD channel B post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored readable value
+R104,22,kOhm,BBD channel B post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored readable value
+C45,820,pF,BBD channel A post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Directly readable; formal node trace pending
+C46,680,pF,BBD channel A post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Directly readable; formal node trace pending
+C48,820,pF,BBD channel B post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored directly readable value
+C49,680,pF,BBD channel B post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored directly readable value
+C38,0.0018,uF,BBD channel A post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,1.8 nF; readable on primary schematic; formal node trace pending
+C43,0.0018,uF,BBD channel B post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,1.8 nF mirror; formal node trace pending
 R124,8.2,kOhm,MN3101 timing network channel A,PRIMARY_SUPPORTED,Roland Service Notes p15 + Florian Anwander cross-check,Historical MN3009-to-MN3007 mod independently identifies same designator/value/role
 R137,8.2,kOhm,MN3101 timing network channel B,PRIMARY_SUPPORTED,Roland Service Notes p15 + Florian Anwander cross-check,Historical MN3009-to-MN3007 mod independently identifies same designator/value/role
 C53,150,pF,MN3101 timing capacitor channel A,PRIMARY_SUPPORTED,Roland Service Notes p15 + original-board repair cross-check,Retain physical tolerance/matching in reference model
