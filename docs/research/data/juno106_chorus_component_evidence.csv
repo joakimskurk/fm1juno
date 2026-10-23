@@ -1,0 +1,24 @@
+designator,value,unit,role,evidence_status,source,notes
+IC8,MN3009,,BBD channel A,PRIMARY_CONFIRMED,Roland Service Notes p15,Direct schematic label
+IC9,MN3101,,BBD clock/driver channel A,PRIMARY_CONFIRMED,Roland Service Notes p15,Direct schematic label
+IC10,MN3009,,BBD channel B,PRIMARY_CONFIRMED,Roland Service Notes p15,Direct schematic label
+IC11,MN3101,,BBD clock/driver channel B,PRIMARY_CONFIRMED,Roland Service Notes p15,Direct schematic label
+IC6,TA75558S,,dual op-amp final stereo output section,PRIMARY_CONFIRMED,Roland Service Notes p15,Direct schematic label
+VR1,BIAS,,BBD bias channel A,PRIMARY_CONFIRMED,Roland Service Notes p15 + adjustment procedure,TP1 calibration
+VR2,BIAS,,BBD bias channel B,PRIMARY_CONFIRMED,Roland Service Notes p15 + adjustment procedure,TP2 calibration
+TP1,CH_A,,chorus channel A calibration/test node,PRIMARY_CONFIRMED,Roland Service Notes p15 + adjustment procedure,Wet-path probe before final output section
+TP2,CH_B,,chorus channel B calibration/test node,PRIMARY_CONFIRMED,Roland Service Notes p15 + adjustment procedure,Wet-path probe before final output section
+TP3,LFO_A,,chorus control/LFO probe,PRIMARY_CONFIRMED,Roland Service Notes p15,Complementary control probe
+TP4,LFO_B,,chorus control/LFO probe,PRIMARY_CONFIRMED,Roland Service Notes p15,Complementary control probe
+R124,8.2,kOhm,MN3101 timing network channel A,PRIMARY_SUPPORTED,Roland Service Notes p15 + Florian Anwander cross-check,Historical MN3009-to-MN3007 mod independently identifies same designator/value/role
+R137,8.2,kOhm,MN3101 timing network channel B,PRIMARY_SUPPORTED,Roland Service Notes p15 + Florian Anwander cross-check,Historical MN3009-to-MN3007 mod independently identifies same designator/value/role
+C53,150,pF,MN3101 timing capacitor channel A,PRIMARY_SUPPORTED,Roland Service Notes p15 + original-board repair cross-check,Retain physical tolerance/matching in reference model
+C57,150,pF,MN3101 timing capacitor channel B,PRIMARY_SUPPORTED,Roland Service Notes p15 + original-board repair cross-check,Retain physical tolerance/matching in reference model
+R71,47,kOhm,channel A post-TP1/output mix network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify during formal netlist pass
+R70,100,kOhm,channel A post-TP1/output mix network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify node connection during formal netlist pass
+R72,39,kOhm,channel A post-TP1/output mix network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify node connection during formal netlist pass
+R54,15,kOhm,channel A IC6 input/output-stage network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify during formal netlist pass
+R73,47,kOhm,channel B post-TP2/output mix network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify during formal netlist pass
+R67,100,kOhm,channel B post-TP2/output mix network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify node connection during formal netlist pass
+R74,39,kOhm,channel B post-TP2/output mix network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify node connection during formal netlist pass
+R57,15,kOhm,channel B IC6 input/output-stage network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify during formal netlist pass
