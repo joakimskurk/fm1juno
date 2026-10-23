@@ -1,0 +1,112 @@
+schema: fm1juno.juno106.global_output_calibration.v0
+status: PHASE0_ARCHITECTURE_FROZEN_MEASUREMENT_PENDING
+
+signal_order:
+  - SIX_VOICE_SUM
+  - HPF_SELECTOR
+  - IC4A_BUFFER_SUMMER
+  - UPC1252_GLOBAL_VCA
+  - POST_VCA_IV_OUTPUT
+  - CHORUS106
+
+hpf:
+  position_0:
+    semantic: BASS_BOOST
+    topology: DIRECT_PLUS_TWO_STAGE_TWO_POLE_TWO_ZERO_BASS_EMPHASIS
+    primary_anchor:
+      c8_f: 1.0e-8
+    stage_1_components:
+      - C8
+      - C9
+      - R22
+    stage_2_components:
+      - R18
+      - R19
+      - R20
+      - C6
+      - IC4B
+    final_sum_region:
+      - R24
+      - R25
+      - IC4A
+    exact_transfer: MEASURE_OR_PRIMARY_NETLIST_PENDING
+    measured_complex_transfer: MEASURE_PENDING
+  position_1:
+    semantic: FLAT
+    ideal_transfer: STRAIGHT_BRANCH
+  position_2:
+    semantic: HPF
+    order: 1
+    r_ohm: 47000
+    c_f: 1.5e-8
+    fc_ideal_hz: 225.7516923289
+    q: NOT_APPLICABLE_FIRST_ORDER
+  position_3:
+    semantic: HPF_HIGHER
+    order: 1
+    r_ohm: 47000
+    c_f: 4.7e-9
+    fc_ideal_hz: 720.4841244540
+    q: NOT_APPLICABLE_FIRST_ORDER
+
+selector:
+  family: TC4052
+  datasheet_reference_15v:
+    ron_typ_ohm: 80
+    ron_max_ohm: 160
+    status: COMPONENT_DATASHEET_CLASS_ANCHOR
+  corner_sanity_with_ron:
+    position_2_typ_hz: 225.3680870743
+    position_2_max_hz: 224.9857832795
+    position_3_typ_hz: 719.2598523649
+    position_3_max_hz: 718.0397338706
+  installed_unit_ron: MEASURE_PENDING
+
+ic4a:
+  role: HPF_OUTPUT_BUFFER_AND_MODE0_SUMMER
+  exact_small_signal_gain: PRIMARY_NETLIST_PENDING
+  headroom: MEASURE_PENDING
+  slew: MEASURE_PENDING
+
+vca_level_control:
+  raw_bits: 7
+  code_formula: raw7 << 7
+  code_min_hex: 0x0000
+  code_max_hex: 0x3f80
+  module_conditioned_family_v:
+    min_nominal: 0.0
+    max_nominal: 5.0
+  held_voltage_actual: MEASURE_PENDING
+  external_network_to_chip_control: MEASURE_PENDING
+
+upc1252:
+  type: uPC1252H2
+  architecture: CURRENT_MODE_DBX_FAMILY_VCA
+  component_control_reference:
+    control_v_minus_0_300_gain_db_approx: 50
+    control_v_zero_gain_db_approx: 0
+    control_v_plus_0_300_gain_db_approx: -50
+    status: COMPONENT_DATASHEET_REFERENCE_NOT_JUNO_PANEL_LAW
+  juno_chip_control_voltage_curve: MEASURE_PENDING
+  juno_code_to_gain_db_curve: MEASURE_PENDING
+  unity_reference: MEASURE_PENDING
+  maximum_clean_gain_db: MEASURE_PENDING
+  positive_clip_v: MEASURE_PENDING
+  negative_clip_v: MEASURE_PENDING
+  thd_surface: MEASURE_PENDING
+  control_feedthrough: MEASURE_PENDING
+
+post_vca:
+  architecture: CURRENT_TO_VOLTAGE_AND_OUTPUT_STAGE
+  static_gain: MEASURE_PENDING
+  headroom: MEASURE_PENDING
+  loading_into_chorus: MEASURE_PENDING
+
+strict_rules:
+  no_linear_raw_slider_gain: true
+  no_active_voice_normalization: true
+  no_hidden_pre_vca_limiter: true
+  no_juno60_output_loading_import: true
+  no_hpf0_generic_shelf_by_ear: true
+  unresolved_values_centralized: true
+  physical_measurement_plan: docs/research/PHASE0_MEASUREMENT_PLAN.md
