@@ -1,0 +1,53 @@
+* JUNO-106 chorus output summer reference
+* Phase-0 verified resistor-law subcircuit, derived from Roland jack-board schematic.
+*
+* This file intentionally models ONLY the two mirrored IC6 dry/wet summing
+* amplifiers with idealized op-amp cores. BBD/filter insertion loss and the
+* post-IC6 output/mute network are external to this subcircuit.
+*
+* Original channel A:
+*   R71 wet  = 47k
+*   R70 dry  = 100k
+*   R72 fb   = 39k
+*
+* Original channel B:
+*   R73 wet  = 47k
+*   R67 dry  = 100k
+*   R74 fb   = 39k
+*
+* Ideal expected law for either channel:
+*   Vout = -(39k/100k)*Vdry -(39k/47k)*Vwet
+*        = -0.39*Vdry -0.8297872340425532*Vwet
+*
+* Evidence status: VERIFIED_TOPOLOGY_V0 for this limited block.
+
+.subckt JUNO106_CHORUS_SUMMER dry wet out
+R_DRY dry nsum 100k
+R_WET wet nsum 47k
+R_FB  out nsum 39k
+* Idealized inverting op-amp: Vout=A*(Vplus-Vminus), Vplus=0.
+E_OP out 0 0 nsum 1e9
+.ends JUNO106_CHORUS_SUMMER
+
+* Optional self-check harness.
+* Uncomment one stimulus pair at a time in a SPICE runner.
+*
+* VDRY dry 0 DC 1
+* VWET wet 0 DC 0
+* XSUM dry wet out JUNO106_CHORUS_SUMMER
+* .op
+* Expected V(out) ~= -0.39 V
+*
+* VDRY dry 0 DC 0
+* VWET wet 0 DC 1
+* XSUM dry wet out JUNO106_CHORUS_SUMMER
+* .op
+* Expected V(out) ~= -0.829787234 V
+*
+* VDRY dry 0 DC 1
+* VWET wet 0 DC 1
+* XSUM dry wet out JUNO106_CHORUS_SUMMER
+* .op
+* Expected V(out) ~= -1.219787234 V
+
+.end

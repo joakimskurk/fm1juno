@@ -1,0 +1,36 @@
+item,value_or_mapping,evidence_status,source,notes
+MC5534_PAIR_12,IC12 -> voices 1/2,PRIMARY_106_SCHEMATIC,Roland Service Notes module board,Feeds IC13 and IC11
+MC5534_PAIR_34,IC8 -> voices 3/4,PRIMARY_106_SCHEMATIC,Roland Service Notes module board,Mirrored pair
+MC5534_PAIR_56,IC4 -> voices 5/6,PRIMARY_106_SCHEMATIC,Roland Service Notes module board,Mirrored pair
+VCF_VCA_V1,IC13 A1QH80017A,PRIMARY_106_SCHEMATIC,Roland Service Notes module board,Voice 1
+VCF_VCA_V2,IC11 A1QH80017A,PRIMARY_106_SCHEMATIC,Roland Service Notes module board,Voice 2
+VCF_VCA_V3,IC9 A1QH80017A,PRIMARY_106_SCHEMATIC,Roland Service Notes module board,Voice 3
+VCF_VCA_V4,IC7 A1QH80017A,PRIMARY_106_SCHEMATIC,Roland Service Notes module board,Voice 4
+VCF_VCA_V5,IC5 A1QH80017A,PRIMARY_106_SCHEMATIC,Roland Service Notes module board,Voice 5
+VCF_VCA_V6,IC3 A1QH80017A,PRIMARY_106_SCHEMATIC,Roland Service Notes module board,Voice 6
+WAVE_BOUNDARY,saw+pulse share MC5534 WAVE node,PRIMARY_106_IC_DESCRIPTION,Roland Service Notes IC data,Do not model as unrelated oscillator phases
+SUB_BOUNDARY,separate divide-by-two output per voice,PRIMARY_106_IC_DESCRIPTION,Roland Service Notes IC data,Shared level control but independent phase
+WAVE_PROBE_V1,D6 cathode,HARDWARE_REPAIR_CROSS_CHECK,Analogue Renaissance repair procedure,Useful measurement point
+WAVE_PROBE_V2,D5 cathode,HARDWARE_REPAIR_CROSS_CHECK,Analogue Renaissance repair procedure,Useful measurement point
+WAVE_PROBE_V3,D4 cathode,HARDWARE_REPAIR_CROSS_CHECK,Analogue Renaissance repair procedure,Useful measurement point
+WAVE_PROBE_V4,D3 cathode,HARDWARE_REPAIR_CROSS_CHECK,Analogue Renaissance repair procedure,Useful measurement point
+WAVE_PROBE_V5,D2 cathode,HARDWARE_REPAIR_CROSS_CHECK,Analogue Renaissance repair procedure,Useful measurement point
+WAVE_PROBE_V6,D1 cathode,HARDWARE_REPAIR_CROSS_CHECK,Analogue Renaissance repair procedure,Useful measurement point
+PWM_MANUAL_LAW,pwm_code = 0x3fff - floor(0x3fff*(raw7<<1)/256),ROM_DERIVED,Module ROM analysis,Strict integer law
+PWM_OFF,pwm_code = 0,ROM_DERIVED,Module ROM analysis,Pulse disabled through comparator-control path
+PWM_50_ANCHOR,+6.0 V approx,PRIMARY_106_SERVICE,Roland Service Notes,Factory comparator anchor
+PWM_95_ANCHOR,+0.6 V approx,PRIMARY_106_SERVICE,Roland Service Notes,Factory comparator anchor
+PWM_OFF_ANCHOR,-0.8 V approx,PRIMARY_106_SERVICE,Roland Service Notes,Comparator held high / pulse disabled
+SUB_CODE,raw7 << 7,ROM_DERIVED,Module ROM analysis,0x0000..0x3f80
+NOISE_CODE,raw7 << 7,ROM_DERIVED,Module ROM analysis,0x0000..0x3f80
+NOISE_SOURCE,Tr21 selected 2SC945P,PRIMARY_106_PARTS_SCHEMATIC,Roland Service Notes,Selected noise transistor
+NOISE_VCA,IC14 BA662,PRIMARY_106_SCHEMATIC,Roland Service Notes module board,One common noise VCA
+NOISE_TRIM,VR32,PRIMARY_106_SERVICE,Roland Service Notes adjustment,Common noise-level calibration
+NOISE_FACTORY_ANCHOR,TP8 = 4 Vp-p Bank 6 after VCA Gain,PRIMARY_106_SERVICE,Roland Service Notes adjustment,System-level anchor not raw noise amplitude
+NOISE_C41_ROLE,post-noise-VCA RC shaping ~5 kHz,HARDWARE_REPAIR_CROSS_CHECK,Analogue Renaissance real-unit repair evidence,Exact healthy RC transfer still measure pending
+NOISE_COMMON_RULE,one common continuous source,HARDWARE_REPAIR_CROSS_CHECK_PLUS_PRIMARY_GRAPH,Roland schematic + Analogue Renaissance,Do not instantiate six PRNGs
+SOURCE_NORMALIZATION,forbidden,ARCHITECTURE_DERIVED,Physical source network,Preserve actual drive changes into 80017A
+WAVE_TO_VCF_GAIN,MEASURE_PENDING,MEASURE_PENDING,Original schematic/measurement,Do not guess resistor ratio from scan
+SUB_TO_VCF_GAIN,MEASURE_PENDING,MEASURE_PENDING,Original schematic/measurement,Do not guess analogue amplitude law
+NOISE_TO_VCF_GAIN,MEASURE_PENDING,MEASURE_PENDING,Original schematic/measurement,Common fanout ratio remains calibration
+PRE_VCF_HEADROOM,MEASURE_PENDING,MEASURE_PENDING,Hardware measurement,Needed for nonlinear drive calibration

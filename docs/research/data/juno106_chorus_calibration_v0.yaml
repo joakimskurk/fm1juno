@@ -1,0 +1,111 @@
+schema: fm1juno.juno106.chorus_calibration.v0
+status: PHASE0_ARCHITECTURE_FROZEN_MEASUREMENT_PENDING
+
+strict_modes:
+  - OFF
+  - I
+  - II
+
+bbd:
+  type: MN3009
+  stages: 256
+  delay_identity:
+    cp_definition: one_physical_CP_phase_frequency_hz
+    seconds: "128 / f_cp_hz"
+
+clock_network:
+  channel_a:
+    r_control_ohm: 1800
+    r_timing_ohm: 8200
+    c_timing_f: 1.50e-10
+  channel_b:
+    r_control_ohm: 1800
+    r_timing_ohm: 8200
+    c_timing_f: 1.50e-10
+  evidence: PRIMARY_106_SCHEMATIC
+
+clock_trajectory:
+  mode_i:
+    channel_a: MEASURE_PENDING
+    channel_b: MEASURE_PENDING
+  mode_ii:
+    channel_a: MEASURE_PENDING
+    channel_b: MEASURE_PENDING
+  rule: DO_NOT_SUBSTITUTE_JUNO60_RATES_AS_STRICT_106
+
+control_lfo:
+  nominal_relationship_deg: 180
+  reconstruction_validation_anchor_vpp: 20.0
+  anchor_status: SECONDARY_106_RECONSTRUCTION
+  exact_original_vpp: MEASURE_PENDING
+
+output_summer:
+  channel_a:
+    dry_input_ohm: 100000
+    wet_input_ohm: 47000
+    feedback_ohm: 39000
+  channel_b:
+    dry_input_ohm: 100000
+    wet_input_ohm: 47000
+    feedback_ohm: 39000
+  ideal_derived:
+    dry_gain: -0.39
+    wet_gain: -0.8297872340425532
+    wet_to_dry_input_gain_ratio: 2.127659574468085
+  evidence: PRIMARY_106_SCHEMATIC_DERIVED
+
+wet_path:
+  pre_filter_fit_a: MEASURE_PENDING
+  pre_filter_fit_b: MEASURE_PENDING
+  post_filter_fit_a: MEASURE_PENDING
+  post_filter_fit_b: MEASURE_PENDING
+  insertion_gain_vs_clock_a: MEASURE_PENDING
+  insertion_gain_vs_clock_b: MEASURE_PENDING
+  topology_status: FROZEN_MULTI_ELEMENT_ANALOGUE_PATH
+
+completed_output_mix:
+  reconstruction_target:
+    dry_fraction: 0.55
+    wet_fraction: 0.45
+    status: SECONDARY_106_RECONSTRUCTION_ACCEPTANCE_TARGET
+  implied_tp_wet_gain_if_target_exact: 0.3845454545454546
+  implied_value_status: DERIVED_DIAGNOSTIC_NOT_ORIGINAL_CONSTANT
+  measured_original: MEASURE_PENDING
+
+bbd_nonlinearity:
+  channel_a:
+    bias_offset: MEASURE_PENDING
+    positive_headroom_v: MEASURE_PENDING
+    negative_headroom_v: MEASURE_PENDING
+    curve: MEASURE_PENDING
+  channel_b:
+    bias_offset: MEASURE_PENDING
+    positive_headroom_v: MEASURE_PENDING
+    negative_headroom_v: MEASURE_PENDING
+    curve: MEASURE_PENDING
+  factory_rule: SYMMETRICAL_CLIPPING_VIA_VR1_VR2
+
+noise:
+  bbd_device_a: MEASURE_PENDING
+  bbd_device_b: MEASURE_PENDING
+  clock_feedthrough_a: MEASURE_PENDING
+  clock_feedthrough_b: MEASURE_PENDING
+  lr_correlation: MEASURE_PENDING
+  deterministic_seed_required_for_regression: true
+
+output_stage:
+  post_ic6_r_a_ohm: 1500
+  post_ic6_r_b_ohm: 1500
+  static_gain_a: MEASURE_PENDING
+  static_gain_b: MEASURE_PENDING
+  headroom_a: MEASURE_PENDING
+  headroom_b: MEASURE_PENDING
+  mono_jack_law: MEASURE_PENDING
+
+phase0_rules:
+  centralized_calibration_only: true
+  no_magic_rate_hz_in_dsp: true
+  no_magic_delay_ms_in_dsp: true
+  no_generic_14khz_onepole: true
+  no_enabled_source_normalization: true
+  physical_measurement_plan: docs/research/PHASE0_MEASUREMENT_PLAN.md

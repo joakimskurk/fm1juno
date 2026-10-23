@@ -1,37 +1,80 @@
 # FM1JUNO
 
-Circuit-informed Juno-family virtual-analog instrument for the M-VAVE FM-1.
+Circuit-informed JUNO-106 virtual-analog instrument for the M-VAVE FM-1, with selective JUNO-60 circuit ancestry used only where it is technically justified.
 
 ## Status
 
-**Planning and research only. No synth implementation has started yet.**
+**Phase 0 research/specification is advanced. Synth implementation has intentionally not started yet.**
 
-The project goal is not a generic "Juno-ish" subtractive synth. The target is a compact engine whose signal flow and control behaviour are derived from the Roland JUNO-60 and JUNO-106 circuits, with three operating profiles:
+The goal is not a generic "Juno-ish" subtractive synth. `MODEL_106` is the primary fidelity target and is being reconstructed from:
 
-- **60** — JUNO-60-oriented DCO/control behaviour, analogue-style per-voice envelope behaviour, 60 HPF/output voicing and chorus.
-- **106** — JUNO-106 timer/DCO behaviour, digitally generated control/envelope behaviour, 106 HPF/output voicing and chorus.
-- **DEEP** — the same circuit blocks exposed and extended rather than replaced: voice-card spread, calibration/age, expanded modulation, detailed BBD controls, unison/voice options and 60↔106 block morphing where technically meaningful.
+- Roland service/owner documentation;
+- JUNO-106 assigner/module firmware behavior;
+- 8253 timer semantics;
+- MC5534 DCO/ramp circuitry;
+- A1QH80017A / IR3109 / BA662 topology;
+- 106-specific HPF/output and dual-MN3009 chorus circuitry;
+- explicit hardware-measurement plans for constants that public evidence cannot close safely.
 
-Authentic mode starts at **6 voices**. Higher polyphony is a DEEP target only after benchmarking on the FM-1.
+JUNO-60 remains a secondary reference for shared topology, measurement methods and future explicit DEEP/60-derived alternatives. Strict 106 behavior never silently inherits 60-specific clock, IR3R01 envelope, HPF loading or chorus constants.
 
-## Proposed signal path
+## Current strict signal path
 
-`MIDI / keyboard → note allocator → DCO timing → saw / pulse / sub + noise → voice mixer → 4-pole VCF + resonance path → voice VCA → six-voice sum → global HPF / output VCA → dual-BBD chorus → stereo out`
+```text
+keyboard / MIDI
+ -> authentic 106 allocator / control firmware model
+ -> six 8253 Mode-3 timer voices
+ -> six MC5534-derived saw / PWM / sub paths
+ + one common physical noise source
+ -> six source mixers
+ -> six A1QH80017A VCF/VCA voices
+ -> voice sum
+ -> global HPF 0/1/2/3
+ -> global output VCA
+ -> dual-MN3009 / dual-MN3101 stereo chorus
+ -> stereo out
+```
 
-The implementation will preserve the important architectural distinction between the two machines instead of treating them as different EQ curves on the same generic synth.
+Authentic polyphony is six physical voices. Normal seventh-note voice stealing is deliberately **not** part of strict 106 behavior.
+
+## Engineering approach
+
+FM1JUNO separates three things that are often collapsed in VA emulations:
+
+1. **original digital/control behavior** — implemented from the recovered integer/timer semantics;
+2. **high-precision physical reference DSP** — observable and calibration-driven on desktop;
+3. **FM-1 target DSP** — fixed-point/realtime reductions continuously compared against the reference.
+
+Unknown analogue constants are marked `MEASURE_PENDING` with an explicit physical measurement test. They are not hidden as magic numbers in the DSP.
 
 ## FM-1 target
 
-The current FM-1 open platform renders stereo audio at **44.1 kHz in 128-frame blocks**. Device work must therefore be deterministic, allocation-free in the audio path and explicitly budgeted for CPU/SRAM before adding oversampling or extra voices.
+The core is outer-block-size independent.
 
-The 240×240 display and physical controls will use a page-oriented JUNO panel rather than attempting to squeeze the original front panel onto one screen.
+Current platforms expose different wrappers:
 
-## Documents
+- M-VAVE official V14 SDK: **44.1 kHz / 128 stereo frames**;
+- current Dinghy/Felucca custom firmware: **44.1 kHz / 256 stereo frames**.
 
-- `docs/ARCHITECTURE.md` — proposed audio/control architecture.
-- `docs/PLAN.md` — staged research, prototype, validation and FM-1 integration plan.
-- `docs/REFERENCES.md` — primary and secondary technical sources.
+The first standalone FM1JUNO deployment is planned around Dinghy/Felucca because it exposes the complete custom audio callback and recovery/host tooling. The official M-VAVE SDK remains an authoritative current hardware/API reference.
+
+FM-1 resource and realtime targets are documented in `docs/research/FM1_TARGET_BUDGET.md`.
+
+## Documentation
+
+Start here:
+
+- [`docs/README.md`](docs/README.md) — authoritative documentation map and precedence rules.
+- [`docs/PHASE0_REFERENCE_ARCHITECTURE.md`](docs/PHASE0_REFERENCE_ARCHITECTURE.md) — current integrated 106 architecture.
+- [`docs/research/PHASE0_CHECKLIST.md`](docs/research/PHASE0_CHECKLIST.md) — Phase-0 gate/open items.
+- [`docs/research/PHASE0_MEASUREMENT_PLAN.md`](docs/research/PHASE0_MEASUREMENT_PLAN.md) — exact plan for unresolved physical measurements.
+- [`docs/research/FM1_TARGET_BUDGET.md`](docs/research/FM1_TARGET_BUDGET.md) — FM-1 CPU/memory/platform strategy.
+- [`docs/PHASE1_REFERENCE_ENGINE_PLAN.md`](docs/PHASE1_REFERENCE_ENGINE_PLAN.md) — implementation/test sequence before first DSP commit.
+
+Older `ARCHITECTURE.md`, `PLAN.md`, `REFERENCES.md` and `CIRCUIT_MODEL_SPEC_V0.md` are retained as historical baselines; newer specialized documents take precedence.
 
 ## Ground rule
 
-Fidelity comes before feature count. DEEP features may extend the instrument, but authentic 60/106 profiles must remain reproducible and testable.
+Fidelity before feature count.
+
+DEEP features may later expose circuit-derived variation, aging, hybrid 60/106 blocks and additional modulation, but strict `MODEL_106` must remain reproducible, testable and separable from those extensions.
