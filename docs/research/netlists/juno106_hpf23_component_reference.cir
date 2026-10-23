@@ -1,0 +1,27 @@
+* JUNO-106 HPF positions 2 and 3 — component-ideal reference only
+* Status: VERIFIED_COMPONENT_IDEAL, NOT a complete jack-board netlist.
+*
+* Purpose:
+*   Preserve the exact first-order RC anchors from the Roland schematic.
+*   TC4052 Ron/source/loading are deliberately external calibration terms.
+*
+* Transfer for each section:
+*   H(s) = sRC / (1 + sRC)
+*
+* HPF2: R=47k, C=15n  -> 225.7516923289 Hz ideal
+* HPF3: R=47k, C=4.7n -> 720.4841244540 Hz ideal
+
+.subckt J106_HPF2_IDEAL IN OUT
+C_HPF2 IN N_HPF2 15n
+R_HPF2 N_HPF2 0 47k
+E_HPF2 OUT 0 N_HPF2 0 1
+.ends J106_HPF2_IDEAL
+
+.subckt J106_HPF3_IDEAL IN OUT
+C_HPF3 IN N_HPF3 4.7n
+R_HPF3 N_HPF3 0 47k
+E_HPF3 OUT 0 N_HPF3 0 1
+.ends J106_HPF3_IDEAL
+
+* Do not add a Q parameter: these are first-order branches.
+* Do not add a fixed TC4052 Ron here: installed-unit Ron is calibration data.
