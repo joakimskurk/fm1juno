@@ -55,12 +55,19 @@ Strict `MODEL_106` must not inherit 60-specific clock, IR3R01 envelope, HPF load
 
 - [`research/JUNO106_HPF_GLOBAL_OUTPUT.md`](research/JUNO106_HPF_GLOBAL_OUTPUT.md)
 
-### Chorus
+### Chorus — Phase-0 frozen architecture
 
-- [`research/JUNO106_CHORUS.md`](research/JUNO106_CHORUS.md) — authoritative chorus index.
-- [`research/JUNO106_CHORUS_CLOCK.md`](research/JUNO106_CHORUS_CLOCK.md) — MN3101/MN3009 clock and delay law.
-- [`research/JUNO106_CHORUS_FILTERS_MIX.md`](research/JUNO106_CHORUS_FILTERS_MIX.md) — audio filters, BBD bias, dry/wet and output path.
-- [`research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md`](research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md) — direct Roland jack-board schematic transcription and netlist boundary.
+- [`research/JUNO106_CHORUS.md`](research/JUNO106_CHORUS.md) — authoritative chorus status/index; state `CHORUS_PHASE0_FROZEN`.
+- [`research/JUNO106_CHORUS_REFERENCE_MODEL.md`](research/JUNO106_CHORUS_REFERENCE_MODEL.md) — implementation and closure contract.
+- [`research/JUNO106_CHORUS_CLOCK.md`](research/JUNO106_CHORUS_CLOCK.md) — MN3101/MN3009 clock and exact delay law.
+- [`research/JUNO106_CHORUS_FILTERS_MIX.md`](research/JUNO106_CHORUS_FILTERS_MIX.md) — original BBD audio path, bias, exact IC6 dry/wet summer and output-stage boundary.
+- [`research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md`](research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md) — direct Roland jack-board schematic transcription/evidence boundary.
+- [`research/data/juno106_chorus_component_evidence.csv`](research/data/juno106_chorus_component_evidence.csv) — per-component evidence state.
+- [`research/data/juno106_chorus_calibration_v0.yaml`](research/data/juno106_chorus_calibration_v0.yaml) — centralized strict calibration / `MEASURE_PENDING` values.
+- [`research/netlists/juno106_chorus_output_mix_reference.cir`](research/netlists/juno106_chorus_output_mix_reference.cir) — verified IC6 summer subcircuit.
+- [`research/netlists/README.md`](research/netlists/README.md) — netlist verification rules.
+
+Remaining original-hardware captures are calibration backlog and must replace `MEASURE_PENDING` values before claiming final hardware-calibrated fidelity. They do not reopen the frozen chorus architecture unless measurements contradict primary evidence.
 
 ### Evidence / implementation boundary
 
