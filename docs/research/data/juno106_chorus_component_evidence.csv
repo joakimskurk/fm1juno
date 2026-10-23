@@ -10,37 +10,39 @@ TP1,CH_A,,chorus channel A calibration/test node,PRIMARY_CONFIRMED,Roland Servic
 TP2,CH_B,,chorus channel B calibration/test node,PRIMARY_CONFIRMED,Roland Service Notes p15 + adjustment procedure,Wet-path probe before final output section
 TP3,LFO_A,,chorus control/LFO probe,PRIMARY_CONFIRMED,Roland Service Notes p15,Complementary control probe
 TP4,LFO_B,,chorus control/LFO probe,PRIMARY_CONFIRMED,Roland Service Notes p15,Complementary control probe
-C44,0.1,uF,BBD channel A input coupling/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Value/designator readable; exact node role to be verified in formal pin-level pass
-C47,0.1,uF,BBD channel B input coupling/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored value/designator readable; exact node role to be verified in formal pin-level pass
-R122,10,kOhm,BBD channel A input/bias region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Readable at IC8 input region; connection to be traced formally
-R113,10,kOhm,BBD channel B input/bias region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored readable value; connection to be traced formally
-R118,3.3,kOhm,BBD channel A output-combine/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Readable directly after IC8; pin-level connection still to be encoded
-R119,3.3,kOhm,BBD channel A output-combine/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Readable directly after IC8; pin-level connection still to be encoded
+C44,0.1,uF,BBD channel A input coupling/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Value/designator readable; exact node role retained in formal topology transcription
+C47,0.1,uF,BBD channel B input coupling/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored value/designator readable
+R122,10,kOhm,BBD channel A input/bias region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Readable at IC8 input region
+R113,10,kOhm,BBD channel B input/bias region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored readable value
+R118,3.3,kOhm,BBD channel A output-combine/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Readable directly after IC8
+R119,3.3,kOhm,BBD channel A output-combine/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Readable directly after IC8
 R111,3.3,kOhm,BBD channel B output-combine/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirror of channel-A family
 R112,3.3,kOhm,BBD channel B output-combine/filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirror of channel-A family
-R98,22,kOhm,BBD channel A post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Value/designator readable; exact node attachment awaits formal trace
-R97,22,kOhm,BBD channel A post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Value/designator readable; exact node attachment awaits formal trace
-R96,22,kOhm,BBD channel A post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Value/designator readable; exact node attachment awaits formal trace
-R95,22,kOhm,BBD channel A post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Value/designator readable; exact node attachment awaits formal trace
-R107,22,kOhm,BBD channel B post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored readable value
-R101,22,kOhm,BBD channel B post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored readable value
-R106,22,kOhm,BBD channel B post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored readable value
-R104,22,kOhm,BBD channel B post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored readable value
-C45,820,pF,BBD channel A post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Directly readable; formal node trace pending
-C46,680,pF,BBD channel A post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Directly readable; formal node trace pending
+R98,22,kOhm,BBD channel A post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored low-pass family
+R97,22,kOhm,BBD channel A post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored low-pass family
+R96,22,kOhm,BBD channel A post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored low-pass family
+R95,22,kOhm,BBD channel A post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored low-pass family
+R107,22,kOhm,BBD channel B post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored low-pass family
+R101,22,kOhm,BBD channel B post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored low-pass family
+R106,22,kOhm,BBD channel B post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored low-pass family
+R104,22,kOhm,BBD channel B post-BBD filter/amplifier region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored low-pass family
+C45,820,pF,BBD channel A post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Directly readable
+C46,680,pF,BBD channel A post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Directly readable
 C48,820,pF,BBD channel B post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored directly readable value
 C49,680,pF,BBD channel B post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Mirrored directly readable value
-C38,0.0018,uF,BBD channel A post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,1.8 nF; readable on primary schematic; formal node trace pending
-C43,0.0018,uF,BBD channel B post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,1.8 nF mirror; formal node trace pending
-R124,8.2,kOhm,MN3101 timing network channel A,PRIMARY_SUPPORTED,Roland Service Notes p15 + Florian Anwander cross-check,Historical MN3009-to-MN3007 mod independently identifies same designator/value/role
-R137,8.2,kOhm,MN3101 timing network channel B,PRIMARY_SUPPORTED,Roland Service Notes p15 + Florian Anwander cross-check,Historical MN3009-to-MN3007 mod independently identifies same designator/value/role
-C53,150,pF,MN3101 timing capacitor channel A,PRIMARY_SUPPORTED,Roland Service Notes p15 + original-board repair cross-check,Retain physical tolerance/matching in reference model
-C57,150,pF,MN3101 timing capacitor channel B,PRIMARY_SUPPORTED,Roland Service Notes p15 + original-board repair cross-check,Retain physical tolerance/matching in reference model
-R71,47,kOhm,channel A post-TP1/output mix network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify during formal netlist pass
-R70,100,kOhm,channel A post-TP1/output mix network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify node connection during formal netlist pass
-R72,39,kOhm,channel A post-TP1/output mix network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify node connection during formal netlist pass
-R54,15,kOhm,channel A IC6 input/output-stage network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify during formal netlist pass
-R73,47,kOhm,channel B post-TP2/output mix network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify during formal netlist pass
-R67,100,kOhm,channel B post-TP2/output mix network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify node connection during formal netlist pass
-R74,39,kOhm,channel B post-TP2/output mix network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify node connection during formal netlist pass
-R57,15,kOhm,channel B IC6 input/output-stage network,SCHEMATIC_READ_CHECK_REQUIRED,Roland Service Notes p15,Readable scan transcription; verify during formal netlist pass
+C38,0.0018,uF,BBD channel A post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,1.8 nF readable on primary schematic
+C43,0.0018,uF,BBD channel B post-BBD filter region,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,1.8 nF mirror
+R123,1.8,kOhm,MN3101 timing network channel A,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Direct primary schematic read; same value as reconstruction cross-check
+R124,8.2,kOhm,MN3101 timing network channel A,PRIMARY_CONFIRMED,Roland Service Notes p15 + Florian Anwander cross-check,Historical MN3009-to-MN3007 mod independently identifies same designator/value/role
+C53,150,pF,MN3101 timing capacitor channel A,PRIMARY_CONFIRMED,Roland Service Notes p15 + original-board repair cross-check,Primary value visible; repair evidence confirms tight-tolerance matching role
+R136,1.8,kOhm,MN3101 timing network channel B,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Direct primary schematic read; mirrored value
+R137,8.2,kOhm,MN3101 timing network channel B,PRIMARY_CONFIRMED,Roland Service Notes p15 + Florian Anwander cross-check,Historical MN3009-to-MN3007 mod independently identifies same designator/value/role
+C57,150,pF,MN3101 timing capacitor channel B,PRIMARY_CONFIRMED,Roland Service Notes p15 + original-board repair cross-check,Primary value visible; repair evidence confirms tight-tolerance matching role
+R71,47,kOhm,channel A wet input to IC6 output summer,PRIMARY_CONNECTION_VERIFIED,Roland Service Notes p15,Mirrored with R73; contributes wet-path summer gain
+R70,100,kOhm,channel A dry input to IC6 output summer,PRIMARY_CONNECTION_VERIFIED,Roland Service Notes p15,Mirrored with R67; contributes dry-path summer gain
+R72,39,kOhm,channel A IC6 feedback resistor,PRIMARY_CONNECTION_VERIFIED,Roland Service Notes p15,Defines inverting summer gain with R71/R70
+R73,47,kOhm,channel B wet input to IC6 output summer,PRIMARY_CONNECTION_VERIFIED,Roland Service Notes p15,Mirror of R71
+R67,100,kOhm,channel B dry input to IC6 output summer,PRIMARY_CONNECTION_VERIFIED,Roland Service Notes p15,Mirror of R70
+R74,39,kOhm,channel B IC6 feedback resistor,PRIMARY_CONNECTION_VERIFIED,Roland Service Notes p15,Mirror of R72
+R54,1.5,kOhm,channel A post-IC6/output network,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Corrected from an earlier 15k misread; primary scan clearly reads 1.5k
+R57,1.5,kOhm,channel B post-IC6/output network,PRIMARY_VALUE_VISIBLE,Roland Service Notes p15,Corrected mirrored value
