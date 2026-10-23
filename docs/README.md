@@ -44,7 +44,17 @@ Strict `MODEL_106` must not inherit 60-specific clock, IR3R01 envelope, HPF load
 ### DCO / source path
 
 - [`research/JUNO106_MC5534_RAMP.md`](research/JUNO106_MC5534_RAMP.md)
-- [`research/JUNO106_SOURCE_MIXER_NOISE.md`](research/JUNO106_SOURCE_MIXER_NOISE.md)
+
+### Source mixer / SUB / common NOISE — Phase-0 frozen architecture
+
+- [`research/JUNO106_SOURCE_MIXER_REFERENCE_MODEL.md`](research/JUNO106_SOURCE_MIXER_REFERENCE_MODEL.md) — authoritative implementation contract; state `SOURCE_MIXER_PHASE0_ARCHITECTURE_FROZEN`.
+- [`research/JUNO106_SOURCE_MIXER_NOISE.md`](research/JUNO106_SOURCE_MIXER_NOISE.md) — detailed research/evidence companion.
+- [`research/SOURCE_MIXER_PHASE0_CLOSURE.md`](research/SOURCE_MIXER_PHASE0_CLOSURE.md) — block-specific Phase-0 closure gate.
+- [`research/data/juno106_source_mixer_calibration_v0.yaml`](research/data/juno106_source_mixer_calibration_v0.yaml) — centralized strict calibration / `MEASURE_PENDING` values.
+- [`research/data/juno106_source_mixer_evidence.csv`](research/data/juno106_source_mixer_evidence.csv) — per-fact evidence state.
+- [`research/netlists/juno106_source_mixer_topology.csv`](research/netlists/juno106_source_mixer_topology.csv) — physical WAVE/SUB/common-NOISE topology map.
+
+Remaining original-hardware captures are calibration backlog: exact WAVE/SUB/NOISE injection ratios, source impedances, analogue level curves, noise spectral transfer and pre-VCF headroom. They do not reopen the frozen source-mixer graph unless measurements contradict primary evidence.
 
 ### VCF / VCA
 
