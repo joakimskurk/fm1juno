@@ -1,8 +1,6 @@
 # JUNO-106 chorus clock and MN3009 delay model
 
-Status: Phase 0 companion to `JUNO106_CHORUS.md`.
-
-Purpose: define the exact clock-domain semantics and the strongest current original-106 component evidence while keeping unmeasured Mode-I/II trajectories explicitly open.
+Status: Phase 0 reference specification. The clock-domain architecture and original external timing component family are now primary-mapped. The remaining strict numerical unknown is the **real operating trajectory** of the original MN3101/BBD clocks in modes I and II.
 
 ## 1. Clock domains
 
@@ -72,18 +70,37 @@ assert_near(delaySeconds * fCp, 128)
 
 This closes the factor-of-two ambiguity that often appears in simplified BBD emulations.
 
-## 3. Original 106 clock-network evidence
+## 3. Original 106 MN3101 timing networks
 
-### 3.1 R124 / R137
+A readable original Roland jack-board schematic now establishes the mirrored external timing component families directly.
 
-Strong original-106 service/modification evidence identifies:
+### Channel A
 
 ```text
+R123 = 1.8 kOhm
 R124 = 8.2 kOhm
-R137 = 8.2 kOhm
+C53  = 150 pF
 ```
 
-A documented MN3009 -> MN3007 conversion changes the 256-stage device to a 1024-stage device and reduces these clock-setting resistors to roughly one quarter (~2.2 kOhm practical), raising clock frequency by about 4x to preserve delay.
+### Channel B
+
+```text
+R136 = 1.8 kOhm
+R137 = 8.2 kOhm
+C57  = 150 pF
+```
+
+Evidence state:
+
+- `R123/R136 = 1.8 kOhm`: `PRIMARY_VALUE_VISIBLE`;
+- `R124/R137 = 8.2 kOhm`: `PRIMARY_CONFIRMED` and independently cross-checked by the documented MN3009->MN3007 modification;
+- `C53/C57 = 150 pF`: `PRIMARY_CONFIRMED`, with original-board repair evidence additionally confirming that these are closely matched/tight-tolerance timing capacitors.
+
+This replaces the older wording that treated the 1.8k values and exact family as reconstruction-only.
+
+## 4. Independent clock-network cross-check
+
+A documented MN3009 -> MN3007 conversion changes the 256-stage device to a 1024-stage device and reduces JUNO-106 `R124/R137` from 8.2 kOhm to roughly one quarter, about 2.05 kOhm ideally / 2.2 kOhm as a practical historical substitution.
 
 Sanity identity:
 
@@ -93,44 +110,11 @@ f_new / f_old ~= 4
 => delay_new ~= delay_old
 ```
 
-This strongly confirms that R124/R137 participate directly in the original MN3101 frequency-setting networks.
+This independently confirms that `R124/R137` are frequency-setting elements in the two original MN3101 oscillator networks.
 
-### 3.2 C53 / C57
+## 5. Do not invent a precision RC frequency equation
 
-Original-board repair evidence now independently identifies the two nearby timing capacitors as:
-
-```text
-C53 = 150 pF
-C57 = 150 pF
-```
-
-The repair discussion notes that the originals are tight-tolerance parts used to match the two chorus channels and recommends similarly stable replacements.
-
-This materially raises confidence beyond the previous reconstruction-only evidence.
-
-### 3.3 Full working external network
-
-A 106-focused hardware reconstruction converges on the symmetric per-channel MN3101 external family:
-
-```text
-~1.8 kOhm / 8.2 kOhm / 150 pF
-```
-
-Working mapping:
-
-```text
-CH A: R123 ~= 1.8k, R124 = 8.2k, C53 = 150p
-CH B: R136 ~= 1.8k, R137 = 8.2k, C57 = 150p
-```
-
-Confidence boundary:
-
-- `R124`, `R137`, `C53`, `C57`: strong original-106 evidence;
-- `R123`, `R136` and exact node mapping: retain `SCHEMATIC_CROSS_CHECK` until a clean original crop/continuity map is archived.
-
-## 4. Do not invent a precision RC frequency equation
-
-MN3101 contains an internal inverter oscillator. Device documentation describes the external R/C network and provides empirical frequency curves rather than one universal precision equation suitable for declaring the JUNO clock authentic from components alone.
+MN3101 contains an internal inverter oscillator. Device documentation describes the external R/C network and provides empirical frequency curves rather than one universal precision equation suitable for declaring the JUNO clock authentic from component values alone.
 
 Therefore:
 
@@ -154,12 +138,14 @@ fCpStrict = fittedOriginal106Clock(controlVoltage, measuredCapture)
 
 for strict rendering.
 
-## 5. Physical causal chain
+The original component values now define the **correct physical network**, but they do not by themselves remove process/temperature/control-transfer uncertainty inside the MN3101.
+
+## 6. Physical causal chain
 
 The chorus LFO does not directly equal delay modulation.
 
 ```text
-triangle-like LFO voltage
+triangle-like LFO/control voltage
  -> transistor/control interface
  -> MN3101 oscillator operating point
  -> f_osc(t)
@@ -174,11 +160,11 @@ Even an ideal triangle control voltage will not produce a perfectly triangular d
 - control transistors can add curvature/asymmetry;
 - channel tolerances differ slightly.
 
-This is consistent with SoundForce choosing to reproduce captured physical-106 driver signals rather than synthesize a mathematically perfect triangle.
+SoundForce reports sampling the actual BBD-driver signals from a physical JUNO-106 and replaying those trajectories digitally specifically to retain the imperfections of the real driver signal. This is strong support for keeping a measured-trajectory layer rather than replacing the clock with a generic sine/triangle delay LFO.
 
-## 6. Modulation amplitude anchor
+## 7. Modulation amplitude anchor
 
-A 106-focused hardware reconstruction calibrated from the Roland design uses approximately:
+A 106-focused hardware reconstruction calibrated against the Roland design uses approximately:
 
 ```text
 20 Vp-p
@@ -186,33 +172,40 @@ A 106-focused hardware reconstruction calibrated from the Roland design uses app
 
 for the normal/inverted control-LFO pair, with equal amplitude and nominal 180-degree inversion.
 
-Use this as a control-domain validation anchor, not as a delay-depth number.
+Treat this as a **control-domain validation anchor**, not as a delay-depth value. Final strict delay excursion still comes from measured `f_cp(t)`.
 
-## 7. Mode I / II rates remain measured constants
+## 8. Mode I / II rates remain physical-measurement constants
 
-Do not use JUNO-60 numeric rates as strict 106 values.
+The original JUNO-106 service documentation does not specify numeric chorus LFO rates. Florian Anwander independently notes the same absence; published JUNO-60 rates are therefore not strict 106 evidence.
 
 Evidence currently establishes:
 
-- original 106 has two slow chorus presets I and II;
-- a 106-derived adjustable reconstruction spans roughly 0..1.8 Hz and marks positions matching I and II;
-- SoundForce has direct original-106 clock captures but does not publish the numeric trajectories.
+- original 106 has two slow presets I and II;
+- both reuse the same physical dual-MN3101 / dual-MN3009 architecture;
+- a 106-derived adjustable reconstruction spans roughly 0..1.8 Hz and marks physical positions corresponding to I and II;
+- SoundForce has direct original-106 driver captures but does not publish the numeric trajectories.
 
-Therefore:
+Therefore strict calibration remains:
 
 ```text
-modeI.rateHz  = MEASURE
-modeII.rateHz = MEASURE
+modeI.rateHz  = MEASURE_PENDING
+modeII.rateHz = MEASURE_PENDING
 ```
 
-The two modes share the same physical clock/BBD architecture.
+Development/reference code may use an explicitly tagged provisional trajectory, but **must not call JUNO-60 0.5/0.8-Hz values authentic 106 constants**.
 
-## 8. Reference API
+## 9. Reference API
 
 ```text
 enum class ClockDomain106 {
     Mn3101Oscillator,
     Mn3101CpPhase
+};
+
+struct Mn3101TimingNetwork106 {
+    double rControlOhm;  // 1.8k nominal original network member
+    double rTimingOhm;   // 8.2k nominal original network member
+    double cTimingF;     // 150p nominal
 };
 
 struct Mn3101State106 {
@@ -221,6 +214,7 @@ struct Mn3101State106 {
 };
 
 struct ClockDriver106 {
+    Mn3101TimingNetwork106 components;
     Mn3101State106 processControlVoltage(double lfoVolts);
 };
 
@@ -231,7 +225,7 @@ double mn3009DelaySeconds(double fCpHz) {
 
 Runtime FM-1 precision may differ; these names define the reference semantics.
 
-## 9. Required original-106 capture
+## 10. Required original-106 capture
 
 For both channels and both I/II modes:
 
@@ -259,7 +253,7 @@ bias calibration state
 
 Raw captures should remain test assets; source code should store compact fitted coefficients and regression vectors.
 
-## 10. FM-1 simplification path
+## 11. FM-1 simplification path
 
 The deployed FM-1 does not need to run an MN3101 transistor/oscillator simulation at audio rate.
 
@@ -273,7 +267,7 @@ After physical capture:
 
 This preserves the physical causal chain at modest CPU cost.
 
-## 11. Freeze state
+## 12. Phase-0 freeze state
 
 ### Frozen
 
@@ -281,18 +275,21 @@ This preserves the physical causal chain at modest CPU cost.
 - `f_cp = f_osc/2`;
 - MN3009 stage count `N=256`;
 - exact delay identity `t=128/f_cp`;
-- R124 = R137 = 8.2 kOhm strongly established;
-- C53 = C57 = 150 pF now independently supported by physical original-board repair evidence;
-- working full external family ~= 1.8k / 8.2k / 150p per channel;
+- original timing families `1.8k / 8.2k / 150p` on both channels;
+- R124/R137 role independently cross-checked by historical 4x MN3007 clock modification;
+- tight channel matching of C53/C57 is intentional;
 - clock-domain modulation precedes reciprocal delay conversion;
-- nominal opposite-phase control-LFO relationship;
+- nominal opposite-phase control relationship;
+- measured/non-ideal trajectory capability is required;
 - no JUNO-60 numeric-rate substitution in strict 106.
 
-### Open
+### `MEASURE_PENDING`, not architecture blockers
 
-- clean original archive of the R123/R136 values and exact node mapping;
-- exact original Mode-I and Mode-II LFO frequencies;
-- exact `f_cp(t)` min/max/mean and nonlinearity;
-- channel mismatch;
-- simultaneous clock/audio validation of delay;
+- exact original Mode-I LFO/clock trajectory;
+- exact original Mode-II LFO/clock trajectory;
+- min/max/mean `f_cp(t)`;
+- A/B mismatch and phase error;
+- simultaneous clock/audio confirmation of absolute delay;
 - clock-dependent BBD insertion loss and bandwidth.
+
+These have explicit acquisition and acceptance procedures in `PHASE0_MEASUREMENT_PLAN.md` and therefore no longer require guessed constants to cross the Phase-0 architecture gate.
