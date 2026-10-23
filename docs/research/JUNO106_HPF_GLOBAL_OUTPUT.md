@@ -4,404 +4,440 @@ Status: Phase 0 reference specification for strict `MODEL_106`.
 
 This block begins **after the six per-voice 80017A VCA outputs have been summed** and ends at the input to the chorus/output section.
 
-## 0. Why this block must remain global
+## 0. Evidence classes
 
-The JUNO-106 front panel places HPF visually before VCF/VCA, but the hardware does not.
+- **PRIMARY-106** — Roland owner/service documentation and original schematic.
+- **SCHEMATIC-DERIVED** — direct mathematical consequence of original component values/topology.
+- **SECONDARY-CIRCUIT-CHECK** — independent schematic analysis used to disambiguate or sanity-check.
+- **OPEN** — retain a parameterized model and explicit verification test.
 
-Physical signal order is:
+## 1. Physical order and why this block stays global
 
-```text
-6 x voice VCF/VCA outputs
-        |
-        +--> mono voice sum
-                |
-                +--> global fixed-response HPF selector
-                        |
-                        +--> IC4A buffer/summing stage
-                                |
-                                +--> global uPC1252 VCA (VCA LEVEL)
-                                        |
-                                        +--> chorus / output chain
-```
+The front-panel graphics do not represent the physical signal order.
 
-Therefore:
-
-- do not place one HPF per voice;
-- do not place VCA LEVEL inside each 80017A voice;
-- do not calibrate the chorus from pre-global-VCA signal levels.
-
-## 1. HPF selector and firmware encoding
-
-**PRIMARY/FIRMWARE-CONFIRMED**
-
-The module CPU receives the HPF state in switch data and explicitly transforms the two HPF bits before writing the external control latch:
+Reference path:
 
 ```text
-A = switch2
-A ^= 0x18
-A &= 0x18
-A >>= 1
-merge into IC40 latch bits
+6 x voice 80017A VCA outputs
+        -> mono voice sum
+        -> global HPF selector / boost network
+        -> IC4A buffer
+        -> global uPC1252H2 VCA (VCA LEVEL)
+        -> chorus / output chain
 ```
 
-This inversion explains why the apparent Y0/Y1/etc. labeling of the 4052 mux is reversed relative to the front-panel position if the schematic is read literally.
+Consequences:
 
-Strict implementation should expose semantic states:
+- no HPF per voice;
+- no patch VCA LEVEL inside each 80017A;
+- no normalization by active voice count;
+- six-voice chords and Solo-Unison naturally drive this common path harder.
+
+## 2. HPF selector semantics
+
+**PRIMARY-106**
+
+Roland defines the front-panel states as:
+
+```text
+0 -> low-frequency boost
+1 -> unprocessed / flat
+2 -> high-pass
+3 -> higher high-pass
+```
+
+The module firmware inverts/remaps the two physical control bits before driving the selector latch, explaining why literal 4052 Y-labels appear reversed against the front-panel numbering.
+
+Strict code should use semantic states:
 
 ```text
 HPF_0_BASS_BOOST
 HPF_1_FLAT
-HPF_2_HIGH_PASS
-HPF_3_HIGH_PASS_HIGHER
+HPF_2_225
+HPF_3_720
 ```
 
-and keep the original latch-bit mapping inside the hardware-compatibility/control layer rather than leaking inverted bit numbering into DSP code.
+and hide physical mux bit polarity inside the hardware/control layer.
 
-## 2. One global 4052-selected network
+This is a four-route analogue selector, not one continuously variable high-pass filter.
 
-Circuit analysis of the Roland jack-board schematic confirms that the 106 uses one 4052-family analogue mux to route the mono voice sum through one of four fixed paths.
+## 3. Position 1 — straight / flat branch
 
-The switch is not a voltage-controlled cutoff; it is a discrete analogue-routing selector.
+**PRIMARY-106 / SCHEMATIC-DERIVED**
 
-The four modes are therefore four **different transfer networks**, not one filter whose cutoff parameter changes continuously.
-
-## 3. HPF position 1 — straight/flat path
-
-Position `1` is the actual nominal straight-through response.
-
-Strict model target:
+Position 1 selects the nominal straight-through branch.
 
 ```text
-H1(s) ~= unity through the selector/buffer path
+H1(s) ~= 1
 ```
 
-Real hardware may still contain:
+`flat` means no intentional HPF/boost branch. The real path still includes the analogue switch, IC4A buffer, global VCA and later output stages.
 
-- analogue-switch on resistance;
-- coupling capacitors;
-- op-amp bandwidth/headroom;
-- global VCA loading after the buffer.
+Do not implement HPF 1 as a bit-perfect bypass of the entire global output block.
 
-But there is no intentional high-pass or bass-boost response in this selector state.
+## 4. Position 2 — first-order 225.75 Hz HPF
 
-This is a key distinction from treating panel position `0` as bypass.
+**SCHEMATIC-DERIVED**
 
-## 4. HPF positions 2 and 3 — first-order high-pass paths
-
-The two upper positions are passive RC high-pass branches selected by the mux.
-
-Secondary engineering/cloning work gives useful calibration targets:
+The original branch uses:
 
 ```text
-HPF 2: ~6 dB/oct high-pass, fc ~225 Hz
-HPF 3: ~6 dB/oct high-pass, fc ~700 Hz
+R = 47 kOhm
+C = 15 nF
 ```
 
-These are **secondary calibration targets**, not yet a replacement for direct calculation from a clean Roland jack-board component read.
-
-First strict reference form:
+For the ideal first-order RC high-pass:
 
 ```text
-H_hp(s) = s / (s + wc)
+fc = 1/(2*pi*R*C)
+   = 225.7516923289 Hz
 ```
 
-with independently configurable `wc2` and `wc3`.
-
-Do not use a resonant/biquad HPF unless the original passive network or measurement demonstrates a second pole.
-
-## 5. HPF position 0 — bass boost, not bypass
-
-Position `0` is the most distinctive 106 state.
-
-The Roland circuit routes both:
-
-1. a straight/unfiltered contribution; and
-2. a filtered bass-emphasis contribution
-
-into the following summing/buffer stage.
-
-Detailed circuit interpretation of the original schematic identifies two bass-emphasis stages in the filtered branch:
-
-### Stage 1
-
-Elements around:
+Freeze:
 
 ```text
-C8
-C9
-R22
+HPF2_R_OHM       = 47000
+HPF2_C_F         = 15e-9
+HPF2_FC_IDEAL_HZ = 225.7516923289
 ```
 
-form a one-pole / one-zero shelving-type section.
-
-### Stage 2
-
-Elements around:
+Transfer before small source/switch-loading corrections:
 
 ```text
-R18
-R19
-R20
-C6
-IC4B
+H2(s) = s*R*C / (1 + s*R*C)
 ```
 
-form an active pole/zero section with similar low-frequency emphasis behavior.
+Slope below the corner is 6 dB/octave.
 
-The filtered branch is then combined with the straight branch through the network around `R24` / `R25` into IC4A.
+The commonly quoted `225 Hz` figure is therefore not an arbitrary emulator tuning value; it falls directly out of the original RC pair.
 
-Overall position-0 behavior is therefore better represented as a **two-pole/two-zero bass-emphasis branch summed with dry**, not as:
+## 5. Position 3 — first-order 720.48 Hz HPF
 
-- cutoff = 0 Hz;
-- a one-pole low-pass;
-- or a generic single low-shelf EQ.
+**SCHEMATIC-DERIVED**
 
-### Calibration target
-
-Secondary clone engineering reports approximately:
+The original branch uses:
 
 ```text
-~+3 dB low-frequency shelf behavior centered around ~70 Hz
+R = 47 kOhm
+C = 4.7 nF
 ```
 
-This is useful as an A/B target, but the reference topology should retain two poles/two zeros so later exact Roland component values can be dropped in without redesigning the model.
-
-Provisional form:
+Ideal corner:
 
 ```text
-Hboost(s) = Gdry + Gf * ((s+z1)(s+z2))/((s+p1)(s+p2))
+fc = 1/(2*pi*R*C)
+   = 720.4841244540 Hz
 ```
 
-where `Gdry`, `Gf`, `p1,p2,z1,z2` are derived from the real circuit once the component map is unambiguous.
+Freeze:
 
-## 6. Why the JUNO-60 HPF/output cannot be silently reused
+```text
+HPF3_R_OHM       = 47000
+HPF3_C_F         = 4.7e-9
+HPF3_FC_IDEAL_HZ = 720.4841244540
+```
 
-The 106 inserts IC4A as a buffer between the selected HPF network and the global uPC1252 VCA.
+Transfer:
 
-The JUNO-60 does not provide the same buffering arrangement. Its passive HPF network is therefore loaded more directly by the following VCA, and that loading can vary with VCA gain/control state, producing additional high-frequency rolloff.
+```text
+H3(s) = s*R*C / (1 + s*R*C)
+```
+
+Again the slope is 6 dB/octave.
+
+This is a better strict reference than rounding the high setting to `700 Hz` before the circuit model is even built.
+
+## 6. 4052 on-resistance and the simple HPF branches
+
+The selector is a TC4052-family analogue mux with finite on-resistance.
+
+For positions 2/3, switch resistance is small relative to 47 kOhm, so it only perturbs the ideal corners slightly.
+
+Strict reference architecture should nevertheless retain:
+
+```text
+R_effective = 47k + sourceR + switchRon + loadingCorrection
+```
+
+rather than hard-coding a digital filter frequency detached from the actual circuit.
+
+The final measured/reference corner may therefore differ slightly from 225.7517 / 720.4841 Hz while those values remain the **component-ideal anchors**.
+
+## 7. Position 0 — active bass boost, not `fc = 0`
+
+**PRIMARY-106 topology; numerical curve still OPEN**
+
+Position 0 routes the signal through a distinct active network around IC4B and then into the IC4A summing/buffer stage.
+
+Original-schematic analysis consistently identifies C8 = 0.01 uF as part of the low-frequency emphasis network.
+
+The circuit combines:
+
+1. a straight contribution; and
+2. a frequency-shaped bass-emphasis contribution.
+
+It is therefore incorrect to model position 0 as:
+
+- bypass;
+- HPF with cutoff 0 Hz;
+- a simple gain boost;
+- or a generic one-pole EQ chosen by ear.
+
+Independent circuit analyses converge on a characteristic transition around roughly 65–70 Hz, but disagree enough on the exact shelf height/passband offset that Phase 0 deliberately does **not** freeze a dB value yet.
+
+Published secondary interpretations range from a few dB around the transition to roughly +6 dB low-band gain with a small broadband offset once switch resistance is included.
+
+Freeze only:
+
+```text
+HPF0.type = ACTIVE_DRY_PLUS_FILTERED_BASS_SHELF
+HPF0.transition_region_hz ~= 65..70
+HPF0.gain_curve = MEASURE_OR_DERIVE_FROM_FULL_NETLIST
+```
+
+Do not choose +3 dB, +6 dB or +10 dB as strict truth without closing the original node map.
+
+## 8. Critical 106 vs 60 difference: IC4A isolation
+
+The 106 inserts IC4A as a buffer between the selected HPF network and the global uPC1252H2 VCA.
+
+The 60 does not have the same isolation. Its passive network is loaded more directly by the following global VCA, which can introduce gain-dependent high-frequency loss.
 
 Strict consequences:
 
-- `MODEL_106` uses the buffered 106 topology;
-- do **not** add a generic 'Juno warmth' high-frequency loss copied from 60;
-- a 60-style load-dependent output response may later become an explicit DEEP/60 option.
+- `MODEL_106` must use the buffered topology;
+- do not add generic Juno-60 output dulling to the 106;
+- VCA LEVEL should not move the 106 HPF response through VCA input loading in the same way;
+- a 60-style loading model belongs only in explicit `MODEL_60` / DEEP hybrid work.
 
-This difference is likely one reason generic emulations that share one HPF/output model for 60 and 106 miss part of their tonal distinction.
+This is a useful example of using 60 experience to explain the 106 without merging them.
 
-## 7. Global VCA LEVEL firmware law
+## 9. Global VCA LEVEL control path
 
 **PRIMARY/FIRMWARE-CONFIRMED**
 
-VCA LEVEL is received as a 7-bit patch parameter and stored with the same 14-bit conversion used by SUB, NOISE, CUTOFF and RESONANCE:
+VCA LEVEL arrives as a 7-bit patch parameter and uses the 14-bit storage conversion:
 
 ```text
 vca_level_code = raw7 << 7
 ```
 
-so the internal target range is:
+Range:
 
 ```text
 0x0000 .. 0x3F80
 ```
 
-The module main loop outputs this value through the shared DAC/S&H system before the pitch/DCO section.
-
-Roland's D/A timing/control diagram categorizes the conditioned `VCA LEVEL` control in the nominal:
+Roland's D/A diagram places VCA LEVEL in the nominal conditioned:
 
 ```text
 0 .. +5 V
 ```
 
-class.
+control family.
 
-Therefore the correct architecture is:
+The physical chain is therefore:
 
 ```text
-raw slider/patch value
- -> exact integer code law
- -> DAC/S&H
- -> 0..~+5 V conditioned control
- -> jack-board scaling/network
- -> uPC1252 control port
+raw patch value
+ -> exact integer code
+ -> shared DAC/S&H
+ -> conditioned ~0..+5 V control
+ -> jack-board control network
+ -> uPC1252 gain-control pins
  -> global audio gain
 ```
 
-## 8. uPC1252 is not a linear-gain OTA knob
+Do not collapse this to `gain = raw/127`.
 
-The uPC1252HA2 is a dbx-family voltage-controlled amplifier originally intended for companding/noise-reduction systems.
+## 10. What the uPC1252H2 tells us
 
-Independent dbx documentation/patent literature describes this family as a decilinear/log-domain VCA whose gain changes exponentially with differential control voltage, with a characteristic control law expressed in millivolts per dB (later related devices around the same family use approximately 6 mV/dB control scaling).
+Component/service documentation identifies uPC1252H2 as a dbx-family VCA with:
 
-Important limitation:
+- current-mode audio input/output;
+- internal current amplifier;
+- gain cell;
+- bias-current circuitry;
+- multiple gain-control pins.
 
-Roland does **not** feed the raw 0..+5 V DAC control directly as `5 V / 6 mV per dB`.
+So VCA LEVEL is not merely a linear post-DSP multiplier.
 
-The jack-board resistor/control network necessarily converts/scales the conditioned VCA LEVEL voltage into the uPC1252's differential control-current/voltage domain.
+Important caution: dbx-family VCAs use log/decilinear control behavior, but the Roland `0..+5 V` module-board control is **not** fed directly as a simple `mV/dB` voltage to the chip. The jack-board network performs scale/offset/current conversion.
 
-Therefore strict Phase-0 rule:
+Strict Phase-0 rule:
 
-- preserve a separate `GlobalVca1252` block;
-- do not assume linear amplitude vs `raw7`;
-- do not assume 6 mV/dB directly from the module DAC;
-- leave the Roland jack-board scale/offset as explicit constants to derive from schematic/measurement.
+```text
+GlobalVca1252 {
+    code14
+    heldControlVoltage
+    externalControlNetwork
+    gainState
+    nonlinearState
+}
+```
 
-## 9. VCA LEVEL is intended to change patch loudness and can distort
+Do not guess either a linear taper or an arbitrary exponential taper and promote it to authenticity.
 
-The original owner's manual describes VCA LEVEL as a patch-level matching control and explicitly warns that setting it too high may produce distortion without indicating a fault.
+## 11. High VCA LEVEL distortion is part of the instrument
 
-This is highly relevant to the engine.
+The original owner's manual explicitly says that setting VCA LEVEL too high may cause distortion and that this is normal rather than a fault.
 
-It means at least one of the following can become nonlinear/overloaded as level rises:
+Therefore available headroom in this common path is musically relevant.
 
-- IC4A/output buffer;
-- uPC1252 audio path;
-- post-VCA coupling/gain stage;
+Possible contributors include:
+
+- IC4A / summing-buffer headroom;
+- uPC1252 current/gain-cell headroom;
+- post-VCA conversion/coupling stage;
 - chorus input stage;
-- combinations of the above.
+- combined loading of the above.
 
-Strict model must therefore preserve headroom through this block rather than implementing VCA LEVEL as an arbitrary final floating-point multiplier with infinite clean headroom.
+Strict engine policy:
 
-## 10. Reference block structure
+- preserve six-voice summed voltage;
+- apply HPF/shelf before the global VCA;
+- allow high VCA LEVEL to reach the modeled nonlinear region;
+- no invisible per-voice normalization;
+- no hidden pre-model limiter.
 
-```text
-Hpf106
-  mode
+A platform-protection limiter, if required on FM-1, belongs **after** the calibrated reference path and must be bypassable in reference renders.
 
-  process(x):
-    switch mode:
-      0: return bass_boost_topology(x)
-      1: return flat_path(x)
-      2: return hp1_225ish(x)
-      3: return hp1_700ish(x)
+## 12. Numerical uPC1252 gain law remains open
 
-Buffer106
-  process(x)  // IC4A topology/headroom
-
-GlobalVca1252
-  control_code_14
-  control_voltage_held
-  gain_state
-
-  process(x)
-```
-
-Keep HPF and global VCA separate even if an optimized FM-1 build later fuses arithmetic operations.
-
-## 11. Hardware-voltage/headroom policy
-
-Input to this block is the summed output of six calibrated voice VCAs.
-
-Do not normalize by active voice count.
-
-Six voices sounding together should naturally present a larger signal than one voice, subject to the real summing network and available headroom.
-
-This is especially important for:
-
-- resonant chords;
-- SAW+PULSE+SUB combinations;
-- high VCA LEVEL;
-- chorus drive;
-- Solo-Unison, where all six physical voices carry the same pitch.
-
-The eventual model should be able to reproduce the manual's high-VCA-level distortion warning as an emergent headroom effect rather than a cosmetic waveshaper knob.
-
-## 12. Provisional calibration targets
-
-Until exact jack-board passives are fully transcribed, use these as explicit non-primary targets:
-
-| Mode | Functional target | Confidence |
-|---|---|---|
-| HPF 0 | two-pole/two-zero dry+filtered bass boost, roughly +3 dB LF around ~70 Hz | topology strong; numeric target secondary |
-| HPF 1 | nominal flat/straight path | strong |
-| HPF 2 | first-order HP, ~225 Hz | secondary numeric |
-| HPF 3 | first-order HP, ~700 Hz | secondary numeric |
-
-These values belong in configurable reference constants, not hidden magic numbers in the final FM-1 DSP.
-
-## 13. Exact component extraction still required
-
-For full numerical circuit freeze, obtain an unambiguous node/component map for the JACK BOARD around:
+Required strict transfer:
 
 ```text
-HPF 0:
-  C8, C9, R22
-  R18, R19, R20, C6, IC4B
-  R24, R25, IC4A
-
-HPF 2/3:
-  the two selected RC branches and switch/on-resistance context
-
-Global VCA:
-  IC5 uPC1252
-  VCA LEVEL control scaling resistors
-  audio input/output resistors and coupling capacitors
-  any symmetry/offset/headroom components
+gain = upc1252Gain(controlVoltage,
+                   externalNetwork,
+                   bias,
+                   signalLevel)
 ```
 
-OCR fragments are **not** sufficient evidence if spatial connectivity is ambiguous.
+Open numerical items:
 
-A clean schematic crop, board tracing or direct measurement should be archived before these values are upgraded to `PRIMARY/SCHEMATIC-CONFIRMED`.
+- exact 106 IIN/IOUT conversion resistors;
+- exact gain-control pin resistor network;
+- control offset/scale from module control voltage;
+- gain dB vs VCA LEVEL code;
+- unity/reference setting;
+- maximum clean gain;
+- positive/negative clipping knees;
+- THD vs level and gain;
+- control feedthrough/offset if audible.
 
-## 14. Required measurements / render tests
+These should be solved from the original jack-board netlist and/or measurement, not by taste.
 
-### HPF transfer sweeps
+## 13. Desktop reference implementation
 
-Inject a low-level broadband/swept sine into the mono post-voice-sum node with VCA LEVEL held at a reference gain.
+Keep the blocks separate and observable:
 
-Measure each mode:
+```text
+voiceSum
+ -> HpfSelector106
+ -> BufferIC4A106
+ -> GlobalVca1252
+ -> Chorus106
+```
 
-- 10 Hz .. 30 kHz magnitude;
-- phase;
-- passband gain;
-- -3 dB / shelf points;
-- effect of 4052 on resistance/source impedance.
+Recommended diagnostics:
+
+```text
+HPF_PHYSICAL
+HPF_IDEAL_BRANCH
+
+VCA_UNITY
+VCA_STATIC_MEASURED
+VCA_FULL_NONLINEAR
+```
+
+For HPF 2/3, derive digital coefficients from the physical RC values at the renderer sample rate rather than storing rounded frequencies as magic numbers.
+
+For HPF 0, wait for the full active-node model before freezing coefficients.
+
+## 14. Verification plan
+
+### HPF sweep
+
+On a calibrated original 106, chorus off:
+
+1. reference all four modes to HPF 1;
+2. capture complex transfer 10 Hz..30 kHz;
+3. verify first-order phase/magnitude of positions 2/3;
+4. fit actual corners including switch/source/loading effects;
+5. derive the complete mode-0 shelf curve and passband offset;
+6. repeat at low/mid/high VCA LEVEL to verify IC4A isolation.
+
+Expected anchors:
+
+```text
+HPF1: flat reference
+HPF2: ideal component corner 225.7516923 Hz
+HPF3: ideal component corner 720.4841245 Hz
+HPF0: active bass shelf, transition roughly 65..70 Hz, exact gain TBD
+```
 
 ### VCA LEVEL sweep
 
 At HPF 1:
 
-- fixed 1 kHz sine;
-- sweep panel/patch VCA LEVEL 0..127;
-- record output RMS/Vp-p;
-- convert to dB gain;
-- fit gain vs DAC/control voltage;
-- repeat at multiple input amplitudes to expose headroom/nonlinearity.
+- fixed 1 kHz source;
+- VCA LEVEL raw 0..127;
+- record output gain in dB;
+- measure corresponding control voltage if safely possible;
+- repeat at multiple input levels;
+- determine gain taper independently from overload behavior.
 
-### High-level distortion
+### Headroom
 
-At VCA LEVEL near maximum:
+Compare:
 
 - one voice vs six voices;
-- SAW-only vs full source mix;
-- chorus off vs chorus on;
-- measure THD/spectral onset and identify which node clips first.
+- SAW-only vs maximum practical source mix;
+- low vs high VCA LEVEL;
+- chorus OFF vs ON.
 
-### 60/106 A/B
+Locate the first clipping/nonlinear node rather than fitting all distortion to one arbitrary waveshaper.
 
-Once 106 is frozen, compare an explicit 60 output-loading model only as an A/B experiment. No 60 load-dependent rolloff is permitted in strict 106 defaults.
+## 15. FM-1 deployment implication
 
-## 15. Freeze state
+This is a global block, so high fidelity is cheap compared with six nonlinear filters.
+
+Likely deployment:
+
+```text
+voiceSum
+ -> discrete HPF route
+ -> cheap IC4A buffer/headroom model
+ -> LUT/polynomial uPC1252 gain + nonlinearity
+ -> Chorus106
+```
+
+Positions 2/3 each need only one filter state. Position 0 should remain a small circuit-derived low-order network. Global VCA nonlinearity is computed once, not six times.
+
+## 16. Freeze state
 
 ### Frozen
 
-- one global HPF after six-voice sum;
-- discrete four-path selector, not variable cutoff;
-- mode 1 = straight/flat;
-- modes 2/3 = first-order high-pass branches;
-- mode 0 = dry + two-stage bass-emphasis branch, not bypass;
-- IC4A buffers/sums the 106 HPF output before global VCA;
-- 106 therefore must not inherit 60's load-dependent HPF/VCA rolloff;
-- VCA LEVEL uses `raw7 << 7` firmware law and nominal 0..+5 V conditioned control;
-- global VCA is uPC1252/dbx-family and needs explicit nonlinear gain/headroom modeling;
-- VCA LEVEL remains post-HPF, pre-chorus;
-- high VCA LEVEL may distort by design/available headroom.
+- one global HPF after the six-voice sum;
+- four discrete analogue routes;
+- position 1 = straight/flat;
+- position 2 = 47 kOhm / 15 nF first-order HPF, ideal `225.7516923289 Hz`;
+- position 3 = 47 kOhm / 4.7 nF first-order HPF, ideal `720.4841244540 Hz`;
+- position 0 = distinct dry+filtered active bass shelf around a ~65..70 Hz transition, exact gain still open;
+- finite 4052 on-resistance remains part of the physical reference;
+- IC4A isolates the 106 HPF from uPC1252 loading, unlike the 60;
+- VCA LEVEL uses `raw7<<7` and the nominal 0..+5 V conditioned-control family;
+- global VCA is uPC1252H2 after HPF and before chorus;
+- high VCA LEVEL can intentionally expose global-path distortion;
+- no active-voice normalization in strict mode.
 
 ### Open
 
-- exact Roland HPF component values/connectivity in a machine-readable/archived crop;
-- exact transfer constants for HPF 0/2/3;
-- 4052 on-resistance contribution;
-- IC4A gain/headroom/slew contribution;
-- Roland uPC1252 control scale/offset/gain law;
-- uPC1252 audio-path distortion/headroom in this exact circuit;
-- downstream chorus-input loading and where high-VCA-level clipping actually begins.
+- exact HPF0 node-by-node transfer and shelf gain;
+- actual TC4052 on-resistance at the operating point;
+- IC4A exact gain/headroom/slew contribution;
+- complete uPC1252 external network;
+- static VCA LEVEL -> gain/dB law;
+- global VCA/output headroom and nonlinear curve;
+- exact point at which the owner's-manual high-level distortion begins;
+- downstream loading into chorus/output stage.
