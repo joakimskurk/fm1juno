@@ -1,0 +1,16 @@
+node,channel,primary_anchor,upstream_region,downstream_region,status,notes
+CH_IN,shared,Jack-board chorus input,global VCA/output-level section,BBD A+B split,PRIMARY_VISIBLE,Physical signal entering chorus section; exact coupling/source impedance to be transcribed
+BBD_A_IN,A,IC8 MN3009,input bias/filter network,IC8 audio input,PRIMARY_VISIBLE,Keep VR1 bias network explicit
+BBD_A_OUT,A,IC8 MN3009,IC8 output pins,post-BBD transistor/filter network,PRIMARY_VISIBLE,Do not collapse dual BBD output pins before formal pin-level transcription
+TP1_WET_A,A,TP1,post-BBD A network,output mix A,PRIMARY_VISIBLE,Roland bias-calibration probe; service procedure uses VR1
+CLOCK_A,A,IC9 MN3101,control/clock timing network,IC8 clock pins,PRIMARY_VISIBLE,R124=8.2k and C53=150p are timing-network anchors
+CTRL_A_TP3,A,TP3,chorus control generator,IC9 control network,PRIMARY_VISIBLE,Complementary partner to TP4; exact trajectory remains measurement target
+BBD_B_IN,B,IC10 MN3009,input bias/filter network,IC10 audio input,PRIMARY_VISIBLE,Keep VR2 bias network explicit
+BBD_B_OUT,B,IC10 MN3009,IC10 output pins,post-BBD transistor/filter network,PRIMARY_VISIBLE,Do not collapse dual BBD output pins before formal pin-level transcription
+TP2_WET_B,B,TP2,post-BBD B network,output mix B,PRIMARY_VISIBLE,Roland bias-calibration probe; service procedure uses VR2
+CLOCK_B,B,IC11 MN3101,control/clock timing network,IC10 clock pins,PRIMARY_VISIBLE,R137=8.2k and C57=150p are timing-network anchors
+CTRL_B_TP4,B,TP4,chorus control generator,IC11 control network,PRIMARY_VISIBLE,Complementary partner to TP3; exact phase/error remains measurement target
+OUT_MIX_A,A,IC6 + R71/R70/R72/R54 region,dry path + TP1 wet path,SIG_OUT_1,RESCAN_REQUIRED,Topology visibly contains dry/wet summing and active output stage; exact node attachments must be traced before gain calculation
+OUT_MIX_B,B,IC6 + R73/R67/R74/R57 region,dry path + TP2 wet path,SIG_OUT_2,RESCAN_REQUIRED,Mirror of A at high level; exact node attachments must be traced before gain calculation
+SIG_OUT_1,A,Jack-board SIG.OUT 1,OUT_MIX_A,output connector/muting network,PRIMARY_VISIBLE,Retain output loading and muting transistors in first topology netlist
+SIG_OUT_2,B,Jack-board SIG.OUT 2,OUT_MIX_B,output connector/muting network,PRIMARY_VISIBLE,Retain output loading and muting transistors in first topology netlist
