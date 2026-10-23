@@ -57,9 +57,10 @@ Strict `MODEL_106` must not inherit 60-specific clock, IR3R01 envelope, HPF load
 
 ### Chorus
 
-- [`research/JUNO106_CHORUS.md`](research/JUNO106_CHORUS.md)
-- [`research/JUNO106_CHORUS_CLOCK.md`](research/JUNO106_CHORUS_CLOCK.md)
-- [`research/JUNO106_CHORUS_FILTERS.md`](research/JUNO106_CHORUS_FILTERS.md)
+- [`research/JUNO106_CHORUS.md`](research/JUNO106_CHORUS.md) — authoritative chorus index.
+- [`research/JUNO106_CHORUS_CLOCK.md`](research/JUNO106_CHORUS_CLOCK.md) — MN3101/MN3009 clock and delay law.
+- [`research/JUNO106_CHORUS_FILTERS_MIX.md`](research/JUNO106_CHORUS_FILTERS_MIX.md) — audio filters, BBD bias, dry/wet and output path.
+- [`research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md`](research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md) — direct Roland jack-board schematic transcription and netlist boundary.
 
 ### Evidence / implementation boundary
 
