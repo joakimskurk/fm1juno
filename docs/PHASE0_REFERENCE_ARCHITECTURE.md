@@ -278,27 +278,39 @@ Frozen topology:
 six voice outputs
  -> global sum
  -> HPF selector
-      0 = bass-boost network
+      0 = active bass-boost network
       1 = straight/flat path
-      2 = HPF
-      3 = stronger HPF
- -> buffer
- -> global uPC1252-family VCA / VCA LEVEL
+      2 = 47k / 15n first-order HPF
+      3 = 47k / 4.7n first-order HPF
+ -> IC4A buffer
+ -> global uPC1252H2 VCA / VCA LEVEL
  -> chorus
 ```
+
+Frozen numerical anchors:
+
+- HPF 2 ideal RC corner = `225.7516923289 Hz`;
+- HPF 3 ideal RC corner = `720.4841244540 Hz`;
+- HPF 0 is a distinct dry+filtered active bass shelf with a transition in roughly the 65–70 Hz region; exact shelf gain is **not** frozen because available secondary analyses disagree;
+- finite 4052 on-resistance remains part of the physical reference;
+- VCA LEVEL starts as `raw7 << 7` and belongs to Roland's nominal 0..+5 V conditioned-control family.
 
 Rules:
 
 - strict 106 must not import JUNO-60 load-dependent HPF/output behavior;
-- HPF 0 is not 'cutoff=0 Hz'; it is a distinct bass-boost transfer;
+- HPF 0 is not 'cutoff=0 Hz';
 - global VCA remains separate from per-voice BA662 VCAs;
-- VCA LEVEL uses recovered digital control scaling but final uPC1252 gain/headroom law is analogue/calibration work.
+- no active-voice normalization before the global output path;
+- the owner's-manual high-VCA-level distortion warning is treated as a real headroom constraint, not a cosmetic effect;
+- the final uPC1252 gain/dB and nonlinear law remains explicit analogue/calibration work rather than a guessed linear/exponential slider.
 
 Still measurement-sensitive:
 
-- exact four HPF transfer functions;
-- global VCA gain-vs-control law;
-- headroom/nonlinearity.
+- exact HPF 0 transfer and shelf gain;
+- actual TC4052 on-resistance at operating point;
+- IC4A headroom/slew contribution;
+- complete uPC1252 external network and VCA LEVEL -> gain law;
+- global output headroom/nonlinearity and downstream chorus loading.
 
 ## 11. JUNO-106 chorus
 
@@ -306,13 +318,13 @@ Authoritative documents:
 
 - [`research/JUNO106_CHORUS.md`](research/JUNO106_CHORUS.md)
 - [`research/JUNO106_CHORUS_CLOCK.md`](research/JUNO106_CHORUS_CLOCK.md)
-- [`research/JUNO106_CHORUS_FILTERS.md`](research/JUNO106_CHORUS_FILTERS.md)
+- [`research/JUNO106_CHORUS_FILTERS_MIX.md`](research/JUNO106_CHORUS_FILTERS_MIX.md)
 
 Frozen physical architecture:
 
 ```text
 global mono pre-chorus signal
- -> dry path -> L/R summers
+ -> common dry path -> L/R summers
  -> wet split
       -> MN3009 path A <- MN3101 clock A
       -> MN3009 path B <- MN3101 clock B
@@ -326,7 +338,8 @@ Frozen highlights:
 - opposite channel modulation, nominal 180 degrees;
 - triangle-like control trajectory with allowance for real hardware imperfection;
 - dry+wet routing, not 100%-wet;
-- OFF/I/II are strict original user modes;
+- approximate 55/45 dry/wet is retained only as a 106-focused reconstruction calibration target, not normalized DSP law;
+- OFF/I/II are the strict original stored/user states; later Roland-style I+II belongs only in an explicit non-strict DEEP extension;
 - Juno-6/60 I+II constants are not imported into strict 106;
 - explicit clock domains are mandatory:
   - `f_osc` = MN3101 internal oscillator;
@@ -335,16 +348,17 @@ Frozen highlights:
 - MN3009 exact delay identity when `f_cp` is physical CP frequency:
   - `t_delay = 256/(2*f_cp) = 128/f_cp`;
 - original R124/R137 = 8.2 kOhm is strongly cross-checked;
-- working external clock network ~1.8 kOhm / 8.2 kOhm / 150 pF per channel remains schematic/cross-check evidence pending a clean original read;
+- C53/C57 = 150 pF now has original-board repair support in addition to reconstruction evidence;
+- working full clock family is approximately 1.8 kOhm / 8.2 kOhm / 150 pF per channel, with remaining exact node/designator details explicitly qualified;
 - wet path is a multi-section analogue network, not one arbitrary 10–14 kHz LPF;
-- reference engine keeps BBD input bias, output-pair combiner, pre/post filtering, BBD headroom and chorus noise as separate concepts;
+- reference engine keeps BBD input bias, pre/post filtering, BBD headroom, dry/wet summing, output stage and chorus noise as separate concepts;
 - clone-only anti-thump/MN3007 improvements must not leak into strict model.
 
 Still measurement-sensitive:
 
 - original Mode I and II clock trajectories/rates;
 - center/min/max delay and A/B mismatch;
-- exact wet-path filter transfer vs clock;
+- exact original wet-path node map and transfer vs clock;
 - dry/wet analogue gains and mono-sum gain;
 - BBD bias/headroom curve;
 - factory-new BBD noise and clock feedthrough.
