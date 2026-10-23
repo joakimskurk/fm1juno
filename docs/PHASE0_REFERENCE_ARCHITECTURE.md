@@ -4,7 +4,7 @@ Status: **authoritative living index for current Phase-0 decisions**.
 
 `docs/CIRCUIT_MODEL_SPEC_V0.md` is retained as the early baseline/design draft. Where that older file conflicts with a specialized research document listed here, **the newer specialized document wins**.
 
-This index intentionally stays short. Detailed evidence, arithmetic, caveats and tests live in the linked files.
+This index intentionally stays compact. Detailed evidence, arithmetic, caveats and tests live in the linked files.
 
 ## 1. Product/model policy
 
@@ -18,7 +18,8 @@ Rules:
 - six physical voices;
 - no normal seventh-note voice stealing;
 - firmware/control-rate stepping is preserved where it is part of the original behavior;
-- analogue modeling begins at real hardware boundaries such as timer edges, DAC/S&H controls and hybrid inputs rather than reinterpreting panel parameters directly in audio rate.
+- analogue modeling begins at real hardware boundaries such as timer edges, DAC/S&H controls and hybrid inputs rather than reinterpreting panel parameters directly at audio rate;
+- unresolved analogue constants live in centralized calibration data as `MEASURE_PENDING`, never as scattered magic numbers.
 
 ### JUNO-60 evidence
 
@@ -38,12 +39,16 @@ Not allowed as silent 106 truth:
 
 Post-fidelity extension layer. Circuit-derived alternatives/tolerances may live here later, but DEEP must not contaminate strict `MODEL_106` calibration.
 
-## 2. Evidence and provenance
+## 2. Evidence, provenance and measurement
 
 Authoritative provenance rules:
 
 - [`research/SOURCE_INDEX.md`](research/SOURCE_INDEX.md)
 - [`research/JUNO106_EVIDENCE.md`](research/JUNO106_EVIDENCE.md)
+
+Hardware/validation plan:
+
+- [`research/PHASE0_MEASUREMENT_PLAN.md`](research/PHASE0_MEASUREMENT_PLAN.md)
 
 Clean-room rule:
 
@@ -52,11 +57,19 @@ Clean-room rule:
 - prefer compact independently derived integer laws, equations and calibration vectors;
 - GPL reference projects are not copied unless licensing is deliberately made compatible.
 
-## 3. Normal voice assignment and retrigger
+Phase-0 measurement rule:
 
-Authoritative document:
+- raw captures are evidence;
+- model coefficients are derived artifacts;
+- one vintage unit is a calibration target, not universal truth;
+- unknown constants may enter Phase 1 only when paired with an explicit measurement/verification test.
+
+## 3. Normal voice assignment, Solo-Unison and retrigger
+
+Authoritative documents:
 
 - [`research/JUNO106_ASSIGNER_RETRIGGER.md`](research/JUNO106_ASSIGNER_RETRIGGER.md)
+- [`research/JUNO106_SOLO_UNISON_TIMING.md`](research/JUNO106_SOLO_UNISON_TIMING.md)
 
 Frozen highlights:
 
@@ -67,7 +80,8 @@ Frozen highlights:
 - ENV re-attack begins from current level;
 - timer reset is separate from ENV retrigger;
 - timer reset occurs for different-note + not-running voice; same-note and/or running/sustained voice preserves Mode-3 phase;
-- normal Solo-Unison sends the note to all six physical voices rather than rendering one oscillator six times.
+- Solo-Unison sends the same note as six sequential physical Voice On commands rather than rendering one oscillator six times;
+- assigner->module link runs at 31.25 kbit/s, so unison reset/control timing is inherently staggered rather than one atomic six-voice event.
 
 ## 4. Pitch, Portamento, 8253 and DCO CV
 
@@ -84,10 +98,9 @@ Frozen highlights:
 - per-voice Portamento pitch is added to that global offset;
 - Portamento is constant-step firmware-rate movement in 8.8 semitone space;
 - 8253 runs Mode 3 with integer count interpolation and separate ordinary reload/reset-and-load behavior;
-- ordinary count changes take effect at the Mode-3 boundary, not as instant audio-rate phase-increment changes;
+- ordinary count changes take effect at a Mode-3 boundary rather than as instant audio-rate phase-increment changes;
 - digital DCO-CV law follows an independently derivable octave-doubling/exponential note law with the same pitch fraction as timer interpolation;
-- RANGE is applied in the analogue current/ramp network rather than included in digital DCO-CV data;
-- ideal range-network conductance scales approximately 1:2:4 for 16':8':4' before nonideal corrections.
+- RANGE is applied in the analogue current/ramp network rather than included in digital DCO-CV data.
 
 ## 5. Digital envelope
 
@@ -104,7 +117,10 @@ Frozen highlights:
 - current-level re-attack;
 - firmware/control-rate behavior must be preserved before S/H reconstruction.
 
-Still open: exact main-loop/service timing under workload and final S/H reconstruction dynamics.
+Still measurement/calibration-sensitive:
+
+- exact main-loop/service timing under workload;
+- final DAC/S&H settling/droop reconstruction.
 
 ## 6. LFO, LFO Delay and performance modulation
 
@@ -123,11 +139,54 @@ Frozen highlights:
 - LFO Delay is two-stage: holdoff then depth ramp;
 - automatic Delay is armed only after all `voiceRun` bits become empty and restarts on the first subsequent running voice;
 - overlapping/legato/sustained notes do not restart automatic Delay;
-- physical LFO-trigger/MIDI performance depth is combined after automatic DCO-LFO Delay scaling and therefore bypasses the panel Delay.
+- physical LFO-trigger/MIDI performance depth is combined after automatic DCO-LFO Delay scaling and therefore bypasses panel Delay.
 
-Still open: exact average/workload-dependent loop timing and physical trigger ADC threshold/hysteresis.
+## 7. MC5534 source waveform and oscillator mixer
 
-## 7. Digital VCF control
+Authoritative documents:
+
+- [`research/JUNO106_MC5534_RAMP.md`](research/JUNO106_MC5534_RAMP.md)
+- [`research/JUNO106_SOURCE_MIXER_NOISE.md`](research/JUNO106_SOURCE_MIXER_NOISE.md)
+
+Frozen source architecture:
+
+```text
+8253 edge timing
+ -> MC5534 finite-reset ramp
+ -> SAW
+ -> shared-ramp PWM comparator -> PULSE
+ -> timing-domain /2 -> SUB
+
+one common physical NOISE generator
+
+per voice:
+  WAVE + SUB + common NOISE
+    -> 80017A input
+```
+
+Frozen/working physical model:
+
+- DCO CV is a held analogue slope control, not an audio-rate oscillator frequency parameter;
+- positive DCO edge initiates ramp reset;
+- RANGE selects the ramp-current resistor after DCO CV generation;
+- working 106 range set: ~399 kOhm / 200 kOhm / 100 kOhm for 16'/8'/4';
+- ramp capacitance triangulates strongly to ~1 nF;
+- ideal law `dV/dt = -Vdco/(R*C)` naturally explains the ~12 Vp-p amplitude target;
+- strict mode must retain small note/range amplitude error instead of normalizing each cycle;
+- PWM derives from the same physical ramp and held PWM CV;
+- SUB/NOISE digital level controls use the recovered 14-bit-style control domain;
+- one common noise source must feed all six voices; never instantiate six independent noise generators;
+- enabled-source-count normalization before the VCF is forbidden.
+
+Still measurement-sensitive:
+
+- exact MC5534 reset transient/residual;
+- loaded DCO-CV/S&H voltage law and droop;
+- exact source-mixer gains/headroom;
+- SUB and NOISE analogue gain law;
+- noise spectrum/filter constants.
+
+## 8. Digital VCF control
 
 Authoritative document:
 
@@ -154,7 +213,7 @@ Frozen highlights:
 - maximum VCF-LFO signal before sign = 4047 under nominal max values;
 - final VCF control clamps to `0x0000..0x3fff` before analogue conversion.
 
-## 8. A1QH80017A filter/VCA
+## 9. A1QH80017A filter/VCA
 
 Authoritative document:
 
@@ -199,39 +258,139 @@ First desktop reference structure:
 - explicit BA662 voice VCA;
 - test 1x vs selective 2x oversampling before committing target cost.
 
-Still open:
+Still measurement-sensitive:
 
-- exact vintage 106 hybrid passive set / 240-vs-~250-pF question;
+- exact vintage hybrid passive set / 240-vs-~250-pF question;
 - vintage IR3109 nonlinear scale and stage-buffer limits;
 - strict BA662 resonance and VCA transfer/control laws;
-- VCF DAC/S&H code-to-control-voltage mapping;
+- VCF DAC/S&H code-to-control-voltage/frequency mapping;
 - whether thermal/supply dynamics deserve FM-1 budget after static warmed-up behavior passes.
 
-## 9. DCO waveform/mixer, HPF and chorus
+## 10. Global HPF and output VCA
 
-Not yet frozen to the same depth as the digital control + 80017A topology.
+Authoritative document:
 
-Current gates are tracked in:
+- [`research/JUNO106_HPF_GLOBAL_OUTPUT.md`](research/JUNO106_HPF_GLOBAL_OUTPUT.md)
+
+Frozen topology:
+
+```text
+six voice outputs
+ -> global sum
+ -> HPF selector
+      0 = bass-boost network
+      1 = straight/flat path
+      2 = HPF
+      3 = stronger HPF
+ -> buffer
+ -> global uPC1252-family VCA / VCA LEVEL
+ -> chorus
+```
+
+Rules:
+
+- strict 106 must not import JUNO-60 load-dependent HPF/output behavior;
+- HPF 0 is not 'cutoff=0 Hz'; it is a distinct bass-boost transfer;
+- global VCA remains separate from per-voice BA662 VCAs;
+- VCA LEVEL uses recovered digital control scaling but final uPC1252 gain/headroom law is analogue/calibration work.
+
+Still measurement-sensitive:
+
+- exact four HPF transfer functions;
+- global VCA gain-vs-control law;
+- headroom/nonlinearity.
+
+## 11. JUNO-106 chorus
+
+Authoritative documents:
+
+- [`research/JUNO106_CHORUS.md`](research/JUNO106_CHORUS.md)
+- [`research/JUNO106_CHORUS_CLOCK.md`](research/JUNO106_CHORUS_CLOCK.md)
+- [`research/JUNO106_CHORUS_FILTERS.md`](research/JUNO106_CHORUS_FILTERS.md)
+
+Frozen physical architecture:
+
+```text
+global mono pre-chorus signal
+ -> dry path -> L/R summers
+ -> wet split
+      -> MN3009 path A <- MN3101 clock A
+      -> MN3009 path B <- MN3101 clock B
+ -> wet analogue filtering/buffering
+ -> L/R dry+wet outputs
+```
+
+Frozen highlights:
+
+- two physical MN3009 BBD paths and two MN3101 clock/driver paths;
+- opposite channel modulation, nominal 180 degrees;
+- triangle-like control trajectory with allowance for real hardware imperfection;
+- dry+wet routing, not 100%-wet;
+- OFF/I/II are strict original user modes;
+- Juno-6/60 I+II constants are not imported into strict 106;
+- explicit clock domains are mandatory:
+  - `f_osc` = MN3101 internal oscillator;
+  - `f_cp` = each CP1/CP2 phase output;
+  - `f_cp = f_osc/2`;
+- MN3009 exact delay identity when `f_cp` is physical CP frequency:
+  - `t_delay = 256/(2*f_cp) = 128/f_cp`;
+- original R124/R137 = 8.2 kOhm is strongly cross-checked;
+- working external clock network ~1.8 kOhm / 8.2 kOhm / 150 pF per channel remains schematic/cross-check evidence pending a clean original read;
+- wet path is a multi-section analogue network, not one arbitrary 10–14 kHz LPF;
+- reference engine keeps BBD input bias, output-pair combiner, pre/post filtering, BBD headroom and chorus noise as separate concepts;
+- clone-only anti-thump/MN3007 improvements must not leak into strict model.
+
+Still measurement-sensitive:
+
+- original Mode I and II clock trajectories/rates;
+- center/min/max delay and A/B mismatch;
+- exact wet-path filter transfer vs clock;
+- dry/wet analogue gains and mono-sum gain;
+- BBD bias/headroom curve;
+- factory-new BBD noise and clock feedthrough.
+
+## 12. FM-1 target policy
+
+Current target facts:
+
+- 44.1 kHz;
+- 128-frame audio blocks;
+- 240x240 display;
+- strict real-time/SRAM placement constraints;
+- existing six-voice FM-106 proves broad platform feasibility but is a performance/integration reference, not a fidelity source.
+
+Implementation policy:
+
+1. build the desktop/reference engine by physical blocks;
+2. preserve deterministic test vectors at each block boundary;
+3. profile one correct/observable version before approximating it;
+4. choose fixed-point/mixed precision per block only after error/CPU measurement;
+5. reduce linear analogue sub-networks analytically where transfer equivalence is verified;
+6. retain event/control-rate semantics even when the analogue audio block is simplified;
+7. no global 4x oversampling assumption — use event-aware anti-aliasing and selective oversampling first.
+
+## 13. Phase-0 gate and Phase-1 start condition
+
+Authoritative gate:
 
 - [`research/PHASE0_CHECKLIST.md`](research/PHASE0_CHECKLIST.md)
 
-Priority order from here:
+Authoritative unresolved-parameter test plan:
 
-1. finish MC5534/range/mixer/noise passive extraction;
-2. fit/freeze strict 80017A analogue transfer/calibration equations;
-3. derive exact 106 global HPF/output transfer functions;
-4. derive 106 chorus clock/delay/filter network and bias/nonlinear behavior;
-5. prepare FM-1 CPU/SRAM budget and only then choose final approximations.
+- [`research/PHASE0_MEASUREMENT_PLAN.md`](research/PHASE0_MEASUREMENT_PLAN.md)
 
-## 10. Phase-0 gate
-
-The authoritative gate is:
-
-- [`research/PHASE0_CHECKLIST.md`](research/PHASE0_CHECKLIST.md)
-
-Phase 1 may begin component-by-component when an item has either:
+Phase 1 may begin **component-by-component** when an item has either:
 
 1. an evidence-backed frozen behavior/model; or
-2. an explicit hypothesis with a named validation/measurement test.
+2. an explicit hypothesis/default with a named validation/measurement test.
 
-A prototype may exist before the entire Phase-0 checklist is closed, but it must never be mislabeled as strict fidelity for unresolved blocks.
+This means the reference engine may now start before every original-unit measurement exists, provided unresolved constants are:
+
+```text
+centralized
+marked MEASURE_PENDING
+covered by deterministic tests
+replaceable without architecture changes
+```
+
+A prototype may exist before the entire Phase-0 checklist is numerically closed, but it must never be mislabeled as final strict fidelity for unresolved blocks.
