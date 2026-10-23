@@ -1,16 +1,29 @@
 node,channel,primary_anchor,upstream_region,downstream_region,status,notes
-CH_IN,shared,Jack-board chorus input,global VCA/output-level section,BBD A+B split,PRIMARY_VISIBLE,Physical signal entering chorus section; exact coupling/source impedance to be transcribed
-BBD_A_IN,A,IC8 MN3009,input bias/filter network,IC8 audio input,PRIMARY_VISIBLE,Keep VR1 bias network explicit
-BBD_A_OUT,A,IC8 MN3009,IC8 output pins,post-BBD transistor/filter network,PRIMARY_VISIBLE,Do not collapse dual BBD output pins before formal pin-level transcription
-TP1_WET_A,A,TP1,post-BBD A network,output mix A,PRIMARY_VISIBLE,Roland bias-calibration probe; service procedure uses VR1
-CLOCK_A,A,IC9 MN3101,control/clock timing network,IC8 clock pins,PRIMARY_VISIBLE,R124=8.2k and C53=150p are timing-network anchors
-CTRL_A_TP3,A,TP3,chorus control generator,IC9 control network,PRIMARY_VISIBLE,Complementary partner to TP4; exact trajectory remains measurement target
-BBD_B_IN,B,IC10 MN3009,input bias/filter network,IC10 audio input,PRIMARY_VISIBLE,Keep VR2 bias network explicit
-BBD_B_OUT,B,IC10 MN3009,IC10 output pins,post-BBD transistor/filter network,PRIMARY_VISIBLE,Do not collapse dual BBD output pins before formal pin-level transcription
-TP2_WET_B,B,TP2,post-BBD B network,output mix B,PRIMARY_VISIBLE,Roland bias-calibration probe; service procedure uses VR2
-CLOCK_B,B,IC11 MN3101,control/clock timing network,IC10 clock pins,PRIMARY_VISIBLE,R137=8.2k and C57=150p are timing-network anchors
-CTRL_B_TP4,B,TP4,chorus control generator,IC11 control network,PRIMARY_VISIBLE,Complementary partner to TP3; exact phase/error remains measurement target
-OUT_MIX_A,A,IC6 + R71/R70/R72/R54 region,dry path + TP1 wet path,SIG_OUT_1,RESCAN_REQUIRED,Topology visibly contains dry/wet summing and active output stage; exact node attachments must be traced before gain calculation
-OUT_MIX_B,B,IC6 + R73/R67/R74/R57 region,dry path + TP2 wet path,SIG_OUT_2,RESCAN_REQUIRED,Mirror of A at high level; exact node attachments must be traced before gain calculation
-SIG_OUT_1,A,Jack-board SIG.OUT 1,OUT_MIX_A,output connector/muting network,PRIMARY_VISIBLE,Retain output loading and muting transistors in first topology netlist
-SIG_OUT_2,B,Jack-board SIG.OUT 2,OUT_MIX_B,output connector/muting network,PRIMARY_VISIBLE,Retain output loading and muting transistors in first topology netlist
+CH_IN,shared,Jack-board chorus input,global uPC1252/VCA-level section,common dry path + C44/C47 wet split,PRIMARY_CONNECTION_VERIFIED,Physical mono signal entering chorus section
+CH_DRY,shared,original dry branch,CH_IN,R70 100k + R67 100k into IC6 summers,PRIMARY_CONNECTION_VERIFIED,Common dry source feeding both stereo summers
+BBD_A_IN,A,IC8 pin 3,C44/R122/VR1 input-bias region,IC8 MN3009 input,PRIMARY_VISIBLE_NODE_DETAIL_PENDING,Node identity is fixed; exact passive-junction order around bias network is not guessed from scan
+BBD_A_OUT1,A,IC8 pin 7,IC8 OUT1,R119 3.3k -> BBD_A_OUT_SUM,PRIMARY_CONNECTION_VERIFIED,MN3009 output phase 1
+BBD_A_OUT2,A,IC8 pin 8,IC8 OUT2,R118 3.3k -> BBD_A_OUT_SUM,PRIMARY_CONNECTION_VERIFIED,MN3009 output phase 2
+BBD_A_OUT_SUM,A,R118/R119 junction,IC8 OUT1/OUT2 via equal 3.3k resistors,post-BBD R98/R97/Tr15 filter region,PRIMARY_CONNECTION_VERIFIED,Output-pair combiner concept is exact; downstream detailed active-RC node map remains partially scan-limited
+TP1_WET_A,A,TP1,post-BBD A filter/amplifier, R71 47k -> IC6_A_SUM,PRIMARY_CONNECTION_VERIFIED,Roland bias-calibration probe after wet filtering
+CLOCK_A_CP1,A,IC9 pin 2,IC9 CP1,IC8 pin 2,PRIMARY_CONNECTION_VERIFIED,One physical BBD clock phase
+CLOCK_A_CP2,A,IC9 pin 4,IC9 CP2,IC8 pin 6,PRIMARY_CONNECTION_VERIFIED,Opposite physical BBD clock phase
+VGG_A,A,IC9 pin 8,IC9 VGG_OUT,IC8 pin 4,PRIMARY_CONNECTION_VERIFIED,Driver-generated BBD gate supply
+OSC_A_COMMON,A,R123/R124/C53 common node,chorus control/transistor interface,IC9 OX1/OX2/OX3 timing network,PRIMARY_CONNECTION_VERIFIED,Original 1.8k/8.2k/150p timing family; exact control trajectory measured later
+CTRL_A_TP3,A,TP3,chorus-control generator,channel-A MN3101 control network,PRIMARY_VISIBLE,Exact waveform/rate remains MEASURE_PENDING
+BBD_B_IN,B,IC10 pin 3,C47/R113/VR2 input-bias region,IC10 MN3009 input,PRIMARY_VISIBLE_NODE_DETAIL_PENDING,Node identity is fixed; exact passive-junction order around bias network is not guessed from scan
+BBD_B_OUT1,B,IC10 pin 7,IC10 OUT1,R112 3.3k -> BBD_B_OUT_SUM,PRIMARY_CONNECTION_VERIFIED,MN3009 output phase 1
+BBD_B_OUT2,B,IC10 pin 8,IC10 OUT2,R111 3.3k -> BBD_B_OUT_SUM,PRIMARY_CONNECTION_VERIFIED,MN3009 output phase 2
+BBD_B_OUT_SUM,B,R111/R112 junction,IC10 OUT1/OUT2 via equal 3.3k resistors,post-BBD R107/R101/Tr17 filter region,PRIMARY_CONNECTION_VERIFIED,Output-pair combiner concept is exact; downstream detailed active-RC node map remains partially scan-limited
+TP2_WET_B,B,TP2,post-BBD B filter/amplifier,R73 47k -> IC6_B_SUM,PRIMARY_CONNECTION_VERIFIED,Roland bias-calibration probe after wet filtering
+CLOCK_B_CP1,B,IC11 pin 2,IC11 CP1,IC10 pin 2,PRIMARY_CONNECTION_VERIFIED,One physical BBD clock phase
+CLOCK_B_CP2,B,IC11 pin 4,IC11 CP2,IC10 pin 6,PRIMARY_CONNECTION_VERIFIED,Opposite physical BBD clock phase
+VGG_B,B,IC11 pin 8,IC11 VGG_OUT,IC10 pin 4,PRIMARY_CONNECTION_VERIFIED,Driver-generated BBD gate supply
+OSC_B_COMMON,B,R136/R137/C57 common node,chorus control/transistor interface,IC11 OX1/OX2/OX3 timing network,PRIMARY_CONNECTION_VERIFIED,Original 1.8k/8.2k/150p timing family; exact control trajectory measured later
+CTRL_B_TP4,B,TP4,chorus-control generator,channel-B MN3101 control network,PRIMARY_VISIBLE,Complementary trajectory; exact phase/rate remains MEASURE_PENDING
+IC6_A_SUM,A,R71/R70/R72 junction,TP1 wet + CH_DRY + feedback,IC6 A inverting input,PRIMARY_CONNECTION_VERIFIED,R71=47k wet R70=100k dry R72=39k feedback
+IC6_A_OUT,A,IC6 A output,IC6_A_SUM,post-IC6 coupling/mute/output network,PRIMARY_CONNECTION_VERIFIED,Ideal pre-output-stage gains: dry -0.39 wet -0.829787234
+IC6_B_SUM,B,R73/R67/R74 junction,TP2 wet + CH_DRY + feedback,IC6 B inverting input,PRIMARY_CONNECTION_VERIFIED,R73=47k wet R67=100k dry R74=39k feedback
+IC6_B_OUT,B,IC6 B output,IC6_B_SUM,post-IC6 coupling/mute/output network,PRIMARY_CONNECTION_VERIFIED,Ideal pre-output-stage gains match channel A
+SIG_OUT_1,A,Jack-board SIG.OUT 1,post-IC6 A coupling/mute/output network,output jack,PRIMARY_VISIBLE_OUTPUT_DETAIL_PENDING,R54=1.5k anchor verified; exact complete loading/mute transfer remains calibration/transcription detail
+SIG_OUT_2,B,Jack-board SIG.OUT 2,post-IC6 B coupling/mute/output network,output jack,PRIMARY_VISIBLE_OUTPUT_DETAIL_PENDING,R57=1.5k anchor verified; exact complete loading/mute transfer remains calibration/transcription detail
