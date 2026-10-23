@@ -1,50 +1,56 @@
 # JUNO-106 chorus — Phase 0 authoritative index
 
-Status: Phase 0 reference specification. JUNO-106 is authoritative. JUNO-6/60 data is method/topology support only unless independently confirmed for the 106.
+Status: **`CHORUS_PHASE0_FROZEN`** for architecture and implementation contract. Physical-unit captures remain required to replace explicitly centralized `MEASURE_PENDING` calibration values; they do not reopen the architecture unless measurements contradict the primary schematic.
 
-Detailed companions:
+JUNO-106 is authoritative. JUNO-6/60 data is method/topology support only unless independently confirmed for the 106.
 
-- `JUNO106_CHORUS_CLOCK.md` — MN3101/MN3009 clock domains, delay law, component evidence and measurement protocol.
-- `JUNO106_CHORUS_FILTERS_MIX.md` — dry/wet routing, filter-component evidence, bias/headroom, noise and output-stage plan.
+## 0. Authority map
 
-If an older note conflicts with these three files, this index plus the two companion documents win.
+Use these documents together, in this order for chorus work:
+
+1. `JUNO106_CHORUS_REFERENCE_MODEL.md` — current implementation/closure contract.
+2. `JUNO106_CHORUS_CLOCK.md` — MN3101/MN3009 clock domains, original timing network and exact delay law.
+3. `JUNO106_CHORUS_FILTERS_MIX.md` — BBD audio path, original dry/wet summer, bias/headroom, noise and output stage.
+4. `JUNO106_CHORUS_PRIMARY_SCHEMATIC.md` — direct Roland jack-board schematic transcription/evidence boundary.
+5. `data/juno106_chorus_component_evidence.csv` — per-component evidence state.
+6. `data/juno106_chorus_calibration_v0.yaml` — the only allowed home for provisional/measured strict calibration values.
+7. `netlists/juno106_chorus_output_mix_reference.cir` — verified original IC6 summer subcircuit.
+8. `PHASE0_MEASUREMENT_PLAN.md` — acquisition tests for all remaining measured constants.
+
+If an older note conflicts with this index or the reference model, the newer specialized chorus documents win.
 
 ## 1. Strict physical architecture
 
-The original chorus is a **single global stereo effect** after the six voice paths and global output section:
+The original chorus is one **global stereo effect** after the six voice paths and global output section:
 
 ```text
 six voice VCA outputs
-    -> voice summing
-    -> global HPF
-    -> global VCA / patch level
-    -> chorus JACK BOARD
-    -> stereo / mono-normalled output
+ -> voice summing
+ -> global HPF
+ -> global uPC1252 VCA / patch level
+ -> chorus JACK BOARD
+      -> common dry path -> L/R summers
+      -> wet A -> MN3009 A <- MN3101 A
+      -> wet B -> MN3009 B <- MN3101 B
+      -> analogue filtering/bias/headroom
+      -> IC6 dry+wet stereo summers
+      -> coupling/mute/output network
+ -> stereo / mono-normalled output
 ```
 
-The chorus itself contains:
+Frozen consequences:
 
-- 2 x MN3009, 256-stage BBDs;
-- 2 x MN3101 clock/driver ICs;
-- two independently biased wet paths;
-- a common dry source mixed into both outputs;
-- analogue filtering before/after the BBDs;
-- opposite-polarity modulation of the two BBD clocks;
-- analogue output mixing/buffering;
-- BBD/device noise and clock residue distinct from the synth NOISE source.
+- chorus is not per voice;
+- two wet paths remain physically independent;
+- both outputs contain a common dry contribution when chorus is enabled;
+- wet A/B clocks are nominally complementary/opposite polarity;
+- no enabled-source or dry/wet unity normalization;
+- BBD noise/clock residue is separate from front-panel synth NOISE;
+- the post-summer analogue output/jack path remains part of the reference model.
 
-Do not instantiate chorus per voice.
+## 2. Strict mode state
 
-## 2. Strict mode state: OFF / I / II
-
-Original 106 patch/SysEx switch encoding uses:
-
-```text
-chorus enable: OFF / ON
-chorus preset: I / II
-```
-
-so the strict stored/user state is:
+Original user/patch state:
 
 ```text
 OFF
@@ -52,147 +58,139 @@ I
 II
 ```
 
-The original owner's documentation also states that modes I and II are not used simultaneously.
-
-Modern Roland DSP products expose an `I+II` model and describe it as both buttons pressed. That is useful information about Roland's later effect library, but it does **not** override the original 106 control encoding.
+The original owner's documentation states I and II are not used simultaneously.
 
 Policy:
 
 ```text
 MODEL_106_STRICT : OFF / I / II
-DEEP             : may expose Roland-style I+II as explicitly non-strict
-MODEL_60         : may later implement the different 6/60 I+II hardware behavior
+DEEP             : may expose later Roland-style I+II explicitly as non-strict
+MODEL_60         : separate future 6/60 behavior
 ```
 
-## 3. Stereo modulation
+## 3. Original timing network and exact delay law
 
-The two BBD delays move in opposite directions:
+The original Roland jack-board schematic now gives the mirrored MN3101 timing families directly:
 
 ```text
-control_A(t) ~= +m(t)
-control_B(t) ~= -m(t)
+Channel A: R123 = 1.8 kOhm, R124 = 8.2 kOhm, C53 = 150 pF
+Channel B: R136 = 1.8 kOhm, R137 = 8.2 kOhm, C57 = 150 pF
 ```
 
-Nominal relative control phase is 180 degrees.
-
-SoundForce directly sampled BBD-driver signals from a physical JUNO-106 and reports a basically triangle-like trajectory whose real imperfections were worth preserving rather than replacing with an ideal triangle.
-
-Therefore strict architecture keeps two clock states, not one delay with stereo panning.
-
-## 4. Clock and delay semantics
+R124/R137 are independently cross-checked by the historical MN3009 -> MN3007 conversion, and C53/C57 matching is supported by original-board repair evidence.
 
 Never use an ambiguous `clockHz`.
 
-Define:
-
 ```text
 f_osc = MN3101 internal oscillator frequency
-f_cp  = frequency on each CP1/CP2 output
-```
-
-Component documentation gives:
-
-```text
-f_cp = f_osc / 2
+f_cp  = frequency on one physical CP1/CP2 output
+f_cp  = f_osc / 2
 ```
 
 For MN3009 `N=256`:
 
 ```text
-t_delay = N / (2*f_cp)
-        = 128 / f_cp
-        = N / f_osc
+t_delay = N/(2*f_cp)
+        = 128/f_cp
+        = N/f_osc
 ```
 
-The strict reference must model/fitted-calibrate:
+This identity is frozen and testable.
+
+## 4. Mode I / II trajectories are calibration, not guessed architecture
+
+The original 106 documentation does not publish trustworthy numerical Mode-I/II LFO/clock trajectories. SoundForce has captured real JUNO-106 BBD-driver signals and reports preserving their non-ideal shape rather than substituting an ideal triangle, but does not publish the numerical curves.
+
+Therefore:
 
 ```text
-triangle-like control voltage
- -> MN3101/control network
+modeI.clockTrajectoryA/B  = MEASURE_PENDING
+modeII.clockTrajectoryA/B = MEASURE_PENDING
+```
+
+Do not substitute JUNO-60 numeric rates as strict 106 constants.
+
+The physical causal chain remains fixed:
+
+```text
+triangle-like control
+ -> control/interface network
+ -> MN3101 oscillator
  -> f_cp(t)
- -> reciprocal BBD delay(t)
+ -> reciprocal MN3009 delay(t)
 ```
 
-not a generic `center_ms + depth*sin()` oscillator.
+## 5. Original BBD audio-path architecture
 
-See `JUNO106_CHORUS_CLOCK.md`.
-
-## 5. Clock-network evidence
-
-Strong working original-106 values:
+Primary-readable mirrored component families include:
 
 ```text
-R124 = 8.2 kOhm
-R137 = 8.2 kOhm
-C53  = 150 pF
-C57  = 150 pF
+input coupling:
+ A C44 = 0.1 uF
+ B C47 = 0.1 uF
+
+input/bias region:
+ A R122 = 10 kOhm
+ B R113 = 10 kOhm
+
+BBD output combine:
+ A R118/R119 = 3.3 kOhm / 3.3 kOhm
+ B R111/R112 = 3.3 kOhm / 3.3 kOhm
+
+post-BBD resistor family:
+ A R98/R97/R96/R95 = 22 kOhm
+ B R107/R101/R106/R104 = 22 kOhm
+
+primary-readable post-BBD capacitors:
+ A C45 = 820 pF, C46 = 680 pF, C38 = 1.8 nF
+ B C48 = 820 pF, C49 = 680 pF, C43 = 1.8 nF
 ```
 
-The 8.2 kOhm resistors are independently supported by historical MN3009->MN3007 conversion practice. The 150 pF values are additionally supported by original-board repair evidence identifying C53/C57 as closely matched timing capacitors.
+A 106-focused reconstruction independently shows the characteristic mirrored `680p / 270p / 820p / 1.8n` filter family. The remaining original 270-pF designator/node is retained as a transcription/measurement detail rather than being invented from the clone.
 
-A 106-focused reconstruction converges on the full per-channel external MN3101 family:
+Strict architecture is therefore a multi-element BBD anti-alias/reconstruction/filter path, **not** one arbitrary 10–14 kHz one-pole LPF.
+
+## 6. Original dry/wet summer — exact schematic-derived law
+
+The two halves of IC6 (`TA75558S`) are mirrored inverting summing amplifiers.
 
 ```text
-~1.8 kOhm / 8.2 kOhm / 150 pF
+Channel A:
+ wet R71 = 47 kOhm
+ dry R70 = 100 kOhm
+ feedback R72 = 39 kOhm
+
+Channel B:
+ wet R73 = 47 kOhm
+ dry R67 = 100 kOhm
+ feedback R74 = 39 kOhm
 ```
 
-The remaining original designator/node mapping is kept explicit in the clock companion until a clean original crop/continuity map is archived.
-
-## 6. I / II rates are not guessed from JUNO-60
-
-The original 106 service material does not give us sufficiently clean numeric I/II rates in machine-readable form.
-
-A 106-derived adjustable hardware reconstruction spans roughly 0..1.8 Hz and marks physical positions for original I and II. SoundForce has real 106 driver captures but does not publish the numeric trajectories.
-
-Therefore strict constants remain:
+Ideal small-signal law per channel:
 
 ```text
-chorus_I_rate_hz  = MEASURE
-chorus_II_rate_hz = MEASURE
+y = -(39/100)*dry -(39/47)*wet
 ```
 
-Do not silently substitute Juno-60 values.
-
-## 7. Dry/wet routing
-
-The 106 chorus is dry + delayed, not 100% wet.
-
-A 106-focused hardware reconstruction calibrated against the original behavior gives the useful working target:
+Freeze:
 
 ```text
-~55% dry / ~45% wet
+Gdry_summer = -0.3900000000
+Gwet_summer = -0.8297872340425532
+|Gwet/Gdry| = 2.127659574468085
 ```
 
-Treat this as an output calibration target, not normalized DSP coefficients. The physical summers, BBD insertion loss, clock-dependent bandwidth and output stage remain part of the gain law.
+These are electrical gains at the IC6 summer inputs, not normalized audible mix percentages.
 
-No post-sum automatic unity normalization.
+The approximately 55% dry / 45% wet figure from a 106-focused reconstruction remains a **completed-output calibration target**. It is compatible with the original resistor law because the MN3009/filter wet path has insertion loss before TP1/TP2.
 
-## 8. Filtering
+If 55/45 were exact, the implied TP wet-path amplitude relative to the dry-source node would be about `0.3845454545`. This is diagnostic only, not a frozen original constant.
 
-Strict chorus must expose at least:
+## 7. Bias, headroom and nonlinearity
 
-```text
-pre_bbd_filter[channel]
-clock_dependent_bbd_bandwidth[channel]
-post_bbd_filter[channel]
-```
+Roland's service procedure requires independent `VR1/VR2` adjustment with a 10 Vp-p / 1 kHz stimulus so TP1/TP2 clip symmetrically.
 
-A 106-focused reconstruction shows mirrored multi-element filter-component families around the two BBDs rather than one generic one-pole low-pass. This is documented in `JUNO106_CHORUS_FILTERS_MIX.md`.
-
-Do **not** import the KR106 project's published ~14 kHz one-pole result as a 106 constant: that measurement was made on Juno-6 hardware.
-
-Final digital filter coefficients wait for:
-
-1. original 106 node map / SPICE reference;
-2. real-106 complex transfer measurements at multiple clock phases.
-
-## 9. Bias and headroom
-
-Roland provides two independent chorus-bias trims and requires a 10 Vp-p / 1 kHz test signal while adjusting each path for symmetrical positive/negative clipping.
-
-This makes BBD operating point part of the instrument.
-
-Strict model needs per channel:
+Strict channel state therefore includes:
 
 ```text
 biasOffset
@@ -201,102 +199,139 @@ negativeHeadroom
 nonlinearTransfer
 ```
 
-Factory-new defaults use the symmetrical service calibration.
+Factory-new strict state corresponds to the symmetrical-clipping calibration point. `DEEP/AGE` may later expose plausible drift separately.
 
-DEEP/AGE may later expose plausible bias drift, gain mismatch, noise increase and reduced headroom.
+## 8. Output stage and corrected value
 
-## 10. Noise model
+The reference retains:
 
-Keep separate:
+```text
+IC6 summer
+ -> coupling
+ -> mute/output stage
+ -> jack/loading law
+```
+
+Direct original schematic re-check gives:
+
+```text
+R54 = 1.5 kOhm
+R57 = 1.5 kOhm
+```
+
+An earlier research transcription had misread these as 15 kOhm; that value is superseded.
+
+Exact completed output gain/headroom and mono-normal loading remain `MEASURE_PENDING` calibration data.
+
+## 9. Noise and residue
+
+Keep separate mechanisms:
 
 ```text
 front-panel synth NOISE
-BBD device noise L/R
-clock-feedthrough / heterodyne residue L/R
-possible shared supply/control residual
+BBD device/channel noise A/B
+clock feedthrough / heterodyne residue A/B
+possible shared control/supply residual
 ```
 
-Roland's modern 106 models expose chorus noise as an audible characteristic, which supports its perceptual importance, but their parameter scale is not an original-hardware numeric reference.
+Reference regression renders use deterministic seeds.
 
-## 11. Mono behavior
+## 10. Stereo / mono contract
 
-Reference renderer should expose both:
+Reference renderer exposes:
 
 ```text
 renderStereo() -> L, R
-renderMono106() -> original-style L/R mono-normal sum
+renderMono106() -> original-jack-law mono result
 ```
 
-This matters for validation against mono hardware recordings and for comb/gain behavior.
+Do not silently replace original mono jack/loading behavior with `(L+R)*0.5`; its exact gain remains a measurement item.
 
-FM-1 itself does not need physical jack sensing unless the hardware API exposes it.
-
-## 12. Desktop reference structure
+## 11. Reference implementation contract
 
 ```text
 Chorus106
   ChorusControl106 control
   ClockDriver106 clockA
   ClockDriver106 clockB
-  BbdAudioPath106 wetA
-  BbdAudioPath106 wetB
-  DryWet106 mix
-  OutputStage106 output
+  BbdAudioPath106 pathA
+  BbdAudioPath106 pathB
+  OutputSummer106 summerA
+  OutputSummer106 summerB
+  OutputStage106 outputA
+  OutputStage106 outputB
 ```
 
 Processing concept:
 
 ```text
-if OFF:
-    return bypass/output-route
-
-control -> two opposite MN3101 clock trajectories
-clock -> exact 128/f_cp delay law
-x -> pre-filter -> BBD nonlinearity/delay -> post-filter
-x + wetA -> L analogue summer
-x + wetB -> R analogue summer
--> output stage
+mode/control
+ -> two physical clock trajectories
+ -> exact 128/f_cp delay law
+x -> pre-filter -> calibrated BBD transfer/delay -> post-filter
+x + wetA -> original IC6 summer A
+x + wetB -> original IC6 summer B
+-> output/jack stage
 ```
 
-Diagnostic research switches may isolate:
+All provisional/measured numerical calibration lives in:
 
-- ideal vs fitted clock trajectory;
-- filters;
-- BBD nonlinearity;
-- noise;
-- clock residue;
-- dry path;
-- output stage.
+```text
+data/juno106_chorus_calibration_v0.yaml
+```
 
-These diagnostics are not intended as final user-facing FM-1 clutter.
+Do not scatter folklore constants such as `0.8 Hz`, `5 ms`, `14 kHz`, or `0.55` through DSP source.
 
-## 13. FM-1 deployment direction
+## 12. FM-1 deployment direction
 
-Because chorus is global, it is a good place to spend fidelity CPU.
+The chorus is global, so preserving fidelity is relatively inexpensive.
 
-Likely deployment model after measurement:
+Expected representation:
 
-- two fractional delays driven by physical clock-to-delay law;
-- separate low-order pre/post filter state per channel;
-- cheap BBD soft nonlinearity;
-- deterministic low-cost device/clock noise;
-- optional small residual LUT for measured driver imperfections;
-- explicit analogue-summer/output gain.
+- shared low-rate control trajectory;
+- two fitted MN3101 clock states;
+- two fractional delay lines;
+- separate small pre/post filter states;
+- two calibrated cheap BBD nonlinearities;
+- deterministic BBD/clock-noise states;
+- exact original summer gains;
+- compact output/jack model.
 
-Do not literally step 256 buckets unless A/B profiling proves meaningful audible benefit.
+At 44.1 kHz, even a conservative 20 ms stereo delay reserve is only 882 samples/channel / 1764 samples total.
 
-## 14. Remaining numerical gate
+Do not literally model all 256 buckets unless profiling/A-B tests demonstrate audible benefit.
 
-Before strict chorus constants are frozen we still need:
+## 13. Phase-0 closure
 
-- exact original I and II LFO rates;
-- min/mean/max `f_cp(t)` for both channels/modes;
-- center/min/max delay validated against audio measurement;
-- original node-by-node pre/post BBD filter transfer;
+The chorus architecture gate is now closed:
+
+```text
+[x] original global topology mapped
+[x] dual MN3009 / dual MN3101 architecture mapped
+[x] original timing component family mapped
+[x] exact clock-domain semantics and delay identity frozen
+[x] original multi-element BBD filter architecture mapped
+[x] exact IC6 dry/wet summer resistor law derived
+[x] independent BBD bias/headroom architecture frozen
+[x] output/jack stage retained as a physical block
+[x] strict OFF/I/II semantics frozen
+[x] noise/residue mechanisms separated
+[x] stereo/mono render contracts defined
+[x] unresolved numerical calibration centralized
+[x] every unresolved hardware quantity has an explicit measurement test
+```
+
+Remaining physical captures are **calibration backlog**, not unresolved chorus architecture:
+
+- Mode-I/II clock trajectories and exact rates;
+- min/mean/max `f_cp` and resulting delay excursions;
 - clock-dependent BBD insertion loss/bandwidth;
-- dry/wet voltage gains;
-- factory-calibrated nonlinear/headroom curves;
-- BBD noise and clock-feedthrough spectra/correlation;
-- mono-summing/output-stage gain/headroom.
+- measured complex wet-path transfer;
+- completed-output dry/wet gain;
+- calibrated BBD nonlinear/headroom curves;
+- BBD/clock noise spectra/correlation;
+- output-stage and mono-jack gain/loading.
 
-All of these now have an explicit measurement route in the companion documents, so no generic VA assumption needs to cross the Phase-0 gate silently.
+These remain `MEASURE_PENDING` until a healthy original JUNO-106 is captured. They must be replaced with measured data before claiming final hardware-calibrated strict fidelity, but they no longer require an architectural decision.
+
+**Phase-0 chorus state: `CHORUS_PHASE0_FROZEN`.**
