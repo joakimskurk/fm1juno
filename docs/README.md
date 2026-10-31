@@ -26,7 +26,7 @@ JUNO-60 is used selectively to:
 - suggest measurement methods;
 - inform later explicit 60/DEEP alternatives.
 
-Strict `MODEL_106` must not inherit 60-specific clock, IR3R01 envelope, HPF loading or chorus constants without independent 106 evidence.
+Strict `MODEL_106` must not inherit 60-specific clock, IR3R01 envelope, HPF loading, MC5534 reset constants or chorus constants without independent 106 evidence.
 
 ## 3. Current block specifications
 
@@ -62,10 +62,16 @@ The frozen graph keeps physical 8253 edge timing, held DCO CV, RANGE-selected sl
 
 Remaining original-hardware captures are calibration backlog: exact WAVE/SUB/NOISE injection ratios, source impedances, analogue level curves, noise spectral transfer and pre-VCF headroom. They do not reopen the frozen source-mixer graph unless measurements contradict primary evidence.
 
-### VCF / VCA
+### 80017A VCF / VCA — Phase-0 frozen architecture
 
-- [`research/JUNO106_VCF_CONTROL.md`](research/JUNO106_VCF_CONTROL.md)
-- [`research/JUNO106_80017A_TOPOLOGY.md`](research/JUNO106_80017A_TOPOLOGY.md)
+- [`research/JUNO106_80017A_REFERENCE_MODEL.md`](research/JUNO106_80017A_REFERENCE_MODEL.md) — authoritative implementation contract; state `80017A_PHASE0_ARCHITECTURE_FROZEN`.
+- [`research/JUNO106_80017A_TOPOLOGY.md`](research/JUNO106_80017A_TOPOLOGY.md) — detailed topology/evidence companion.
+- [`research/JUNO106_VCF_CONTROL.md`](research/JUNO106_VCF_CONTROL.md) — exact upstream digital VCF arithmetic boundary.
+- [`research/80017A_PHASE0_CLOSURE.md`](research/80017A_PHASE0_CLOSURE.md) — block-specific closure gate.
+- [`research/data/juno106_80017a_calibration_v0.yaml`](research/data/juno106_80017a_calibration_v0.yaml) — centralized strict analogue calibration / `MEASURE_PENDING` values.
+- [`research/data/juno106_80017a_evidence.csv`](research/data/juno106_80017a_evidence.csv) — per-fact/value evidence state.
+
+The frozen graph retains four explicit IR3109-family stages, an explicit BA662 resonance/Q-compensation block with both input feed-forward and stage-4 feedback, and an explicit BA662 voice VCA. Working opened-hybrid passive evidence is retained separately from modern AS3109/AS662 sanity data. Vintage nonlinear scales, exact CV/current mappings, final passive tolerances and VCA/resonance curves remain calibration backlog.
 
 ### Global HPF / output — Phase-0 frozen architecture
 
@@ -110,7 +116,7 @@ These files are retained because they show why the architecture evolved, but the
 - [`REFERENCES.md`](REFERENCES.md)
 - [`CIRCUIT_MODEL_SPEC_V0.md`](CIRCUIT_MODEL_SPEC_V0.md)
 
-In particular, old JUNO-60 chorus numbers, DCO reset constants or HPF/output-loading assumptions in baseline documents must never be reused as strict 106 constants. Newer block-specific specs deliberately remove those shortcuts.
+In particular, old JUNO-60 chorus numbers, DCO reset constants, 80017A passive assumptions or HPF/output-loading assumptions in baseline documents must never be reused as strict 106 constants without the evidence status carried by the newer block specs.
 
 ## 5. Evidence labels
 
@@ -122,6 +128,8 @@ ROM_DERIVED
 SCHEMATIC_CONFIRMED
 SCHEMATIC_CROSS_CHECK
 HARDWARE_MEASURED
+DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE
+MODERN_REFERENCE_ONLY
 DERIVED
 MEASURE_PENDING
 DEEP_ONLY
