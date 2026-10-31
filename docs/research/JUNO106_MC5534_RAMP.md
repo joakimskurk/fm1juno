@@ -1,6 +1,8 @@
 # JUNO-106 MC5534 ramp, reset and amplitude-compensation model
 
-Status: Phase 0 reference specification. JUNO-106 is authoritative; JUNO-60 is used only as a topology/measurement aid where the 106 documentation is incomplete.
+Status: **`MC5534_PHASE0_ARCHITECTURE_FROZEN`** for architecture and implementation contract. This document remains the detailed evidence/derivation companion to `JUNO106_MC5534_REFERENCE_MODEL.md`. Exact reset transient, loaded DCO-CV behavior and MC5534 headroom/slew remain centralized `MEASURE_PENDING` calibration.
+
+JUNO-106 is authoritative; JUNO-60 is used only as a topology/measurement aid where the 106 documentation is incomplete.
 
 ## 0. Evidence policy
 
@@ -401,28 +403,34 @@ Not allowed in strict 106:
 - assuming the 60's complete passive network is numerically identical;
 - forcing a 60-derived reset time constant without 106 corroboration.
 
-## 16. Freeze state
+## 16. Phase-0 closure state
 
-### Frozen enough for Phase-1 source-model architecture
+Architecture is now closed by:
+
+- `JUNO106_MC5534_REFERENCE_MODEL.md`;
+- `MC5534_PHASE0_CLOSURE.md`;
+- `data/juno106_mc5534_calibration_v0.yaml`;
+- `data/juno106_mc5534_evidence.csv`.
+
+Frozen:
 
 - edge-timed analogue ramp generator, not ideal digital saw;
-- DCO CV is held analogue slope control;
-- RANGE selects one of three slope resistors;
-- 16' uses the highest resistance and 4' the lowest;
-- working resistor set ~= 399k / 200k / 100k, pending final primary designator-value read;
-- ramp target is approximately 12 Vp-p, not exact per-cycle normalization;
-- positive DCO edge triggers discharge/reset;
-- PWM is comparator-derived from this same ramp;
-- SUB is timing-domain divide-by-two;
-- reset must be architecturally finite/configurable.
+- held DCO CV slope control;
+- discrete RANGE resistor selection;
+- positive-edge C54 discharge/reset;
+- architecturally finite/configurable reset;
+- shared-ramp SAW/PWM comparator behavior;
+- timing-domain SUB divide-by-two;
+- approximate 12 Vp-p hardware target without per-cycle normalization.
 
-### Still open before strict numerical freeze
+Calibration backlog remains:
 
-- primary-confirm exact C54 capacitance;
-- primary-confirm exact R85/R86/R87 printed values from a clean schematic/board read;
-- exact MC5534 internal/external reset-network passive values;
-- reset transistor conduction duration and residual voltage on real 106;
-- MC5534 buffer/comparator saturation, slew and asymmetric recovery;
-- exact mapping from 12-bit DCO-CV DAC/S&H code to voltage at each voice input under load;
-- per-voice S/H droop/output impedance and 4052 on-resistance contribution;
-- measured amplitude-error curve across all ranges/keyboard.
+- clean primary/direct R85/R86/R87 and C54 value confirmation;
+- loaded DCO-CV/S&H voltage law, droop, output impedance and switch resistance;
+- real reset duration/residual/recovery;
+- MC5534 buffer/comparator headroom, slew and asymmetry;
+- measured amplitude-error surface across keyboard/ranges.
+
+These quantities can replace centralized calibration without altering the architecture.
+
+**Phase-0 MC5534 state: `MC5534_PHASE0_ARCHITECTURE_FROZEN`.**
