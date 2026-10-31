@@ -1,6 +1,6 @@
 # JUNO-106 A1QH80017A VCF/VCA topology and reference-model plan
 
-Status: Phase 0 topology freeze / numerical-model design. This document separates facts that are strong enough to freeze from exact component/model constants that still require direct 106 validation.
+Status: **`80017A_PHASE0_ARCHITECTURE_FROZEN`** for topology and implementation contract. This file remains the detailed topology/evidence companion to `JUNO106_80017A_REFERENCE_MODEL.md`. Vintage nonlinear scales, exact CV/current mappings and passive tolerances remain centralized `MEASURE_PENDING` calibration.
 
 Primary target is the JUNO-106 A1QH80017A behavior. JUNO-6/60 circuitry is used only as visibility into a demonstrably shared IR3109 + BA662 architecture hidden inside the 106 hybrid.
 
@@ -40,7 +40,7 @@ A physically opened original 80017A shows:
 
 The teardown identifies one BA662 as resonance-control element and the second as the final per-voice VCA.
 
-This confirms that the 106 is not a generic monolithic "mystery filter" and gives a direct bridge to the discrete JUNO-6/60 implementation.
+This confirms that the 106 is not a generic monolithic mystery filter and gives a direct bridge to the discrete JUNO-6/60 implementation.
 
 ### Tier B — original JUNO-6/60 topology as circuit visibility
 
@@ -69,23 +69,33 @@ Use these values as architectural/modeling constraints, not as proof of exact vi
 
 ### Tier C — direct repair/clone engineering observations
 
-Repair/clone engineers report additional measured original-80017A values and behavior, including roughly:
+Direct measurements on opened original-80017A units report approximately:
 
-- 68 kOhm inter-stage/input resistors;
-- approximately 550–560 ohm shunts;
-- approximately 250 pF filter capacitors in measured 80017A samples;
-- separate resonance input/feed-forward and output-feedback resistor networks;
-- a final BA662 VCA input network;
-- measurable importance of internal nonlinear behavior, extreme-frequency resonance behavior, temperature and supply interaction.
+```text
+filter/interstage R  ~= 68 kOhm
+local/shunt R        ~= 550..560 Ohm
+filter capacitors    ~= 250 pF
 
-These observations are useful hypotheses/measurement targets. They are not elevated above Roland documentation or physical teardown without independent cross-checking.
+resonance BA662 region:
+  two local shunts   ~= 1.5 kOhm
+  input feed-forward ~= 5.1 kOhm from VCF input
+  feedback           ~= 100 kOhm from VCF output
+  additional input   ~= 3.9 kOhm
+
+voice BA662 region:
+  VCA input          ~= 4.7 kOhm
+  local shunts       ~= 560 Ohm
+  output/load        ~= 47 kOhm || unresolved small capacitor
+```
+
+These are now retained as `DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE` in the centralized evidence/calibration files. They constrain the first desktop reference, but do not outrank Roland primary documentation or become universal vintage constants without further physical cross-checking.
 
 ## 2. Frozen signal topology
 
 Strict per-voice path:
 
 ```text
-oscillator mixer
+oscillator/source mixer
     -> IR3109 stage 1
     -> IR3109 stage 2
     -> IR3109 stage 3
@@ -124,12 +134,12 @@ filter_drive = G_direct * x + r
 
 where:
 
-- `x` is the pre-filter oscillator mix;
+- `x` is the pre-filter oscillator/source mix;
 - `y4` is the four-pole output;
 - `Phi_BA662` is the BA662's nonlinear differential transfer;
 - `A_in`, `A_fb`, `G_direct` and `G_res` are circuit/calibration terms.
 
-This is a topology statement, not yet a frozen numeric equation.
+The directly measured 5.1k/100k/1.5k/3.9k passive family now constrains this graph, but final effective coefficients remain calibration parameters because the BA662 input impedance and surrounding summing network matter.
 
 A model that simply computes `u = x - k*y4` and places one generic saturator after the four poles misses both the Q-compensation input path and the physical location of limiting.
 
@@ -181,25 +191,7 @@ Evidence supports nonlinear behavior in several physically distinct places:
 
 The first fidelity reference should therefore avoid one global post-filter waveshaper.
 
-### Candidate first nonlinear approximation
-
-For IR3109 OTA differential behavior:
-
-```text
-Phi_IR3109(v) ~= Vscale * tanh(v / Vscale)
-```
-
-or a cheap monotonic rational approximation with equivalent small-signal slope and saturation.
-
-For BA662:
-
-```text
-Phi_BA662(v) ~= Bscale * tanh((v + offset) / Bscale)
-```
-
-with explicit gain/bias/offset calibration capability.
-
-`Vscale`, `Bscale`, offsets and asymmetry are **not frozen constants** yet. They should be fitted to service/hardware vectors rather than copied from an unrelated OTA model.
+Candidate numerical functions remain calibration placeholders, not vintage constants. The first implementation may use monotonic tanh/rational approximations with separately fitted small-signal slope, saturation, offset and asymmetry.
 
 ## 6. Discretization candidate
 
@@ -259,6 +251,12 @@ This is a strong validation pair for the combined digital-control + S/H + expone
 
 Do not infer that every arbitrary panel/control code maps to a perfect one-octave-per-unit law solely from these two service points; use them as calibration constraints.
 
+### 7.3 Modern control sensitivity is sanity data only
+
+AS3109 documentation gives approximately `-19 mV/oct` typical sensitivity and about 250 Hz for a 68k/240p single-stage reference at VC=0.
+
+These values define a plausibility envelope. They are not promoted to strict vintage IR3109/80017A constants.
+
 ## 8. Resonance model and calibration
 
 Roland calibrates each voice's resonance separately and specifies a self-oscillating C4 sine of approximately 4.8 Vp-p at the pre-VCA filter test point.
@@ -273,14 +271,7 @@ Model requirements:
 - stable sinusoidal self-oscillation across the useful cutoff range;
 - no startup-only fake sine generator.
 
-### Required resonance vectors
-
-- silence/input zero, resonance sweep through oscillation threshold;
-- C4 self-oscillation -> 4.8 Vp-p hardware-domain target;
-- same resonance setting at low, mid and high cutoff;
-- large oscillator input plus high resonance;
-- filter sweep across self-oscillation range;
-- compare attack/transient behavior after large cutoff jumps.
+The reference model keeps `A_in`, `A_fb`, `G_direct`, resonance control-current law and BA662 nonlinear scale separate so measured passive evidence and physical captures can be reconciled without changing topology.
 
 ## 9. Voice VCA model
 
@@ -292,7 +283,7 @@ Roland service calibration establishes:
 - per-voice VCA gain trim;
 - after resonance calibration, Bank-3/C4 is adjusted to 6 Vp-p at the per-voice post-VCA test point.
 
-Strict VCA should support:
+Strict VCA supports:
 
 - control law fitted to the actual VCA-CV domain;
 - gain trim;
@@ -300,13 +291,15 @@ Strict VCA should support:
 - BA662 differential/current-control saturation at high signal levels;
 - ENV versus GATE control behavior supplied by the digital/S&H layer.
 
-Secondary measured passive values around original 80017A VCA/resonance networks should remain configurable hypotheses until independently cross-checked.
+The measured ~4.7k input / ~560-ohm local-shunt / 47k output-load family is retained as working hardware evidence.
+
+Modern AS662's roughly 8.5 mS typical gm at 500 uA is used only as a sanity reference, never as an original BA662 constant.
 
 ## 10. 240 pF vs ~250 pF: do not collapse the evidence
 
 The exposed JUNO-6/60 circuit and AS3109 reference use 240 pF filter capacitors with 68 kOhm stages.
 
-A repair engineer's direct measurements on opened 80017A hybrids report filter capacitors around 250 pF and resistors around 68 kOhm / 550–560 ohm.
+Direct measurements on opened 80017A hybrids report filter capacitors around 250 pF and resistors around 68 kOhm / 550–560 ohm.
 
 The difference is small but potentially relevant:
 
@@ -314,23 +307,22 @@ The difference is small but potentially relevant:
 - dielectric/package behavior can affect losses/nonlinearity/temperature;
 - Roland's Frequency/Width trims can compensate much of the static absolute frequency difference.
 
-Therefore strict 106 reference work should carry this as an explicit parameter/hypothesis:
+Therefore strict 106 reference work carries this explicitly:
 
 ```text
-C_stage_106 = measured/fitted value near 240–250 pF
+working 106 C_stage = 250 pF  // direct repair measured default
+alternate reference = 240 pF // shared-family/AS3109 comparison
 ```
 
-not silently assume either `240 pF because JUNO-60` or `250 pF because one repair measurement`.
+The final effective value/distribution remains measurement fitting.
 
 ## 11. Thermal and supply behavior
 
 Roland's ten-minute warm-up requirement proves temperature matters to calibration at a practical service level.
 
-Modern clone engineering also reports audible/measurable transient tuning differences under extreme self-oscillation/cutoff changes due to thermal distribution, and sensitivity to supply behavior.
-
 For Phase 1:
 
-- do **not** build a thermal simulator into the first audio path;
+- do not build a thermal simulator into the first audio path;
 - make cutoff calibration/state architecture capable of adding a very slow thermal drift term later;
 - first validate static warmed-up behavior;
 - only add thermal/supply cross-modulation if A/B measurements show material audible value relative to FM-1 cost.
@@ -353,7 +345,7 @@ Reference strategy:
 ```text
 Filter80017Voice
   set_vcf_code(uint16 code14)
-  set_resonance_control(uint16/uint8 code)
+  set_resonance_control(...)
   set_frequency_cal(offset)
   set_width_cal(scale)
   set_resonance_cal(scale)
@@ -393,49 +385,37 @@ Before FM-1 optimization, build a host reference capable of:
 
 Record CPU cost and error for every variant so the final FM-1 simplification is evidence-based.
 
-## 15. Frozen now
+## 15. Phase-0 closure
 
-- 80017A contains IR3109 + two BA662-class devices and associated passives;
-- four-pole 24 dB/oct low-pass topology;
-- one BA662 in the resonance/Q-compensation loop;
-- second BA662 as final voice VCA;
-- resonance topology includes both stage-4 feedback and input feed-forward/Q compensation;
-- filter nonlinearity belongs inside OTA/buffer/resonance/VCA nodes, not one post-filter shaper;
-- per-voice Frequency, Width, Resonance and VCA calibration terms are required;
-- digital 14-bit VCF control is a separate upstream block;
-- first reference implementation should preserve four explicit stages and explicit BA662 resonance/VCA blocks.
+Current implementation authority:
 
-## 16. Still open / do not guess
+- `JUNO106_80017A_REFERENCE_MODEL.md`;
+- `80017A_PHASE0_CLOSURE.md`;
+- `data/juno106_80017a_calibration_v0.yaml`;
+- `data/juno106_80017a_evidence.csv`.
 
-- exact vintage IR3109 transconductance/nonlinear scale versus modern AS3109;
-- exact capacitor value/distribution inside representative 80017A units (240 vs ~250 pF question);
-- exact original 80017A printed-resistor values/tolerances beyond corroborated measurements;
-- BA662 differential transfer scale/asymmetry and control-current law in this exact circuit;
-- precise VCF DAC/S&H voltage-to-IR3109-CV gain/offset;
-- exact self-oscillation threshold curve versus cutoff;
-- warmed-up voice-to-voice variation after proper calibration;
-- thermal/supply dynamics worth preserving on FM-1;
-- aliasing cost/benefit of 2x processing on the target.
+Frozen:
 
-Every open numerical parameter must enter Phase 1 either as a fitted/calibrated parameter or with an explicit measurement plan; no generic 'Roland filter' constant may silently become strict 106 truth.
+- four explicit IR3109-family stages;
+- explicit BA662 resonance/Q-compensation stage with both stage-4 feedback and source feed-forward;
+- explicit BA662 voice VCA;
+- per-voice Frequency, Width, Resonance and VCA calibration surfaces;
+- topology-preserving nonlinear/implicit reference solver direction;
+- native self-oscillation requirement;
+- working direct-repair passive family retained with evidence qualification;
+- modern AS3109/AS662 values retained only as sanity references.
 
-## 17. Source index
+Calibration backlog remains:
 
-Primary / strong sources:
+- vintage IR3109 nonlinear scale and stage-buffer headroom/asymmetry;
+- effective 240-vs-250-pF distribution/tolerance;
+- exact resonance passive-to-effective coefficient fit and BA662 control law;
+- VCF code/S&H -> cutoff mapping;
+- BA662 voice-VCA CV/current -> gain/headroom law;
+- VCA offset/thump behaviour;
+- optional thermal/supply dynamics after static warmed-up validation;
+- 1x vs selective-2x target deployment decision after profiling.
 
-- Roland `JUNO-106 Service Notes`, First Edition, 31 July 1984.
-- Original JUNO-6/60 service schematic for the exposed shared circuit topology.
-- Physical original-80017A teardown by Obsolete Technology.
+These quantities can replace centralized calibration without changing the graph.
 
-Electrical/circuit references:
-
-- Alfa RPAR AS3109 datasheet, used as a modern architectural/electrical reference, not vintage-proof.
-- Electric Druid analysis of Roland IR3109 filter implementations, especially JUNO-6 Q compensation.
-
-Secondary engineering observations:
-
-- Sound Doctor opened-80017A passive measurements.
-- Analogue Renaissance D80017/AR80017A clone engineering and calibration observations.
-- AMSynths IR3109/80017A analysis.
-
-URLs and provenance are maintained in `docs/research/SOURCE_INDEX.md`.
+**Phase-0 80017A state: `80017A_PHASE0_ARCHITECTURE_FROZEN`.**
