@@ -1,0 +1,93 @@
+schema: fm1juno.juno106.mc5534_calibration.v0
+status: PHASE0_ARCHITECTURE_FROZEN_MEASUREMENT_PENDING
+
+range_network:
+  range_16:
+    designator: R85
+    resistance_ohm: 399000
+    value_status: SCHEMATIC_CROSS_CHECK_STRONG
+  range_8:
+    designator: R86
+    resistance_ohm: 200000
+    value_status: SCHEMATIC_CROSS_CHECK_STRONG
+  range_4:
+    designator: R87
+    resistance_ohm: 100000
+    value_status: SCHEMATIC_CROSS_CHECK_STRONG
+  mapping_status: PRIMARY_CONFIRMED
+  rule: DO_NOT_REPLACE_399K_WITH_IDEAL_400K_IN_STRICT_MODE
+
+ramp_capacitor:
+  designator: C54
+  nominal_f: 1.0e-9
+  value_status: SCHEMATIC_CROSS_CHECK_STRONG
+  primary_value_read: MEASURE_OR_RESCAN
+
+ramp_law:
+  equation: dV_dt = -held_dco_cv / (range_R * Cint)
+  status: ARCHITECTURE_FROZEN
+
+reset:
+  trigger_edge: POSITIVE_DCO_EDGE
+  finite_reset_required: true
+  duration_s: MEASURE_PENDING
+  tau_s: MEASURE_PENDING
+  residual_v: MEASURE_PENDING
+  threshold_v: MEASURE_PENDING
+  saturation_v: MEASURE_PENDING
+  recovery_curve: MEASURE_PENDING
+  hypothesis_a:
+    differentiator_r_ohm: 10000
+    differentiator_c_f: 2.70e-10
+    discharge_r_ohm: 2200
+    discharge_c_f: 1.0e-9
+    approximate_duration_s: 5.0e-6
+    status: HYPOTHESIS_ONLY_DO_NOT_USE_AS_STRICT
+
+held_dco_cv:
+  nominal_domain_v:
+    min: -10.0
+    max: 0.0
+  code_to_loaded_voltage: MEASURE_PENDING
+  per_voice_offset_v: FACTORY_ZERO_CALIBRATED_THEN_MEASURE_PENDING_TOLERANCE
+  source_impedance_ohm: MEASURE_PENDING
+  s_and_h_droop_v_per_s: MEASURE_PENDING
+  selector_on_resistance_ohm: MEASURE_PENDING
+
+wave_output:
+  amplitude_target_vpp: 12.0
+  target_status: PRIMARY_APPROXIMATE
+  per_cycle_normalization_allowed: false
+  buffer_slew: MEASURE_PENDING
+  positive_headroom_v: MEASURE_PENDING
+  negative_headroom_v: MEASURE_PENDING
+  asymmetry: MEASURE_PENDING
+
+pwm:
+  comparator_shared_with_physical_ramp: true
+  cv_50_percent_v: 6.0
+  cv_95_percent_v: 0.6
+  cv_off_v: -0.8
+  factory_50_percent_tolerance_percent: [48, 52]
+  factory_high_pwm_tolerance_percent: [93, 97]
+  propagation_delay_s: MEASURE_PENDING
+  saturation_recovery: MEASURE_PENDING
+
+sub:
+  timing_divide: 2
+  timing_domain_state_per_voice: true
+  amplitude_control_curve: MEASURE_PENDING
+
+validation:
+  amplitude_error_surface: MEASURE_PENDING
+  reset_capture_low_note: MEASURE_PENDING
+  reset_capture_mid_note: MEASURE_PENDING
+  reset_capture_high_note: MEASURE_PENDING
+  adjacent_range_equivalence: MEASURE_PENDING
+
+phase0_rules:
+  centralized_calibration_only: true
+  no_per_cycle_amplitude_normalization: true
+  no_independent_free_running_pulse_oscillator: true
+  no_juno60_reset_values_as_strict_106: true
+  physical_measurement_plan: docs/research/PHASE0_MEASUREMENT_PLAN.md
