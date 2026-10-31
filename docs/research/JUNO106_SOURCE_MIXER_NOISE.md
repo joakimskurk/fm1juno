@@ -1,6 +1,6 @@
 # JUNO-106 source mixer, SUB, PWM and noise architecture
 
-Status: Phase 0 source-path specification for strict `MODEL_106`.
+Status: **`SOURCE_MIXER_PHASE0_ARCHITECTURE_FROZEN`** for architecture and implementation contract. This document remains the detailed research/evidence companion to `JUNO106_SOURCE_MIXER_REFERENCE_MODEL.md`. Exact passive gains, analogue control curves, source impedances, noise spectral fit and pre-VCF headroom remain centralized `MEASURE_PENDING` calibration.
 
 This document freezes what can already be established about the signal presented to each 80017A VCF and deliberately leaves exact passive mixer gains/headroom open until the module-board schematic is read cleanly or measured.
 
@@ -361,7 +361,7 @@ Why:
 - the input network and 80017A can therefore see different drive depending on which sources are enabled and at what levels;
 - filter/VCA nonlinearity should respond to that real drive change.
 
-The exact source resistor ratios and resulting 80017A input voltage are still OPEN and will be frozen from schematic/measurement.
+The exact source resistor ratios and resulting 80017A input voltage remain calibration backlog rather than architecture uncertainty.
 
 ## 12. Provisional clean source API
 
@@ -400,45 +400,32 @@ pin 17     saw on/off gate; high when saw is off
 
 This is highly consistent with the service schematic and firmware control paths, but remains tagged as repair/community evidence rather than primary Roland pinout documentation.
 
-## 14. What is already frozen
+## 14. Phase-0 closure
 
-- SAW and PULSE share the MC5534 ramp/timing system.
-- The useful external abstraction is a per-voice WAVE node plus separate per-voice SUB node.
-- SAW gate and PULSE/PWM disable are distinct controls.
-- PWM must be generated through the recovered integer code law and held comparator CV, not direct ideal duty mapping.
-- SUB and NOISE panel parameters both use `raw7 << 7` firmware storage.
-- SUB level is one global control applied to six separate physical sub oscillators.
-- Noise is **one common continuous source**, not six independent generators.
-- Noise level is globally controlled before distribution to the six voice paths.
-- Noise bandwidth target is approximately 5 kHz after its VCA/shaping network.
-- Factory maximum-noise calibration target is 4 Vp-p at TP8 under Bank-6 test conditions.
-- Source sums must preserve drive/headroom and must not be normalized by enabled-source count.
+Current authority for implementation is:
 
-## 15. Still open
+- `JUNO106_SOURCE_MIXER_REFERENCE_MODEL.md`;
+- `SOURCE_MIXER_PHASE0_CLOSURE.md`;
+- `data/juno106_source_mixer_calibration_v0.yaml`;
+- `data/juno106_source_mixer_evidence.csv`;
+- `netlists/juno106_source_mixer_topology.csv`.
 
-- exact WAVE output electrical mix of saw and pulse inside each MC5534 revision;
-- exact per-voice WAVE-to-80017A input resistor/gain;
-- exact per-voice SUB-to-80017A input resistor/gain;
-- exact common-noise fan-out/input resistor/gain;
-- source-node DC offsets and coupling capacitors;
-- maximum pre-VCF voltage and clipping mechanism;
-- SUB transistor amplitude-control law vs held SUB LEVEL voltage;
-- noise-VCA transfer curve vs NOISE LEVEL voltage;
-- exact noise RC values and spectrum including low-frequency shape;
-- whether the 80017A input network itself provides measurable source-dependent loading before OTA nonlinearity.
+Frozen:
 
-## 16. Measurement plan for exact mixer freeze
+- per-voice MC5534 WAVE node + separate per-voice SUB node;
+- one common selected-transistor NOISE source and BA662 noise VCA;
+- common-noise fanout to all six voice input regions;
+- exact PWM/SUB/NOISE digital control boundaries;
+- source impedance/coupling/headroom retained as a physical boundary;
+- enabled-source normalization forbidden.
 
-For one calibrated physical voice, preferably CH1:
+Calibration backlog remains:
 
-1. **SAW only** — 8', C4, resonance 0, filter open; capture MC5534 WAVE pin and 80017A input/test-accessible equivalent.
-2. **PULSE only** — PWM 50%, same note; capture WAVE node and downstream level.
-3. **SAW + PULSE** — compare node peak/rms to individual cases; look for internal/output headroom interaction.
-4. **SUB only** — slider 10; capture MC5534 SUB pin and downstream input.
-5. Sweep SUB slider 0..10 and fit amplitude vs nominal held-control voltage.
-6. **NOISE only** — after correct VR32 calibration; capture common generator/noise-VCA output if accessible and TP8.
-7. Sweep NOISE slider and fit control law/spectrum.
-8. **All sources** — observe maximum source-mixer/VCF input excursion and any clipping/compression.
-9. Repeat representative combinations with resonance/cutoff positions chosen to expose input-drive-dependent filter behavior.
+- exact WAVE/SUB/NOISE injection gains/impedances;
+- SUB and NOISE analogue control curves;
+- exact healthy noise RC transfer and spectrum;
+- source-node DC/coupling and combined-source headroom/compression/loading.
 
-Until these ratios are frozen, Phase-1 reference code should keep each source in hardware-voltage units with explicit configurable gain constants rather than prematurely normalizing them.
+These quantities can be replaced without changing the source graph.
+
+**Phase-0 source-mixer state: `SOURCE_MIXER_PHASE0_ARCHITECTURE_FROZEN`.**
