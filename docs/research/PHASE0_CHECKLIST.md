@@ -28,7 +28,7 @@ Newer block-specific closure records supersede older unchecked wording where exp
 - [x] Recover Portamento control indexing: non-zero 8-bit control -> right shift -> 0..127 coefficient index.
 - [x] Confirm normal user-facing Poly 1 / Poly 2 / Solo-Unison semantics from Roland owner's documentation.
 - [x] Confirm normal six-voice limit: a seventh simultaneously held key is ignored, not voice-stolen.
-- [x] Freeze normal Poly 1 allocator: dynamic voice-order queue, release-to-back ordering and same-note free-voice reuse.
+- [x] Freeze normal Poly 1 allocator: dynamic physical-voice order, released voice moves to back, same-note free-voice reuse.
 - [x] Freeze normal Poly 2 allocator: fixed physical first-free scan, no release-age reordering.
 - [x] Freeze normal Poly 1 / Poly 2 note-off behavior and relation to natural release.
 - [x] Confirm normal Solo-Unison sends the same Voice On to all six physical voices and Voice Off to all six without rewriting Poly 1/2 allocation tables.
@@ -110,23 +110,33 @@ Architecture / implementation gate:
 - [x] Recover VCF-LFO law and integrate exact VCF Bender law.
 - [ ] Verify exact ordering/spacing of six VCF S/H writes and DAC/S&H settling inside the full service frame.
 
-## E. A1QH80017A VCF/VCA
+## E. A1QH80017A VCF/VCA — `80017A_PHASE0_ARCHITECTURE_FROZEN`
+
+Architecture / implementation gate:
 
 - [x] Confirm physical hybrid contains IR3109 + 2x BA662-class devices plus passives.
-- [x] Confirm four-pole 24 dB/oct low-pass structure and final BA662 voice VCA.
-- [x] Confirm resonance BA662 topology includes both stage-4 feedback and input feed-forward/Q compensation; reject a generic `x-k*y4`-only resonance model.
-- [x] Confirm separate per-voice calibration for Resonance, VCA Gain, VCF Frequency and VCF Width.
-- [x] Freeze Roland service validation anchors: 4.8 Vp-p self-oscillation, 6 Vp-p post-VCA, 248 Hz C4 frequency anchor, 992 Hz C6 width anchor, +/-10 cent interaction tolerance.
-- [x] Establish exposed shared JUNO-6/60 stage family as 68 kOhm / 240 pF and keep exact 106 hybrid passives separately qualified.
-- [x] Record direct-repair measurement hypothesis of ~68 kOhm / ~550-560 ohm / ~250 pF inside opened 80017A units without promoting it to primary truth.
-- [x] Confirm modern 3109-family architectural constraint that stage buffers are not identical (1/3 passive-load vs 2/4 active-load behavior).
-- [x] Choose topology-preserving first reference structure: four explicit nonlinear OTA one-poles + explicit BA662 Q-compensation/resonance block + explicit BA662 VCA.
-- [ ] Freeze vintage IR3109/80017A nonlinear scale, buffer headroom/asymmetry and exact 106 passive set from measurement/fitting.
-- [ ] Derive/freeze numerical resonance-loop resistor/gain scaling for strict 106.
-- [ ] Derive/freeze VCF DAC/S&H code -> IR3109 control-voltage/frequency mapping; use Frequency/Width calibration anchors rather than guessing mV/bit.
-- [ ] Derive/freeze VCA CV -> BA662 gain mapping.
+- [x] Freeze four explicit IR3109-family low-pass stages and final BA662 voice VCA.
+- [x] Freeze resonance BA662 topology with both stage-4 feedback and input feed-forward/Q compensation.
+- [x] Require separate per-voice Frequency, Width, Resonance and VCA calibration surfaces.
+- [x] Freeze Roland service anchors: 4.8 Vp-p self-oscillation, 6 Vp-p post-VCA, 248 Hz C4, 992 Hz C6, +/-10 cents after iterative Frequency/Width adjustment.
+- [x] Retain working opened-hybrid passive evidence: ~68k stages, ~550-560 ohm shunts, ~250 pF capacitors, with evidence qualification.
+- [x] Retain measured resonance-network family: ~1.5k local shunts, ~5.1k input feed-forward, ~100k stage-4 feedback, ~3.9k additional input path.
+- [x] Retain measured voice-VCA family: ~4.7k input, ~560-ohm local shunt, ~47k output/load branch with unresolved small capacitor.
+- [x] Keep modern AS3109/AS662 electrical numbers as sanity references only, not vintage truth.
+- [x] Freeze topology-preserving implicit/TPT reference solver direction and native self-oscillation requirement.
 - [x] Define self-oscillation, large-signal, stage-nonlinearity, 240-vs-250-pF and 1x-vs-2x reference test vectors.
-- [ ] Decide whether warmed-up thermal/supply dynamics have enough audible value to model after static reference behavior passes.
+- [x] Centralize all unresolved analogue coefficients in `data/juno106_80017a_calibration_v0.yaml`.
+- [x] **80017A PHASE-0 ARCHITECTURE GATE CLOSED.**
+
+### 80017A calibration backlog — `MEASURE_PENDING`, not architecture blockers
+
+- [ ] Fit vintage IR3109 differential nonlinear scale and stage-buffer headroom/asymmetry/slew.
+- [ ] Fit effective stage capacitance/tolerance distribution around the 240-vs-250-pF evidence.
+- [ ] Fit resonance passive network -> effective feed-forward/feedback/direct coefficients and BA662 control/current law.
+- [ ] Measure/freeze VCF DAC/S&H code -> per-voice cutoff mapping using the 248/992-Hz anchors.
+- [ ] Measure/freeze BA662 voice-VCA control -> gain/headroom curve and offset/thump behavior.
+- [ ] Decide whether slow warmed-up thermal/supply dynamics justify model complexity after static behavior passes.
+- [ ] Choose 1x vs selective 2x deployment only after desktop A/B and target profiling.
 
 ## F. HPF / global output — `GLOBAL_OUTPUT_PHASE0_ARCHITECTURE_FROZEN`
 
