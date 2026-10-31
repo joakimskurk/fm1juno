@@ -41,9 +41,15 @@ Strict `MODEL_106` must not inherit 60-specific clock, IR3R01 envelope, HPF load
 - [`research/JUNO106_PITCH_DCOCV.md`](research/JUNO106_PITCH_DCOCV.md)
 - [`research/JUNO106_BENDER.md`](research/JUNO106_BENDER.md)
 
-### DCO / source path
+### MC5534 DCO wave generator — Phase-0 frozen architecture
 
-- [`research/JUNO106_MC5534_RAMP.md`](research/JUNO106_MC5534_RAMP.md)
+- [`research/JUNO106_MC5534_REFERENCE_MODEL.md`](research/JUNO106_MC5534_REFERENCE_MODEL.md) — authoritative implementation contract; state `MC5534_PHASE0_ARCHITECTURE_FROZEN`.
+- [`research/JUNO106_MC5534_RAMP.md`](research/JUNO106_MC5534_RAMP.md) — detailed evidence/derivation companion.
+- [`research/MC5534_PHASE0_CLOSURE.md`](research/MC5534_PHASE0_CLOSURE.md) — block-specific closure gate.
+- [`research/data/juno106_mc5534_calibration_v0.yaml`](research/data/juno106_mc5534_calibration_v0.yaml) — centralized strict calibration / `MEASURE_PENDING` values.
+- [`research/data/juno106_mc5534_evidence.csv`](research/data/juno106_mc5534_evidence.csv) — per-fact evidence state.
+
+The frozen graph keeps physical 8253 edge timing, held DCO CV, RANGE-selected slope resistance, finite C54 reset, shared-ramp SAW/PWM and timing-domain SUB as separate concepts. Exact reset duration/residual, loaded DCO-CV law, S/H droop, MC5534 headroom/slew and measured amplitude-error surfaces remain calibration backlog.
 
 ### Source mixer / SUB / common NOISE — Phase-0 frozen architecture
 
@@ -104,7 +110,7 @@ These files are retained because they show why the architecture evolved, but the
 - [`REFERENCES.md`](REFERENCES.md)
 - [`CIRCUIT_MODEL_SPEC_V0.md`](CIRCUIT_MODEL_SPEC_V0.md)
 
-In particular, old JUNO-60 chorus numbers or HPF/output-loading assumptions in baseline documents must never be reused as strict 106 constants. Newer block-specific specs deliberately remove those shortcuts.
+In particular, old JUNO-60 chorus numbers, DCO reset constants or HPF/output-loading assumptions in baseline documents must never be reused as strict 106 constants. Newer block-specific specs deliberately remove those shortcuts.
 
 ## 5. Evidence labels
 
