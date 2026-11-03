@@ -17,6 +17,18 @@ uint16_t lfo106_rate_coefficient(uint8_t i)
     return 4096u;
 }
 
+uint8_t lfo106_depth_scaler(uint8_t raw_depth)
+{
+    const uint8_t i = (uint8_t)(raw_depth & UINT8_C(0x7f));
+
+    if (i <= 2u) return 0u;
+    if (i <= 64u) return (uint8_t)(i - 2u);
+    if (i <= 95u) return (uint8_t)(2u * i - 66u);
+    if (i <= 124u) return (uint8_t)(4u * i - 256u);
+    if (i == 125u) return 248u;
+    return UINT8_C(0xff);
+}
+
 uint16_t lfo106_half_steps(uint16_t coefficient)
 {
     if (coefficient == 0u) return 0u;
