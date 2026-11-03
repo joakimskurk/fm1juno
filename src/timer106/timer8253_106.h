@@ -22,6 +22,11 @@ typedef struct Timer8253Voice106 {
     Fm1junoTimeQ32 next_edge_time;
 } Timer8253Voice106;
 
+/* The simplified Mode-3 half-cycle model intentionally excludes count=1
+ * and count=3, whose original-8253 special behavior is not represented.
+ * Typical JUNO note divisors are far above those values. Count register 0
+ * is the valid binary 65536-clock special case. */
+bool timer8253_106_regular_mode3_count(uint16_t count_register);
 uint32_t timer8253_106_effective_count(uint16_t count_register);
 uint32_t timer8253_106_high_clocks(uint16_t count_register);
 uint32_t timer8253_106_low_clocks(uint16_t count_register);
