@@ -10,6 +10,7 @@
 #include "control106/control_scheduler106.h"
 #include "control106/envelope106.h"
 #include "control106/lfo_delay106.h"
+#include "control106/pitch106.h"
 #include "control106/vcf_control106.h"
 #include "timer106/timer8253_106.h"
 
@@ -33,6 +34,8 @@ typedef struct ModuleVoiceControl106 {
     uint16_t portamento_pitch_8_8;
     uint16_t vcf_code14;
     uint16_t vcf_dac12;
+    uint16_t final_dco_pitch_8_8;
+    uint16_t dco_cv_dac12;
 } ModuleVoiceControl106;
 
 typedef enum ModuleTraceType106 {
@@ -44,7 +47,8 @@ typedef enum ModuleTraceType106 {
     MODULE_TRACE106_TIMER_QUEUE_COUNT,
     MODULE_TRACE106_ENVELOPE_TICK,
     MODULE_TRACE106_LFO_DELAY_RESTART,
-    MODULE_TRACE106_VCF_S_H
+    MODULE_TRACE106_VCF_S_H,
+    MODULE_TRACE106_DCO_CV_S_H
 } ModuleTraceType106;
 
 typedef struct ModuleTraceEvent106 {
@@ -68,6 +72,10 @@ typedef struct ModuleControl106 {
     LfoDelay106 lfo_delay;
     VcfControlParams106 vcf_params;
     int32_t vcf_global_raw;
+    bool pitch_timer_profile_enabled;
+    PitchTimerBase106 pitch_timer_profile;
+    uint16_t requested_global_pitch_offset_8_8;
+    uint16_t active_global_pitch_offset_8_8;
     uint8_t note_gate_bits;
     uint8_t voice_run_bits;
     bool sustain_on;
@@ -86,6 +94,15 @@ void module_control106_set_vcf_params(ModuleControl106 *m,
                                        VcfControlParams106 params);
 /* External Portamento/pitch producer writes current voice state in 8.8.
  * This is a temporary P1 harness boundary until the pitch producer is wired. */
+/* Set a caller-owned base-count profile. May be calibrated reference data
+ * or a *clearly identified* derived approximation. Never silently assume
+ * the provided profile is ROM-bit-identical. */
+void module_control106_set_pitch_timer_profile(ModuleControl106 *m,
+                                                const PitchTimerBase106 *profile);
+/* Control-frame latch of the firmware 8.8 global Tune/LFO/Bend offset. */
+void module_control106_set_global_pitch_offset(ModuleControl106 *m,
+                                                uint16_t global_offset_8_8);
+
 void module_control106_set_voice_pitch(ModuleControl106 *m,
                                        uint8_t voice,
                                        uint16_t pitch_8_8);
