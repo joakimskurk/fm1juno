@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "common/fixed_time.h"
+#include "control106/assigner106.h"
 #include "control106/control_scheduler106.h"
 #include "control106/control_math106.h"
 #include "control106/envelope106.h"
@@ -17,6 +18,98 @@
         return 1; \
     } \
 } while (0)
+
+static int test_poly2_allocator(void)
+{
+    Assigner106 a;
+    assigner106_init(&a, ASSIGNER106_POLY2);
+    for (uint8_t v = 0u; v < 6u; ++v) {
+        const AssignerEventBatch106 b = assigner106_note_on(&a, (uint8_t)(60u + v));
+        CHECK(b.count == 1u);
+        CHECK(b.events[0].voice == v);
+    }
+    CHECK(assigner106_note_on(&a, 72u).count == 0u);
+
+    AssignerEventBatch106 off = assigner106_note_off(&a, 60u);
+    CHECK(off.count == 1u && off.events[0].voice == 0u);
+    CHECK(a.slots[0].free);
+    CHECK(a.slots[0].note == 60u);
+
+    const AssignerEventBatch106 next = assigner106_note_on(&a, 72u);
+    CHECK(next.count == 1u && next.events[0].voice == 0u);
+    return 0;
+}
+
+static int test_poly1_release_queue_and_same_note_reuse(void)
+{
+    Assigner106 a;
+    assigner106_init(&a, ASSIGNER106_POLY1);
+    CHECK(assigner106_note_on(&a, 60u).events[0].voice == 0u);
+    CHECK(assigner106_note_on(&a, 62u).events[0].voice == 1u);
+    CHECK(assigner106_note_on(&a, 64u).events[0].voice == 2u);
+
+    const AssignerEventBatch106 off = assigner106_note_off(&a, 62u);
+    CHECK(off.count == 1u && off.events[0].voice == 1u);
+    CHECK(a.poly1_active_count == 2u);
+    CHECK(a.poly1_order[0] == 0u);
+    CHECK(a.poly1_order[1] == 2u);
+    CHECK(a.poly1_order[5] == 1u);
+
+    const AssignerEventBatch106 different = assigner106_note_on(&a, 65u);
+    CHECK(different.count == 1u);
+    CHECK(different.events[0].voice == 3u);
+
+    const AssignerEventBatch106 replay = assigner106_note_on(&a, 62u);
+    CHECK(replay.count == 1u);
+    CHECK(replay.events[0].voice == 1u);
+    CHECK(a.poly1_order[3] == 1u);
+    return 0;
+}
+
+static int test_solo_scan_arbitration(void)
+{
+    Assigner106 a;
+    assigner106_init(&a, ASSIGNER106_SOLO_UNISON);
+
+    assigner106_begin_scan(&a);
+    AssignerEventBatch106 on = assigner106_solo_changed_note(&a, 60u, true);
+    CHECK(on.count == 6u);
+    for (uint8_t v = 0u; v < 6u; ++v) {
+        CHECK(on.events[v].type == ASSIGNER106_EVENT_VOICE_ON);
+        CHECK(on.events[v].voice == v);
+        CHECK(on.events[v].note == 60u);
+    }
+    CHECK(assigner106_solo_changed_note(&a, 64u, true).count == 0u);
+    CHECK(!assigner106_end_scan(&a));
+
+    assigner106_begin_scan(&a);
+    AssignerEventBatch106 off = assigner106_solo_changed_note(&a, 60u, false);
+    CHECK(off.count == 6u);
+    CHECK(assigner106_solo_changed_note(&a, 64u, true).count == 0u);
+    CHECK(assigner106_end_scan(&a));
+    return 0;
+}
+
+static int test_module_retrigger_matrix(void)
+{
+    ModuleVoiceOnDecision106 d;
+
+    d = module106_voice_on_decision(true, 60u, true, 60u);
+    CHECK(d.request_attack && !d.request_timer_reset);
+    d = module106_voice_on_decision(true, 60u, false, 60u);
+    CHECK(d.request_attack && !d.request_timer_reset);
+    d = module106_voice_on_decision(true, 60u, true, 62u);
+    CHECK(d.request_attack && !d.request_timer_reset);
+    d = module106_voice_on_decision(true, 60u, false, 62u);
+    CHECK(d.request_attack && d.request_timer_reset);
+    d = module106_voice_on_decision(false, 0u, false, 60u);
+    CHECK(d.request_attack && d.request_timer_reset);
+
+    CHECK(module106_update_voice_run(0x01u, 0x02u, false) == 0x01u);
+    CHECK(module106_update_voice_run(0x01u, 0x02u, true) == 0x03u);
+    CHECK(module106_update_voice_run(0xffu, 0xffu, true) == 0x3fu);
+    return 0;
+}
 
 static int test_control_math(void)
 {
@@ -260,6 +353,10 @@ static int test_scheduler_interrupt_classes(void)
 
 int main(void)
 {
+    if (test_poly2_allocator()) return EXIT_FAILURE;
+    if (test_poly1_release_queue_and_same_note_reuse()) return EXIT_FAILURE;
+    if (test_solo_scan_arbitration()) return EXIT_FAILURE;
+    if (test_module_retrigger_matrix()) return EXIT_FAILURE;
     if (test_control_math()) return EXIT_FAILURE;
     if (test_envelope_primitives()) return EXIT_FAILURE;
     if (test_lfo_rate_law()) return EXIT_FAILURE;

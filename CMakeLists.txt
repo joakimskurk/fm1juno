@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(fm1juno_core STATIC
+    src/control106/assigner106.c
     src/control106/dac106.c
     src/control106/control_math106.c
     src/control106/envelope106.c
