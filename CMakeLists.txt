@@ -93,3 +93,11 @@ add_test(
             --outer-frames 128
             --samples 256
 )
+
+add_test(
+    NAME fm1juno_raw_script_smoke
+    COMMAND fm1juno_render
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/vectors/p1_raw_parameter_replay_v1.csv
+            --outer-frames 64
+            --samples 128
+)
