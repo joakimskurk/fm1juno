@@ -200,7 +200,7 @@ New module: `src/control106/native_panel106.h/.c`. Integrated into `module_contr
 
 - Switch-1: decoded the original active-low oscillator range/pulse flags, saw and chorus latch lines. Switch-2: inverted HPF selector plus PWM manual/LFO, ENV polarity and ENV/GATE mode.
 - IC40 keeps distinct **register** vs **frame-latched output** at `FRAME_START`. The PF range value is retained as a digital output, **not** used to invent live 8253 clock-phase behavior.
-- Raw four-channel ADC interrupt snapshots are banked (`ADC_BANK 0/1`), condition ±1-byte hysteresis and a piecewise endpoint law at the late `ADC_PERFORMANCE` slot, then feed Tune, Portamento, LFO trigger/sensitivity, VCF/DCO bend sensitivity, polarity and magnitude.
+- Raw four-channel ADC interrupt snapshots are banked (`ADC_BANK 0/1`), condition ±1-byte hysteresis and a piecewise endpoint law at the late `ADC_PERFORMANCE` slot, then feed Tune, Portamento, LFO trigger/sensitivity, VCF/DCO bend sensitivity, polarity and magnitude. **ADC-only interrupt input does not activate raw-control mode early**; the earlier ENV/pitch region retains its injected state until ADC servicing.
 - `SERIAL_BYTE` interprets module-CPU UART commands 0x80..0xA3: immediate physical voice-off and sustain, note-on followed by note data and scheduler restart, patch command data 0x8E..0xA2 with running status, and deliberately ignored original test-mode 0xA3.
 - Parser rejects narrowing overflow before casting to 8-/32-bit event fields. Two negative CTest fixtures guard the exact bug class.
 - Existing `PARAMETER` semantic ID scripts remain backwards-compatible. Native bytes and normalized setters coexist, with later input determining the semantic value without retroactively changing original received raw registers.
@@ -208,7 +208,7 @@ New module: `src/control106/native_panel106.h/.c`. Integrated into `module_contr
 
 Tests: `tests/unit/test_native_panel.c`, `tests/vectors/p1_native_switch_adc_v1.csv`, `tests/vectors/p1_native_serial_v1.csv`, CMake/CTest CLI smoke for both, and invalid parser vectors.
 
-**CI verified:** native switch/ADC/serial unit tests #209, native serial CSV #213, hardened parser regressions #220 all **passed**.
+**CI verified:** native switch/ADC/serial unit tests #209, native serial CSV #213, hardened parser regressions #220, and ADC-only ISR causality regression **#232** all passed. The full suite was green after the final code fix.
 
 **Not claimed:** full external assigner/MIDI CPU, actual ADC clock/bank alternation and ISR collision latency, IC40 line analogue truth table, uPD7811 cycle-accurate condition flags or live PF-clock phase.
 
