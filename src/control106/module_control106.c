@@ -111,7 +111,7 @@ bool module_control106_receive_native_adc_bank(ModuleControl106 *m,
     /* IC29 ADC ISR $0070..$008d: publishes 4 samples and returns.
      * Filtering and semantic control writes occur at the late ADC slot. */
     control_scheduler106_adc_interrupt(&m->scheduler);
-    m->raw_params_active = true;
+    /* ISR cannot activate semantic controls ahead of the late ADC slot. */
     trace_push(m, MODULE_TRACE106_ADC_ISR_BANK, now,
                m->scheduler.pass_id, m->scheduler.sequence,
                bank, packed_le_bytes);
@@ -124,6 +124,7 @@ static void service_native_adc(ModuleControl106 *m,
 {
     uint8_t bank;
     if (!native_adc106_process_latest(&m->native_adc, &bank)) return;
+    m->raw_params_active = true;
     const uint8_t *v = m->native_adc.conditioned;
     if (bank == 0u) {
         /* $06e2..$0724: tune, porta, LFO trigger, sensitivity. */
