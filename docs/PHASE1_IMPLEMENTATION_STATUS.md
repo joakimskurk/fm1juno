@@ -99,7 +99,7 @@ Confirmed:
 - [x] VCF global/per-voice arithmetic tests, signed unclamped base, Key Follow and ENV corner vectors.
 - [x] VCF S/H integration test for interleaved per-voice updates and interrupt/restart.
 - [x] Derived divisor-candidate profile and sparse error-bound regression vectors.
-- [x] Latest host-tests CI on `1123c3fd7c73e5eb64537507d0d8f0b4195d49b5` completed successfully.
+- [x] Host-tests CI #126 completed successfully after the timestamped-parameter implementation and end-to-end CSV smoke (`808240d`).
 
 Still open before **P1.1 exact digital/control exit**:
 
