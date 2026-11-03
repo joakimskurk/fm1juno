@@ -1,0 +1,24 @@
+fact,evidence_status,source,reference,notes
+Service cycle approximately 4.2 ms,PRIMARY_CONFIRMED,Roland service documentation,timing diagram,Exact universal period remains unfrozen
+Engineering target approximately 4.2335 ms / 236.21 Hz,SECONDARY_TARGET_ONLY,independent firmware/hardware-oriented reports,measurement target,Do not hard-code as primary truth
+Main loop starts at 02EC and returns from 07B5,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,02EC..07B5,Instruction-address order is stronger than human comments
+VCF resonance serviced near start of loop,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,0301..030A,loadDac call before later modulation work
+Global VCA LEVEL serviced before master pitch/DCO loop,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,03A1..03AA,Ordered physical held-control update
+SUB LEVEL serviced before six DCO voices,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,0407..0410,Ordered physical held-control update
+DCO voices are serviced sequentially,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,0413..04A3,voicePtr increments until six voices complete
+8253 divisor low byte then high byte with interrupts disabled,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,0464..0470,Reset path uses control-word route before count load
+DCO-CV S/H commit follows that voice timer load,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,0471..0493,Macro-order frozen; exact microseconds pending
+VCF base computed after DCO loop,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,04D5..04F6,Cutoff LFO Bender global base
+ENV/VCA/VCF voice region is sequential,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,04F7..0652,Exact low-level mux interleave remains cycle-harness item
+PWM S/H is serviced inside later voice/control region,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,0599..05A2,Held PWM control not audio-rate duty
+Per-voice VCF S/H committed in voice loop,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,063C..064E,voicePtr loop to six voices
+ADC/performance processing occurs after main DCO/VCF service,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,0653 onward,Establishes later-pass causality
+LFO accumulator advances late in loop,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,074E onward,Earlier DCO/VCF uses pre-advance LFO state
+NOISE LEVEL serviced at end of normal loop,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,07A9..07B5,Then jumps to 02EC
+loadDac inhibits MUXes then writes DAC bus,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,082F..083C,Caller later uninhibits target mux group
+Physical DAC uses 12 significant bits from common 14-bit-style data,ROM_DERIVED,ErroneousBosh j106roms ic29.txt,0836..083A,Two lowest bits are not used physically; code14 >> 2 for common aligned controls
+ADC ISR returns to interrupted main-loop execution,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,0070..008D,Bounded interruption class
+Normal serial parameter handling returns with RETI,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,00C4..010C,State mutation normally resumes current pass
+Voice note event path discards stack and jumps to loop entry,ROM_CONFIRMED,ErroneousBosh j106roms ic29.txt,0149..014C,Can abandon partially completed pass
+Exact per-slot microsecond offsets,MEASURE_PENDING,physical capture or cycle-accurate uPD7811 harness,PHASE0_MEASUREMENT_PLAN section 3,Calibration only
+DAC settling and S/H droop/source impedance/charge injection,MEASURE_PENDING,physical measurement,PHASE0_MEASUREMENT_PLAN sections 3-4,Calibration only
