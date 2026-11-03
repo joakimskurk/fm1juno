@@ -104,7 +104,8 @@ Confirmed:
 Still open before **P1.1 exact digital/control exit**:
 
 - [ ] Full timestamped panel/MIDI parameter ingestion and control-parameter state feeding the scheduler.
-- [ ] Wire the complete 8.8 Tune/LFO/Bend/Portamento pitch producer to both per-voice timer count and DCO-CV/S&H from **one** pitch state.
+- [x] Shared DCO service: an injected Portamento pitch and latched global pitch offset now feed both 8253 count and DCO-CV/S&H from **one** final pitch coordinate (candidate profile explicitly identified).
+- [ ] Replace the current injected pitch/offset harness with complete timestamped Tune/LFO/Bend/Portamento producer state and raw-parameter ingestion.
 - [ ] Certify a ROM-equivalent divisor base or explicitly label/configure the accepted non-exact tier.
 - [ ] Complete VCF global/voice dataflow tests against executable CPU arithmetic for rare carry/borrow cases.
 - [ ] Cover all documented 8253 pending/initial/reset/range/odd-count transition edge cases with independent timestamp vectors.
@@ -118,17 +119,32 @@ Before the broader **Phase 1A/1D audio exit**:
 - [ ] Event queue integration into final sample-accurate audio dispatcher and end-to-end callback-invariance renders.
 - [ ] High-precision MC5534 reference, then shared noise/mixer, 80017A, global output and chorus according to plan.
 
-## 5. Next implementation slice
+## 5. Shared DCO pitch/CV integration now implemented
 
-Implement the combined **Pitch106 -> DCO timer + DCO-CV held-control producer** in an independently testable module:
+Files: `module_control106.h/.c` and `tests/unit/test_module_control.c`.
 
-- one source 8.8 pitch coordinate, same for divisor and CV;
-- 8253 count-reset vs ordinary queue unchanged;
-- integer Q32.32 event times;
-- per-voice S/H updates **after** that voice's 8253 write;
-- no host callback-size dependency;
-- inject a named derived divisor profile for experiments, without silently treating it as exact.
+- The host harness injects a complete Portamento 8.8 voice pitch and a global Tune/LFO/Bender 8.8 offset.
+- The global offset becomes *active* on the ROM `PITCH_AND_PORTAMENTO` scheduler slot.
+- Each subsequent physical `DCO_VOICE` service computes one final pitch coordinate; **that same value** drives profile-derived timer count and DCO-CV.
+- Timer count reset/queue trace precedes that voice's physical DCO-CV S/H trace.
+- An ordinary pitch change queues a new count without discarding the current Mode-3 half-cycle, while its DCO-CV hold is updated at this voice's scheduled service point.
+- The injected base-count profile is explicitly replaceable, and the current generated candidate is not strict count-bit-identical.
+- Default/manual `DCO_COMMAND` behavior remains available for deterministic legacy tests.
 
-Then test six-voice sequences, deliberate interrupts mid-DCO pass, pitch+bender+Portamento changes and both range-clock and CV outputs.
+The new integration regression verifies one-frame global-offset causality, initial reset, later ordinary count queueing, shared pitch and the timer-write-before-CV ordering.
 
-**No automatic transition to MC5534 audio until the strict P1.1 gate is satisfied or reviewed with explicit exceptions.**
+**This does not mean the full original 106 pitch pipeline is done.** Real raw parameter reception, LFO/ENV servicing, per-voice Portamento state updates, and full 8253 clock-edge coordination still need implementation and independent vectors.
+
+## 6. Next implementation slice
+
+Complete a **real scheduled control-parameter producer** rather than growing more direct setters:
+
+1. raw 7-bit parameter changes enter a timestamped command queue;
+2. derive Tune, LFO depth/onset and signed Bender in their original integer domains;
+3. advance Portamento per physical voice in the earlier ROM control region;
+4. provide the new global offset and per-voice pitch to the already integrated DCO timer/CV and VCF paths;
+5. prove control traces remain identical for callback sizes 16/32/64/128/256 and for interrupted frame/restart vectors.
+
+Keep a distinct profile-quality flag for `ROM_EXACT` versus `DERIVED_APPROXIMATE` divisors. Do not promote the latter silently.
+
+Do not transition to MC5534 audio fidelity until the remaining exact P1.1 digital gates have an explicit passing test or reviewed exception.
