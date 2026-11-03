@@ -134,3 +134,15 @@ add_test(
             --outer-frames 64
             --samples 128
 )
+
+# Negative CSV parser regression: numeric narrowing must never alias a valid event.
+add_test(NAME fm1juno_reject_voice_overflow
+    COMMAND fm1juno_render
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/vectors/p1_invalid_voice_narrowing.csv
+        --samples 1)
+add_test(NAME fm1juno_reject_value_overflow
+    COMMAND fm1juno_render
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/vectors/p1_invalid_value_narrowing.csv
+        --samples 1)
+set_tests_properties(fm1juno_reject_voice_overflow fm1juno_reject_value_overflow
+    PROPERTIES WILL_FAIL TRUE)
