@@ -20,6 +20,8 @@ bool parse_type(const std::string &text, ScriptEventType106 &type)
     else if (text == "SUSTAIN") type = SCRIPT106_SUSTAIN;
     else if (text == "DCO_COMMAND") type = SCRIPT106_DCO_COMMAND;
     else if (text == "CONTROL_STEP") type = SCRIPT106_CONTROL_STEP;
+    else if (text == "PARAMETER") type = SCRIPT106_PARAMETER;
+    else if (text == "PITCH_PROFILE") type = SCRIPT106_PITCH_PROFILE;
     else return false;
     return true;
 }
