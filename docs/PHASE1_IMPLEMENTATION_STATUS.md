@@ -110,7 +110,8 @@ Still open before **P1.1 exact digital/control exit**:
 - [ ] Extend raw producer to complete Roland protocol/ADC scan semantics and verify macro and cycle-level timing against executable CPU traces.
 - [ ] Certify a ROM-equivalent divisor base or explicitly label/configure the accepted non-exact tier.
 - [ ] Complete VCF global/voice dataflow tests against executable CPU arithmetic for rare carry/borrow cases.
-- [ ] Cover all documented 8253 pending/initial/reset/range/odd-count transition edge cases with independent timestamp vectors.
+- [x] Independent Mode-3 vectors now exercise normal even/odd counts, N=0→65536, high/low pending writes, repeated pending overwrites, fractional-sample reset and range-specific reset timings.
+- [ ] Original 8253 count=1/3 corner behavior, GATE/CLK alignment, live-range phase switching and actual MSB-write-to-first-edge timing still need independent hardware-level validation.
 - [x] `LFO_DELAY_AND_MOD_SCALE`, `PITCH_AND_PORTAMENTO`, `VCF_GLOBAL_BASE`, `ENV_VCA_VCF_VOICE`, `ADC_PERFORMANCE` and `LFO_ADVANCE` now update persistent digital control state when raw-parameter mode is active.
 - [x] Secondary output hold coverage: resonance, global VCA LEVEL, SUB, NOISE and delayed PWM now route through distinct physical mux channels and hold 14-bit/12-bit digital codes; voice VCA 0..4 uses previous-voice slot and voice 5 uses the separate post-ADC slot.
 - [ ] Independently verify native packed switch bitfields and raw ADC preprocessing of PWM/gate modes, beyond the semantic test flags.
@@ -173,13 +174,27 @@ New files: `src/control106/secondary_control106.h/.c`, `tests/unit/test_secondar
 
 **Boundary:** the 0/1 PWM/manual/gate flags are **normalized semantic test inputs**. They are not proven to be the original 106 packed switch serial bytes. The physical VCA analog response and S/H settling are explicitly not modeled here. See `docs/PHASE1_RAW_PARAMETER_EVENTS.md`.
 
-## 8. Next implementation slice
+## 8. 8253 Mode-3 independent edge validation — regular-count subset tested
 
-Continue strict P1.1 gates in this order:
+Implemented/validated:
 
-1. Independently test 8253 Mode-3 edge timing, odd/even count=0, queued count activation and reset/range changes with sub-sample Q32.32 timestamp vectors.
-2. Verify original switch-byte and ADC controls against the public ROM operations, especially PWM mode polarity, gate-vs-ENV routing, and the ADC bending endpoints.
-3. Audit all digital path exactness claims (`ROM_EXACT` vs bounded `DERIVED_APPROXIMATE` divisors/CV) and resolve executable CPU corner arithmetic.
-4. Review the P1.1 strict exit. Do not start MC5534 audio reference or FM-1 target port without a passing/reviewed control gate.
+- `tests/unit/test_timer_edge_vectors.c` covers explicit independent timing vectors rather than only reusing the timer's own helper functions.
+- Q32.32 absolute edge timestamps are checked across normal odd/even counts, count=0→65536, queued updates in both halves, overwrite of pending writes, reset/discard and all three project RANGE clocks via explicit reset.
+- The legacy module harness no longer starts unconfigured with count=1 (a zero-length low edge in the simplified model); it defaults to valid register count 0.
+- Scripted `DCO_COMMAND` rejects special small counts 1 and 3 until their original 8253 behavior is independently proven, while accepting 0, 2 and the normal 4..65535 values.
+- `src/timer106/timer8253_106.h` exports `timer8253_106_regular_mode3_count()` to state the supported subset explicitly.
 
-`fm1juno_render` is still trace-only, not a WAV synth; no FM-1 target claims until after reference DSP verification.
+**Verified:** GitHub Actions host-tests #158 passed for the independent timing-vector suite; #168 passed with the unsupported-count guard and safe default.
+
+**Open:** physical LSB/MSB completion phase, live PF-range change/prescaler phase, GATE, exceptional 1/3 count behavior and independent exact original-chip comparison. The current half-cycle pending-update behavior is still a **reference model contract**, not full hardware timing certification.
+
+Authoritative documentation: `docs/PHASE1_8253_EDGE_VALIDATION.md`.
+
+## 9. Next implementation slice
+
+1. Recover packed serial switch 1/2 byte semantics (PWM manual/LFO, pulse enable, VCA ENV/gate, HPF/chorus and octave range bits), and validate against the original module-ROM instructions and route maps.
+2. Audit physical ADC/hysteresis and bender endpoint handling. Preserve normalization boundaries and avoid inventing native MIDI/ADC equivalence.
+3. Check 8253 and 80017A coupling: full count precision, physical clock phase, and original range change while running. Keep the exceptional count and live-range cases explicitly open if hardware evidence is insufficient.
+4. Close remaining exact digital P1.1 regression gates before any MC5534 waveform reference or FM-1 target implementation.
+
+`fm1juno_render` is still trace-only; no original-unit analogue/audio fidelity is claimed.
