@@ -64,6 +64,18 @@ static int test_callback_size_invariance(void)
         {fm1juno_time_from_samples(9u), SCRIPT106_CONTROL_STEP, 0u, 0u, 0u}
     };
     CHECK(!event_replay106_validate(bad, 2u));
+
+    ScriptEvent106 unusual = {
+        fm1juno_time_from_samples(10u),
+        SCRIPT106_DCO_COMMAND, 0u, 1u, TIMER106_RANGE_8
+    };
+    CHECK(!event_replay106_validate(&unusual, 1u));
+    unusual.value = 3u;
+    CHECK(!event_replay106_validate(&unusual, 1u));
+    unusual.value = 2u;
+    CHECK(event_replay106_validate(&unusual, 1u));
+    unusual.value = 0u;
+    CHECK(event_replay106_validate(&unusual, 1u));
     return EXIT_SUCCESS;
 }
 
