@@ -1,5 +1,7 @@
 #include "control106/raw_params106.h"
 
+#include <stddef.h>
+
 void raw_params106_init(RawParams106 *p)
 {
     /* Startup working defaults for the Phase-1 control harness.
