@@ -18,6 +18,9 @@ typedef enum ControlEventType106 {
     CONTROL106_VCF_GLOBAL_BASE,
     CONTROL106_ENV_VCA_VCF_VOICE,
     CONTROL106_ADC_PERFORMANCE,
+    /* VCA voice 6 is written only after ADC processing; its VCF and
+     * envelope were already serviced in the preceding six-voice loop. */
+    CONTROL106_FINAL_VCA_VOICE6,
     CONTROL106_LFO_ADVANCE,
     CONTROL106_NOISE_LEVEL
 } ControlEventType106;
