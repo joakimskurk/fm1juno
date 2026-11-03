@@ -50,6 +50,9 @@ target_link_libraries(fm1juno_replay_tests PRIVATE fm1juno_core)
 add_executable(fm1juno_event_queue_tests tests/unit/test_event_queue.c)
 target_link_libraries(fm1juno_event_queue_tests PRIVATE fm1juno_core)
 
+add_executable(fm1juno_pitch_tests tests/unit/test_pitch_conversion.c)
+target_link_libraries(fm1juno_pitch_tests PRIVATE fm1juno_core)
+
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(fm1juno_ref PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_render PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -57,6 +60,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(fm1juno_module_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_replay_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_event_queue_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    target_compile_options(fm1juno_pitch_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
 enable_testing()
@@ -64,6 +68,7 @@ add_test(NAME fm1juno_unit COMMAND fm1juno_tests)
 add_test(NAME fm1juno_module_unit COMMAND fm1juno_module_tests)
 add_test(NAME fm1juno_replay_unit COMMAND fm1juno_replay_tests)
 add_test(NAME fm1juno_event_queue_unit COMMAND fm1juno_event_queue_tests)
+add_test(NAME fm1juno_pitch_unit COMMAND fm1juno_pitch_tests)
 add_test(
     NAME fm1juno_render_smoke
     COMMAND fm1juno_render
