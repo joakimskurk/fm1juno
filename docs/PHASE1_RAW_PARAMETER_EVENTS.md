@@ -2,7 +2,7 @@
 
 Status: **implemented and CI-tested host control slice, not the complete exact P1.1 exit.**
 
-Use `docs/PHASE1_IMPLEMENTATION_STATUS.md` for overall current status. This document is the source of truth for the CSV/event interface introduced in this slice.
+Use `docs/PHASE1_IMPLEMENTATION_STATUS.md` for overall current status, and `docs/PHASE1_NATIVE_PANEL_SERIAL_ADC.md` for the native byte/ADC receiver and original IC29 command protocol. This document is the source of truth for the CSV/event interface introduced in this slice.
 
 ## Event script: version 1, backwards-compatible
 
@@ -15,6 +15,9 @@ Timestamp is Q32.32 sample time: `(sample<<32)|frac_q32`. Input events must be o
 New types:
 
 - `PARAMETER`: `voice=255`, `value=<raw parameter value>`, `aux=<RawParameterId106>`. Invalid type/value/voice or an out-of-order timestamp rejects the script.
+- `SWITCH1` / `SWITCH2`: `voice=255,value=0..255,aux=0` receives the literal original packed switch register.
+- `ADC_BANK`: `voice=0|1,value=<four packed little-endian 8-bit channels>,aux=0` publishes an ADC interrupt snapshot; filtering waits for the late ADC slot.
+- `SERIAL_BYTE`: `voice=255,value=0..255,aux=0` feeds one native IC29 UART command/data byte. Patch running status and voice-event restart are supported; test mode is intentionally ignored.
 - `PITCH_PROFILE`: `voice=255,aux=0,value=1` opts into the currently **DERIVED_APPROXIMATE** 8253 divisor candidate; `value=0` disables profile use. No implicit ROM-exactness claim.
 - Existing `VOICE_ON, VOICE_OFF, SUSTAIN, DCO_COMMAND, CONTROL_STEP` remain valid. An input note is routed to the physical voice specified by `voice` in the current module-replay harness (assigner tests run separately).
 
@@ -82,38 +85,38 @@ This avoids running a synthetic 44.1-kHz LFO or portamento; no output changes so
 
 ## Secondary DAC/S&H control outputs — new P1.1 slice
 
-The exact common ROM parameter scaling for resonance, SUB, NOISE and the global VCA LEVEL is \`raw7 << 7\`. All four feed different physical S/H destinations and must **not** be modeled as a shared analog gain or single simultaneous write:
+The exact common ROM parameter scaling for resonance, SUB, NOISE and the global VCA LEVEL is `raw7 << 7`. All four feed different physical S/H destinations and must **not** be modeled as a shared analog gain or single simultaneous write:
 
 | ROM macro slot | control | mux bank | channel |
 |---|---|---|---:|
-| \`VCF_RESONANCE\` | resonance | IC26 VCA | 6 |
-| \`GLOBAL_VCA_LEVEL\` | global uPC1252-level control | IC23 VCF | 6 |
-| \`SUB_LEVEL\` | common SUB control | IC24 ramp | 6 |
-| \`ENV_VCA_VCF_VOICE[0]\` | previous-pass PWM register | IC23 VCF | 7 |
-| \`ENV_VCA_VCF_VOICE[1..5]\` | voice VCA for physical voice \`index-1\` | IC26 VCA | 0..4 |
-| \`FINAL_VCA_VOICE6\` | voice VCA for physical voice 5 | IC26 VCA | 5 |
-| \`NOISE_LEVEL\` | common NOISE control | IC26 VCA | 7 |
+| `VCF_RESONANCE` | resonance | IC26 VCA | 6 |
+| `GLOBAL_VCA_LEVEL` | global uPC1252-level control | IC23 VCF | 6 |
+| `SUB_LEVEL` | common SUB control | IC24 ramp | 6 |
+| `ENV_VCA_VCF_VOICE[0]` | previous-pass PWM register | IC23 VCF | 7 |
+| `ENV_VCA_VCF_VOICE[1..5]` | voice VCA for physical voice `index-1` | IC26 VCA | 0..4 |
+| `FINAL_VCA_VOICE6` | voice VCA for physical voice 5 | IC26 VCA | 5 |
+| `NOISE_LEVEL` | common NOISE control | IC26 VCA | 7 |
 
 PWM follows the recovered ROM integer law:
 
-\`\`\`text
+```text
 lfo_carrier = (lfo_polarity_negative ? 0x2000 + lfo_magnitude
                                    : 0x2000 - lfo_magnitude)
 carrier = pwm_manual ? 0x3fff : lfo_carrier
 pwm_code14 = pulse_enabled
   ? 0x3fff - floor(carrier * (pwm_depth7 << 1) / 256)
   : 0
-\`\`\`
+```
 
 This computation happens **after** the LFO advances and is held as an intermediate code. The PWM S/H receives that intermediate when the **next** pass services voice 0. Switching between manual and LFO modes during the intervening pass therefore does not retroactively recalculate an already prepared code.
 
-Voice VCA uses current ENV 14-bit code in ENV mode or \`0x3fff\` / \`0x0000\` from \`voiceRun\` in gate mode. It is distinct from the later global uPC1252 VCA and is committed with the ROM's one-voice offset: ENV 1 writes voice VCA 0; ENV 5 writes voice VCA 4; the final voice VCA 5 only writes **after ADC**.
+Voice VCA uses current ENV 14-bit code in ENV mode or `0x3fff` / `0x0000` from `voiceRun` in gate mode. It is distinct from the later global uPC1252 VCA and is committed with the ROM's one-voice offset: ENV 1 writes voice VCA 0; ENV 5 writes voice VCA 4; the final voice VCA 5 only writes **after ADC**.
 
-\`SecondaryHold106\` tracks the last 14-bit digital value, 12-bit DAC value, timestamp, pass ID and a validity bit, with explicit physical mux routing. This tracks digital holds only: it does not model analog settling, output headroom, or BA662/uPC1252 control voltage-to-gain curves.
+`SecondaryHold106` tracks the last 14-bit digital value, 12-bit DAC value, timestamp, pass ID and a validity bit, with explicit physical mux routing. This tracks digital holds only: it does not model analog settling, output headroom, or BA662/uPC1252 control voltage-to-gain curves.
 
-**Raw switch normalization caveat:** \`RAW106_PWM_MANUAL\`, \`RAW106_PULSE_ENABLED\` and \`RAW106_VCA_GATE_MODE\` are semantic 0/1 flags in the test format, **not the original switch 1/2 serial bitfields**. Those packed switch bytes and precise panel ADC/hysteresis effects still need separate native-protocol verification.
+**Raw switch normalization caveat:** `RAW106_PWM_MANUAL`, `RAW106_PULSE_ENABLED` and `RAW106_VCA_GATE_MODE` are semantic 0/1 flags in the test format, **not the original switch 1/2 serial bitfields**. Those packed switch bytes and precise panel ADC/hysteresis effects still need separate native-protocol verification.
 
-Tests: \`tests/unit/test_secondary_control.c\` (mux destinations, PWM extrema, one-pass latch delay, voice VCA one-slot lag and note-event abort) and \`test_raw_parameter_flow.c\` (timestamped cross-callback secondary-control regression).
+Tests: `tests/unit/test_secondary_control.c` (mux destinations, PWM extrema, one-pass latch delay, voice VCA one-slot lag and note-event abort) and `test_raw_parameter_flow.c` (timestamped cross-callback secondary-control regression).
 
 ## Precision and remaining gates
 
@@ -128,4 +131,4 @@ This is a coherent macro-level arithmetic emulator. It **does not** establish cy
 - event queue is a host **control-replay** dispatcher, not a completed sample-accurate audio/event engine;
 - `fm1juno_render` is still **trace-only** and does not create WAV files.
 
-The next strict digital exit slice is independent executable-CPU corner-vector verification, precise 8253 timer clock/range/timestamp semantics, and validation of the already derived compact digital laws against representative full control-frame traces.
+Native direct and serial inputs are now implemented, including one-code ADC hysteresis, endpoint correction, switch-1/switch-2 active-low bit meanings, and the delayed ADC service path. See `PHASE1_NATIVE_PANEL_SERIAL_ADC.md` for exact event IDs and ROM-address evidence. Remaining strict exit work is independent executable-CPU corner verification, physical ADC scan timing, live 8253 clock/range semantics, and complete control-frame traces.
