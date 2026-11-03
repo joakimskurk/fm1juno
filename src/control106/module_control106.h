@@ -10,6 +10,7 @@
 #include "control106/control_scheduler106.h"
 #include "control106/envelope106.h"
 #include "control106/lfo_delay106.h"
+#include "control106/vcf_control106.h"
 #include "timer106/timer8253_106.h"
 
 #define MODULE106_VOICES 6u
@@ -29,6 +30,9 @@ typedef struct ModuleVoiceControl106 {
     EnvelopeParams106 envelope_params;
     Timer8253Voice106 timer;
     ModuleDcoCommand106 dco_command;
+    uint16_t portamento_pitch_8_8;
+    uint16_t vcf_code14;
+    uint16_t vcf_dac12;
 } ModuleVoiceControl106;
 
 typedef enum ModuleTraceType106 {
@@ -39,7 +43,8 @@ typedef enum ModuleTraceType106 {
     MODULE_TRACE106_TIMER_RESET_LOAD,
     MODULE_TRACE106_TIMER_QUEUE_COUNT,
     MODULE_TRACE106_ENVELOPE_TICK,
-    MODULE_TRACE106_LFO_DELAY_RESTART
+    MODULE_TRACE106_LFO_DELAY_RESTART,
+    MODULE_TRACE106_VCF_S_H
 } ModuleTraceType106;
 
 typedef struct ModuleTraceEvent106 {
@@ -61,6 +66,8 @@ typedef struct ModuleControl106 {
     ControlScheduler106 scheduler;
     ModuleVoiceControl106 voices[MODULE106_VOICES];
     LfoDelay106 lfo_delay;
+    VcfControlParams106 vcf_params;
+    int32_t vcf_global_raw;
     uint8_t note_gate_bits;
     uint8_t voice_run_bits;
     bool sustain_on;
@@ -73,6 +80,16 @@ void module_control106_clear_trace(ModuleControl106 *m);
 void module_control106_set_envelope_params(ModuleControl106 *m,
                                            uint8_t voice,
                                            EnvelopeParams106 params);
+/* Parameters are sampled at their ROM scheduler slots, not applied
+ * atomically to all voices on the setter call. */
+void module_control106_set_vcf_params(ModuleControl106 *m,
+                                       VcfControlParams106 params);
+/* External Portamento/pitch producer writes current voice state in 8.8.
+ * This is a temporary P1 harness boundary until the pitch producer is wired. */
+void module_control106_set_voice_pitch(ModuleControl106 *m,
+                                       uint8_t voice,
+                                       uint16_t pitch_8_8);
+
 void module_control106_set_dco_command(ModuleControl106 *m,
                                        uint8_t voice,
                                        uint16_t count,
