@@ -118,7 +118,15 @@ static int test_adc_hysteresis_and_two_slope_conditioner(void)
 
     /* ISR publishes two full banks; main-loop service reads last bank. */
     CHECK(native_adc106_receive_bank(&a, 0u, UINT32_C(0x11111111)));
-    CHECK(native_adc106_receive_bank(&a, 1u, UINT32_C(0xf9efe eff))); /* replaced below */
+    CHECK(native_adc106_receive_bank(&a, 1u, UINT32_C(0xf9efeeff)));
+    CHECK(native_adc106_process_latest(&a, &bank));
+    CHECK(bank == 1u);
+    CHECK(a.held[4] == 255u && a.conditioned[4] == 255u);
+    CHECK(a.held[5] == 238u && a.conditioned[5] == 234u);
+    CHECK(a.held[6] == 239u && a.conditioned[6] == 235u);
+    CHECK(a.held[7] == 249u && a.conditioned[7] == 255u);
+    CHECK(a.raw[0] == 17u && a.held[0] == 102u);
+    CHECK(a.published_snapshots == 7u && a.serviced_banks == 6u);
     return EXIT_SUCCESS;
 }
 
