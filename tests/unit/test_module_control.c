@@ -233,12 +233,76 @@ static int test_vcf_slot_order_and_restart(void)
     return EXIT_SUCCESS;
 }
 
+static int test_shared_dco_pitch_count_cv_order(void)
+{
+    ModuleControl106 m;
+    module_control106_init(&m);
+    PitchTimerBase106 base;
+    pitch106_timer_build_derived_candidate(&base);
+    module_control106_set_pitch_timer_profile(&m, &base);
+    module_control106_set_voice_pitch(&m, 0u, (uint16_t)(60u << 8u));
+    module_control106_set_dco_command(&m, 0u, 500u, TIMER106_RANGE_8);
+    module_control106_set_global_pitch_offset(&m, PITCH106_GLOBAL_BASE);
+
+    Fm1junoTimeQ32 now = 0u;
+    (void)service_until(&m, CONTROL106_PITCH_AND_PORTAMENTO,
+                        CONTROL106_NO_VOICE, &now);
+    CHECK(m.active_global_pitch_offset_8_8 == PITCH106_GLOBAL_BASE);
+
+    /* Change requested Tune while a pass is in flight: the earlier
+     * global pitch slot remains latched for all six DCO services. */
+    module_control106_set_global_pitch_offset(
+        &m, (uint16_t)(PITCH106_GLOBAL_BASE + 0x0100u));
+
+    (void)service_until(&m, CONTROL106_DCO_VOICE, 0u, &now);
+    const uint16_t old_pitch =
+        pitch106_final((uint16_t)(60u << 8u), PITCH106_GLOBAL_BASE);
+    const uint16_t old_count =
+        pitch106_timer_count_from_pitch(&base, old_pitch);
+    CHECK(m.voices[0].final_dco_pitch_8_8 == old_pitch);
+    CHECK(m.voices[0].timer.current_count == old_count);
+    CHECK(m.voices[0].timer.range == TIMER106_RANGE_8);
+    CHECK(m.voices[0].dco_cv_dac12 ==
+          pitch106_dco_cv12_from_pitch(old_pitch));
+    CHECK(m.trace.count >= 2u);
+    CHECK(m.trace.events[m.trace.count - 2u].type ==
+          MODULE_TRACE106_TIMER_RESET_LOAD);
+    CHECK(m.trace.events[m.trace.count - 1u].type ==
+          MODULE_TRACE106_DCO_CV_S_H);
+    CHECK(m.trace.events[m.trace.count - 1u].voice == 0u);
+
+    /* Following frame takes the new global pitch; an ordinary timer
+     * count update stays pending until its Mode-3 transition. */
+    (void)service_until(&m, CONTROL106_PITCH_AND_PORTAMENTO,
+                        CONTROL106_NO_VOICE, &now);
+    CHECK(m.active_global_pitch_offset_8_8 ==
+          (uint16_t)(PITCH106_GLOBAL_BASE + 0x0100u));
+    (void)service_until(&m, CONTROL106_DCO_VOICE, 0u, &now);
+    const uint16_t new_pitch = (uint16_t)(old_pitch + 0x0100u);
+    const uint16_t new_count =
+        pitch106_timer_count_from_pitch(&base, new_pitch);
+    CHECK(new_count != old_count);
+    CHECK(m.voices[0].final_dco_pitch_8_8 == new_pitch);
+    CHECK(m.voices[0].timer.current_count == old_count);
+    CHECK(m.voices[0].timer.pending_count == new_count);
+    CHECK(m.voices[0].timer.pending_valid);
+    CHECK(m.voices[0].dco_cv_dac12 ==
+          pitch106_dco_cv12_from_pitch(new_pitch));
+    CHECK(m.trace.events[m.trace.count - 2u].type ==
+          MODULE_TRACE106_TIMER_QUEUE_COUNT);
+    CHECK(m.trace.events[m.trace.count - 1u].type ==
+          MODULE_TRACE106_DCO_CV_S_H);
+    CHECK(!m.trace.overflowed);
+    return EXIT_SUCCESS;
+}
+
 int main(void)
 {
     if (test_voice_on_to_timer_reset_then_queue()) return EXIT_FAILURE;
     if (test_sustain_defers_release_and_lfo_rearm()) return EXIT_FAILURE;
     if (test_trace_determinism()) return EXIT_FAILURE;
     if (test_vcf_slot_order_and_restart()) return EXIT_FAILURE;
+    if (test_shared_dco_pitch_count_cv_order()) return EXIT_FAILURE;
     puts("fm1juno: module-control integration tests passed");
     return EXIT_SUCCESS;
 }
