@@ -2,6 +2,9 @@
 
 #include <string.h>
 
+#include "control106/control_math106.h"
+#include "control106/portamento106.h"
+
 #define MODULE106_NO_VOICE UINT8_C(0xff)
 
 static void trace_push(ModuleControl106 *m,
@@ -32,6 +35,9 @@ void module_control106_init(ModuleControl106 *m)
     memset(m, 0, sizeof *m);
     control_scheduler106_init(&m->scheduler);
     lfo_delay106_init(&m->lfo_delay);
+    raw_params106_init(&m->raw_params);
+    lfo106_init(&m->lfo, m->raw_params.lfo_rate7);
+    performance_lfo106_init(&m->performance_lfo);
     m->requested_global_pitch_offset_8_8 = PITCH106_GLOBAL_BASE;
     m->active_global_pitch_offset_8_8 = PITCH106_GLOBAL_BASE;
 
@@ -42,6 +48,20 @@ void module_control106_init(ModuleControl106 *m)
         voice->dco_command.count = 1u;
         voice->dco_command.range = TIMER106_RANGE_8;
     }
+}
+
+bool module_control106_receive_parameter(ModuleControl106 *m,
+                                          RawParameterId106 id,
+                                          uint32_t value,
+                                          Fm1junoTimeQ32 now)
+{
+    if (!raw_params106_set(&m->raw_params, id, value)) return false;
+    m->raw_params_active = true;
+    control_scheduler106_parameter_interrupt(&m->scheduler);
+    trace_push(m, MODULE_TRACE106_PARAMETER_RECEIVED, now,
+               m->scheduler.pass_id, m->scheduler.sequence,
+               MODULE106_NO_VOICE, ((uint32_t)id << 8u) | value);
+    return true;
 }
 
 void module_control106_clear_trace(ModuleControl106 *m)
@@ -230,6 +250,94 @@ static void service_frame_start(ModuleControl106 *m,
     }
 }
 
+static void service_raw_lfo_depth(ModuleControl106 *m)
+{
+    if (m->voice_run_bits != 0u)
+        m->lfo_onset = lfo_delay106_tick_raw(
+            &m->lfo_delay, m->raw_params.lfo_delay7);
+    else
+        m->lfo_onset = 0u;
+
+    const uint8_t panel = lfo106_depth_scaler(
+        m->raw_params.dco_lfo_depth7);
+    m->combined_dco_lfo_depth = lfo_delay106_combine_depth(
+        panel, m->lfo_onset, m->performance_depth);
+}
+
+static void service_raw_pitch(ModuleControl106 *m,
+                               Fm1junoTimeQ32 now,
+                               const ControlEvent106 *event)
+{
+    const uint16_t lfo_mag = (uint16_t)(
+        control106_mul16x8_hi(m->lfo.magnitude,
+                             m->combined_dco_lfo_depth) >> 3u);
+    const int16_t signed_lfo = (m->lfo.phase_flags & LFO106_POLARITY_BIT)
+        ? -(int16_t)lfo_mag : (int16_t)lfo_mag;
+
+    const uint16_t bend = control106_dco_bend_8_8(
+        m->raw_params.bend_magnitude8,
+        m->raw_params.dco_bend_sensitivity8);
+    const int16_t signed_bend = m->raw_params.bend_negative
+        ? -(int16_t)bend : (int16_t)bend;
+
+    const uint16_t offset = pitch106_global_offset(
+        control106_tune_8_8(m->raw_params.tune_adc8),
+        signed_lfo, signed_bend);
+    m->requested_global_pitch_offset_8_8 = offset;
+    m->active_global_pitch_offset_8_8 = offset;
+
+    const uint8_t step = portamento106_step_from_raw(
+        m->raw_params.portamento_adc8);
+    for (uint8_t i = 0u; i < MODULE106_VOICES; ++i) {
+        ModuleVoiceControl106 *v = &m->voices[i];
+        if (!v->previous_note_valid) continue;
+
+        const uint16_t target = (uint16_t)((uint16_t)v->previous_note << 8u);
+        v->portamento_pitch_8_8 = portamento106_step_toward(
+            v->portamento_pitch_8_8, target, step);
+        trace_push(m, MODULE_TRACE106_PORTAMENTO_PITCH, now,
+                   event->pass_id, event->sequence, i,
+                   v->portamento_pitch_8_8);
+    }
+}
+
+static void service_raw_vcf_global(ModuleControl106 *m)
+{
+    VcfControlParams106 *p = &m->vcf_params;
+    p->cutoff7 = m->raw_params.vcf_cutoff7;
+    p->lfo_depth7 = m->raw_params.vcf_lfo_depth7;
+    p->lfo_onset = m->lfo_onset;
+    p->lfo_magnitude = m->lfo.magnitude;
+    p->lfo_negative = (m->lfo.phase_flags & LFO106_POLARITY_BIT) != 0u;
+    p->bend_magnitude = m->raw_params.bend_magnitude8;
+    p->bend_sensitivity = m->raw_params.vcf_bend_sensitivity8;
+    p->bend_negative = m->raw_params.bend_negative;
+    p->env_depth7 = m->raw_params.vcf_env_depth7;
+    p->env_inverted = m->raw_params.vcf_env_inverted;
+    p->key_follow7 = m->raw_params.vcf_key_follow7;
+    m->vcf_global_raw = vcf106_global_raw(p);
+}
+
+static void service_raw_env_params(ModuleControl106 *m,
+                                    ModuleVoiceControl106 *voice)
+{
+    const RawParams106 *raw = &m->raw_params;
+    voice->envelope_params.attack_increment =
+        envelope106_attack_increment(raw->env_attack7);
+    voice->envelope_params.decay_coefficient =
+        envelope106_decay_release_coefficient(raw->env_decay7);
+    voice->envelope_params.sustain_level =
+        envelope106_sustain_level_from_raw(raw->env_sustain7);
+    voice->envelope_params.release_coefficient =
+        envelope106_decay_release_coefficient(raw->env_release7);
+
+    /* ENV depth and Key Follow are read in the per-voice region rather
+     * than frozen with the earlier global Cutoff/LFO/Bend calculation. */
+    m->vcf_params.env_depth7 = raw->vcf_env_depth7;
+    m->vcf_params.env_inverted = raw->vcf_env_inverted;
+    m->vcf_params.key_follow7 = raw->vcf_key_follow7;
+}
+
 static void service_dco_voice(ModuleControl106 *m,
                               uint8_t voice_index,
                               Fm1junoTimeQ32 now,
@@ -295,6 +403,7 @@ static void service_envelope_voice(ModuleControl106 *m,
                                    const ControlEvent106 *event)
 {
     ModuleVoiceControl106 *voice = &m->voices[voice_index];
+    if (m->raw_params_active) service_raw_env_params(m, voice);
     const uint16_t level = envelope106_tick(&voice->envelope,
                                             &voice->envelope_params);
     trace_push(m,
@@ -338,15 +447,43 @@ ControlEvent106 module_control106_service_next(ModuleControl106 *m,
     case CONTROL106_FRAME_START:
         service_frame_start(m, now, &event);
         break;
+    case CONTROL106_LFO_DELAY_AND_MOD_SCALE:
+        if (m->raw_params_active) service_raw_lfo_depth(m);
+        break;
+    case CONTROL106_ADC_PERFORMANCE:
+        if (m->raw_params_active) {
+            m->performance_depth = performance_lfo106_tick(
+                &m->performance_lfo,
+                m->raw_params.performance_trigger,
+                m->raw_params.performance_sensitivity8,
+                m->raw_params.midi_mod_depth8);
+        }
+        break;
+    case CONTROL106_LFO_ADVANCE:
+        if (m->raw_params_active) {
+            m->lfo.rate_coefficient = lfo106_rate_coefficient(
+                m->raw_params.lfo_rate7);
+            const int16_t signed_lfo = lfo106_tick(&m->lfo);
+            trace_push(m, MODULE_TRACE106_LFO_TICK, now,
+                       event.pass_id, event.sequence, MODULE106_NO_VOICE,
+                       (uint32_t)(uint16_t)signed_lfo);
+        }
+        break;
     case CONTROL106_DCO_VOICE:
         service_dco_voice(m, event.voice, now, &event);
         break;
     case CONTROL106_PITCH_AND_PORTAMENTO:
-        m->active_global_pitch_offset_8_8 =
-            m->requested_global_pitch_offset_8_8;
+        if (m->raw_params_active)
+            service_raw_pitch(m, now, &event);
+        else
+            m->active_global_pitch_offset_8_8 =
+                m->requested_global_pitch_offset_8_8;
         break;
     case CONTROL106_VCF_GLOBAL_BASE:
-        m->vcf_global_raw = vcf106_global_raw(&m->vcf_params);
+        if (m->raw_params_active)
+            service_raw_vcf_global(m);
+        else
+            m->vcf_global_raw = vcf106_global_raw(&m->vcf_params);
         break;
     case CONTROL106_ENV_VCA_VCF_VOICE:
         service_envelope_voice(m, event.voice, now, &event);
