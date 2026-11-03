@@ -28,6 +28,15 @@ typedef enum RawParameterId106 {
     RAW106_PERFORMANCE_TRIGGER,
     RAW106_PERFORMANCE_SENSITIVITY8,
     RAW106_MIDI_MOD_DEPTH8,
+    /* Append only: numeric IDs 0..20 are used in existing replay scripts. */
+    RAW106_PWM_DEPTH7,
+    RAW106_PWM_MANUAL,
+    RAW106_PULSE_ENABLED,
+    RAW106_VCF_RESONANCE7,
+    RAW106_SUB_LEVEL7,
+    RAW106_NOISE_LEVEL7,
+    RAW106_GLOBAL_VCA_LEVEL7,
+    RAW106_VCA_GATE_MODE,
     RAW106_PARAMETER_COUNT
 } RawParameterId106;
 
@@ -53,6 +62,14 @@ typedef struct RawParams106 {
     bool performance_trigger;
     uint8_t performance_sensitivity8;
     uint8_t midi_mod_depth8;
+    uint8_t pwm_depth7;
+    bool pwm_manual;
+    bool pulse_enabled;
+    uint8_t vcf_resonance7;
+    uint8_t sub_level7;
+    uint8_t noise_level7;
+    uint8_t global_vca_level7;
+    bool vca_gate_mode;
 } RawParams106;
 
 void raw_params106_init(RawParams106 *params);
