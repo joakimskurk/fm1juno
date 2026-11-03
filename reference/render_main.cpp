@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -12,6 +13,18 @@ extern "C" {
 }
 
 namespace {
+
+uint64_t parse_unsigned_decimal(const std::string &field)
+{
+    if (field.empty() ||
+        field.find_first_not_of("0123456789") != std::string::npos)
+        throw std::invalid_argument("expected unsigned decimal integer");
+    size_t used = 0u;
+    const uint64_t value = std::stoull(field, &used, 10);
+    if (used != field.size())
+        throw std::invalid_argument("trailing characters in integer");
+    return value;
+}
 
 bool parse_type(const std::string &text, ScriptEventType106 &type)
 {
@@ -50,21 +63,26 @@ bool parse_script(const std::string &path, std::vector<ScriptEvent106> &events)
         std::string field;
         while (std::getline(row, field, ',')) fields.push_back(field);
         if (fields.size() != 7u) return false;
-        if (std::stoul(fields[0]) != EVENT_SCRIPT106_VERSION) return false;
+        if (parse_unsigned_decimal(fields[0]) != EVENT_SCRIPT106_VERSION) return false;
 
         ScriptEventType106 type;
         if (!parse_type(fields[3], type)) return false;
 
-        const uint64_t sample = std::stoull(fields[1]);
-        const uint64_t frac = std::stoull(fields[2]);
-        if (sample > UINT32_MAX || frac > UINT32_MAX) return false;
+        const uint64_t sample = parse_unsigned_decimal(fields[1]);
+        const uint64_t frac = parse_unsigned_decimal(fields[2]);
+        const uint64_t voice = parse_unsigned_decimal(fields[4]);
+        const uint64_t value = parse_unsigned_decimal(fields[5]);
+        const uint64_t aux = parse_unsigned_decimal(fields[6]);
+        if (sample > UINT32_MAX || frac > UINT32_MAX ||
+            voice > UINT8_MAX || value > UINT32_MAX || aux > UINT32_MAX)
+            return false;
 
         ScriptEvent106 event{};
         event.time = (sample << FM1JUNO_TIME_FRAC_BITS) | frac;
         event.type = type;
-        event.voice = static_cast<uint8_t>(std::stoul(fields[4]));
-        event.value = static_cast<uint32_t>(std::stoul(fields[5]));
-        event.aux = static_cast<uint32_t>(std::stoul(fields[6]));
+        event.voice = static_cast<uint8_t>(voice);
+        event.value = static_cast<uint32_t>(value);
+        event.aux = static_cast<uint32_t>(aux);
         events.push_back(event);
     }
     return event_replay106_validate(events.data(), events.size());
@@ -92,9 +110,13 @@ int main(int argc, char **argv)
     for (int i = 2; i < argc; ++i) {
         const std::string arg = argv[i];
         if (arg == "--outer-frames" && i + 1 < argc) {
-            outer_frames = static_cast<uint32_t>(std::stoul(argv[++i]));
+            const uint64_t value = parse_unsigned_decimal(argv[++i]);
+            if (value == 0u || value > UINT32_MAX) return EXIT_FAILURE;
+            outer_frames = static_cast<uint32_t>(value);
         } else if (arg == "--samples" && i + 1 < argc) {
-            total_samples = static_cast<uint32_t>(std::stoul(argv[++i]));
+            const uint64_t value = parse_unsigned_decimal(argv[++i]);
+            if (value > UINT32_MAX) return EXIT_FAILURE;
+            total_samples = static_cast<uint32_t>(value);
         } else {
             usage(argv[0]);
             return EXIT_FAILURE;
