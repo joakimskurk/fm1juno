@@ -3,6 +3,11 @@
 
 #include "common/fixed_time.h"
 #include "control106/control_scheduler106.h"
+#include "control106/control_math106.h"
+#include "control106/envelope106.h"
+#include "control106/lfo106.h"
+#include "control106/portamento106.h"
+#include "control106/pitch106.h"
 #include "control106/dac106.h"
 #include "timer106/timer8253_106.h"
 
@@ -12,6 +17,110 @@
         return 1; \
     } \
 } while (0)
+
+static int test_control_math(void)
+{
+    CHECK(control106_mul16x8_hi(0x3fffu, 0xffu) ==
+          (uint16_t)(((uint32_t)0x3fffu * 0xffu) >> 8u));
+    CHECK(control106_dco_bend_8_8(0u, 255u) == 0u);
+    CHECK(control106_dco_bend_8_8(255u, 255u) == 3063u);
+    CHECK(control106_vcf_bend_12(255u, 255u) == 4064u);
+    CHECK(control106_tune_8_8(0u) == -127);
+    CHECK(control106_tune_8_8(128u) == 0);
+    CHECK(control106_tune_8_8(255u) == 127);
+    CHECK(pitch106_global_offset(127, 0, 3063) ==
+          (uint16_t)(PITCH106_GLOBAL_BASE + 127u + 3063u));
+    CHECK(pitch106_final(0x3000u, 0x1818u) == 0x4818u);
+    return 0;
+}
+
+static int test_envelope_primitives(void)
+{
+    CHECK(envelope106_attack_tick(0u, 0x4000u) == ENVELOPE106_MAX);
+    CHECK(envelope106_attack_tick(0x1000u, 0x0200u) == 0x1200u);
+    CHECK(envelope106_attack_tick(0x3f00u, 0x0200u) == ENVELOPE106_MAX);
+
+    const uint16_t value = 0x2a55u;
+    const uint16_t coeff = 0xf680u;
+    const uint16_t expected = (uint16_t)(
+        ((uint32_t)0x2au * 0xf6u) +
+        (((uint32_t)0x2au * 0x80u) >> 8u) +
+        (((uint32_t)0x55u * 0xf6u) >> 8u));
+    CHECK(envelope106_calc_decay(value, coeff) == expected);
+    CHECK(envelope106_release_tick(value, coeff) == expected);
+
+    CHECK(envelope106_decay_tick(0x2000u, 0x1000u, 0xf000u) >= 0x1000u);
+    CHECK(envelope106_decay_tick(0x0800u, 0x1000u, 0xf000u) == 0x1000u);
+    return 0;
+}
+
+static int test_lfo_rate_law(void)
+{
+    struct Anchor { uint8_t i; uint16_t c; } anchors[] = {
+        {0u, 5u}, {2u, 25u}, {3u, 40u}, {5u, 70u},
+        {6u, 80u}, {7u, 90u}, {8u, 100u}, {63u, 650u},
+        {64u, 666u}, {95u, 1162u}, {96u, 1214u}, {102u, 1526u},
+        {103u, 1580u}, {104u, 1650u}, {105u, 1720u},
+        {106u, 1800u}, {109u, 2040u}, {110u, 2140u},
+        {119u, 3040u}, {120u, 3160u}, {122u, 3400u},
+        {123u, 3550u}, {126u, 4000u}, {127u, 4096u}
+    };
+    for (size_t n = 0; n < sizeof anchors / sizeof anchors[0]; ++n)
+        CHECK(lfo106_rate_coefficient(anchors[n].i) == anchors[n].c);
+
+    uint16_t prev = 0u;
+    for (unsigned i = 0; i < 128u; ++i) {
+        const uint16_t c = lfo106_rate_coefficient((uint8_t)i);
+        CHECK(c > prev);
+        CHECK(lfo106_half_steps(c) ==
+              (uint16_t)((8192u + c - 1u) / c));
+        prev = c;
+    }
+    CHECK(lfo106_half_steps(4096u) == 2u);
+    return 0;
+}
+
+static int test_lfo_phase_sequence(void)
+{
+    Lfo106State lfo;
+    lfo106_init(&lfo, 127u);
+    CHECK(lfo.magnitude == 0u);
+    CHECK(lfo.phase_flags == 0u);
+
+    CHECK(lfo106_tick(&lfo) == 4096);
+    CHECK(lfo.phase_flags == 0u);
+    CHECK(lfo106_tick(&lfo) == 8191);
+    CHECK(lfo.magnitude == 8191u);
+    CHECK(lfo.phase_flags == 1u);
+
+    CHECK(lfo106_tick(&lfo) == 4095);
+    CHECK(lfo106_tick(&lfo) == 0);
+    CHECK(lfo.phase_flags == 2u);
+
+    CHECK(lfo106_tick(&lfo) == -4096);
+    CHECK(lfo106_tick(&lfo) == -8191);
+    CHECK(lfo.phase_flags == 3u);
+
+    CHECK(lfo106_tick(&lfo) == -4095);
+    CHECK(lfo106_tick(&lfo) == 0);
+    CHECK((lfo.phase_flags & 3u) == 0u);
+    return 0;
+}
+
+static int test_portamento(void)
+{
+    CHECK(portamento106_index_from_raw(0u) == 0u);
+    CHECK(portamento106_index_from_raw(1u) == 0u);
+    CHECK(portamento106_index_from_raw(2u) == 1u);
+    CHECK(portamento106_index_from_raw(255u) == 127u);
+
+    CHECK(portamento106_step_toward(0x1000u, 0x1100u, 0u) == 0x1100u);
+    CHECK(portamento106_step_toward(0x1000u, 0x1100u, 0x40u) == 0x1040u);
+    CHECK(portamento106_step_toward(0x10f0u, 0x1100u, 0x40u) == 0x1100u);
+    CHECK(portamento106_step_toward(0x1100u, 0x1000u, 0x40u) == 0x10c0u);
+    CHECK(portamento106_step_toward(0x1010u, 0x1000u, 0x40u) == 0x1000u);
+    return 0;
+}
 
 static int test_fixed_time(void)
 {
@@ -151,6 +260,11 @@ static int test_scheduler_interrupt_classes(void)
 
 int main(void)
 {
+    if (test_control_math()) return EXIT_FAILURE;
+    if (test_envelope_primitives()) return EXIT_FAILURE;
+    if (test_lfo_rate_law()) return EXIT_FAILURE;
+    if (test_lfo_phase_sequence()) return EXIT_FAILURE;
+    if (test_portamento()) return EXIT_FAILURE;
     if (test_fixed_time()) return EXIT_FAILURE;
     if (test_dac_boundary()) return EXIT_FAILURE;
     if (test_timer_mode3_lengths()) return EXIT_FAILURE;
