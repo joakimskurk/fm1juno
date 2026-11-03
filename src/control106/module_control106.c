@@ -45,7 +45,10 @@ void module_control106_init(ModuleControl106 *m)
         ModuleVoiceControl106 *voice = &m->voices[v];
         envelope106_init(&voice->envelope);
         voice->portamento_pitch_8_8 = (uint16_t)(60u << 8u);
-        voice->dco_command.count = 1u;
+        /* Unconfigured legacy test path uses the valid 0 -> 65536
+         * counter instead of count=1, which would make a zero-length
+         * low phase in the regular Mode-3 approximation. */
+        voice->dco_command.count = 0u;
         voice->dco_command.range = TIMER106_RANGE_8;
     }
 }
