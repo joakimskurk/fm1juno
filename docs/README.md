@@ -152,6 +152,8 @@ These remain useful for project history but are not current authority where newe
 
 ## 13. Phase transition
 
+**Live Phase-1 implementation handoff:** [`PHASE1_IMPLEMENTATION_STATUS.md`](PHASE1_IMPLEMENTATION_STATUS.md). This tracks built/tested code, approximate divisor-profile fidelity, exactness gaps and the next work slice. It does not override Phase-0 behavioral authority.
+
 Phase-0 research branch:
 
 ```text
