@@ -154,6 +154,8 @@ These remain useful for project history but are not current authority where newe
 
 **Live Phase-1 implementation handoff:** [`PHASE1_IMPLEMENTATION_STATUS.md`](PHASE1_IMPLEMENTATION_STATUS.md). This tracks built/tested code, approximate divisor-profile fidelity, exactness gaps and the next work slice. It does not override Phase-0 behavioral authority.
 
+**Timestamped parameter and replay interface:** [`PHASE1_RAW_PARAMETER_EVENTS.md`](PHASE1_RAW_PARAMETER_EVENTS.md). This is the stable ID/7-bit/8-bit/flag registry for version-1 `PARAMETER` event scripts, ROM macro service causality, and `MEASURE_PENDING` boundaries.
+
 Phase-0 research branch:
 
 ```text
