@@ -35,3 +35,48 @@ uint16_t envelope106_release_tick(uint16_t current, uint16_t coefficient)
 {
     return envelope106_calc_decay(current, coefficient);
 }
+
+void envelope106_init(Envelope106 *env)
+{
+    env->level = 0u;
+    env->phase = ENVELOPE106_RELEASE;
+}
+
+void envelope106_note_on(Envelope106 *env)
+{
+    env->phase = ENVELOPE106_ATTACK;
+}
+
+void envelope106_note_off(Envelope106 *env)
+{
+    env->phase = ENVELOPE106_RELEASE;
+}
+
+uint16_t envelope106_tick(Envelope106 *env, const EnvelopeParams106 *p)
+{
+    switch (env->phase) {
+    case ENVELOPE106_ATTACK:
+        env->level = envelope106_attack_tick(env->level, p->attack_increment);
+        if (env->level >= ENVELOPE106_MAX)
+            env->phase = ENVELOPE106_DECAY;
+        break;
+    case ENVELOPE106_DECAY:
+        env->level = envelope106_decay_tick(env->level,
+                                             p->sustain_level,
+                                             p->decay_coefficient);
+        if (env->level <= p->sustain_level) {
+            env->level = p->sustain_level;
+            env->phase = ENVELOPE106_SUSTAIN;
+        }
+        break;
+    case ENVELOPE106_SUSTAIN:
+        env->level = p->sustain_level;
+        break;
+    case ENVELOPE106_RELEASE:
+    default:
+        env->level = envelope106_release_tick(env->level,
+                                               p->release_coefficient);
+        break;
+    }
+    return env->level;
+}
