@@ -36,6 +36,7 @@ void module_control106_init(ModuleControl106 *m)
     for (uint8_t v = 0u; v < MODULE106_VOICES; ++v) {
         ModuleVoiceControl106 *voice = &m->voices[v];
         envelope106_init(&voice->envelope);
+        voice->portamento_pitch_8_8 = (uint16_t)(60u << 8u);
         voice->dco_command.count = 1u;
         voice->dco_command.range = TIMER106_RANGE_8;
     }
@@ -63,6 +64,20 @@ void module_control106_set_dco_command(ModuleControl106 *m,
     if (voice >= MODULE106_VOICES) return;
     m->voices[voice].dco_command.count = count;
     m->voices[voice].dco_command.range = range;
+}
+
+void module_control106_set_vcf_params(ModuleControl106 *m,
+                                       VcfControlParams106 params)
+{
+    m->vcf_params = params;
+}
+
+void module_control106_set_voice_pitch(ModuleControl106 *m,
+                                       uint8_t voice,
+                                       uint16_t pitch_8_8)
+{
+    if (voice >= MODULE106_VOICES) return;
+    m->voices[voice].portamento_pitch_8_8 = pitch_8_8;
 }
 
 static bool voice_is_running(const ModuleControl106 *m, uint8_t voice)
@@ -246,6 +261,21 @@ static void service_envelope_voice(ModuleControl106 *m,
                event->sequence,
                voice_index,
                level);
+
+    /* Firmware ENV has advanced for this voice before its held VCF CV.
+     * Global base comes from the earlier VCF_GLOBAL_BASE slot. */
+    voice->vcf_code14 = vcf106_voice_code14(&m->vcf_params,
+                                            m->vcf_global_raw,
+                                            level,
+                                            voice->portamento_pitch_8_8);
+    voice->vcf_dac12 = (uint16_t)(voice->vcf_code14 >> 2u);
+    trace_push(m,
+               MODULE_TRACE106_VCF_S_H,
+               now,
+               event->pass_id,
+               event->sequence,
+               voice_index,
+               voice->vcf_dac12);
 }
 
 ControlEvent106 module_control106_service_next(ModuleControl106 *m,
@@ -267,6 +297,9 @@ ControlEvent106 module_control106_service_next(ModuleControl106 *m,
         break;
     case CONTROL106_DCO_VOICE:
         service_dco_voice(m, event.voice, now, &event);
+        break;
+    case CONTROL106_VCF_GLOBAL_BASE:
+        m->vcf_global_raw = vcf106_global_raw(&m->vcf_params);
         break;
     case CONTROL106_ENV_VCA_VCF_VOICE:
         service_envelope_voice(m, event.voice, now, &event);
