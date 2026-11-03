@@ -32,6 +32,8 @@ void module_control106_init(ModuleControl106 *m)
     memset(m, 0, sizeof *m);
     control_scheduler106_init(&m->scheduler);
     lfo_delay106_init(&m->lfo_delay);
+    m->requested_global_pitch_offset_8_8 = PITCH106_GLOBAL_BASE;
+    m->active_global_pitch_offset_8_8 = PITCH106_GLOBAL_BASE;
 
     for (uint8_t v = 0u; v < MODULE106_VOICES; ++v) {
         ModuleVoiceControl106 *voice = &m->voices[v];
@@ -70,6 +72,23 @@ void module_control106_set_vcf_params(ModuleControl106 *m,
                                        VcfControlParams106 params)
 {
     m->vcf_params = params;
+}
+
+void module_control106_set_pitch_timer_profile(ModuleControl106 *m,
+                                                const PitchTimerBase106 *profile)
+{
+    if (profile == NULL) {
+        m->pitch_timer_profile_enabled = false;
+        return;
+    }
+    m->pitch_timer_profile = *profile;
+    m->pitch_timer_profile_enabled = true;
+}
+
+void module_control106_set_global_pitch_offset(ModuleControl106 *m,
+                                                uint16_t global_offset_8_8)
+{
+    m->requested_global_pitch_offset_8_8 = global_offset_8_8;
 }
 
 void module_control106_set_voice_pitch(ModuleControl106 *m,
@@ -217,7 +236,17 @@ static void service_dco_voice(ModuleControl106 *m,
                               const ControlEvent106 *event)
 {
     ModuleVoiceControl106 *voice = &m->voices[voice_index];
-    const ModuleDcoCommand106 command = voice->dco_command;
+    ModuleDcoCommand106 command = voice->dco_command;
+
+    if (m->pitch_timer_profile_enabled) {
+        /* Both the divisor and the held DCO-CV derive from one final pitch,
+         * after Portamento and the earlier global Tune/LFO/Bender latch. */
+        voice->final_dco_pitch_8_8 = pitch106_final(
+            voice->portamento_pitch_8_8,
+            m->active_global_pitch_offset_8_8);
+        command.count = pitch106_timer_count_from_pitch(
+            &m->pitch_timer_profile, voice->final_dco_pitch_8_8);
+    }
 
     if (!voice->timer_initialized || voice->timer_reset_pending) {
         timer8253_106_reset_and_load_at(&voice->timer,
@@ -233,17 +262,31 @@ static void service_dco_voice(ModuleControl106 *m,
                    event->sequence,
                    voice_index,
                    command.count);
-        return;
+    } else {
+        timer8253_106_request_count(&voice->timer, command.count);
+        trace_push(m,
+                   MODULE_TRACE106_TIMER_QUEUE_COUNT,
+                   now,
+                   event->pass_id,
+                   event->sequence,
+                   voice_index,
+                   command.count);
     }
 
-    timer8253_106_request_count(&voice->timer, command.count);
-    trace_push(m,
-               MODULE_TRACE106_TIMER_QUEUE_COUNT,
-               now,
-               event->pass_id,
-               event->sequence,
-               voice_index,
-               command.count);
+    /* The ROM commits DCO-CV only after this voice's 8253 write.
+     * An injected profile is replaceable and does not imply strict count
+     * exactness. The CV value is already in physical 12-bit units. */
+    if (m->pitch_timer_profile_enabled) {
+        voice->dco_cv_dac12 = pitch106_dco_cv12_from_pitch(
+            voice->final_dco_pitch_8_8);
+        trace_push(m,
+                   MODULE_TRACE106_DCO_CV_S_H,
+                   now,
+                   event->pass_id,
+                   event->sequence,
+                   voice_index,
+                   voice->dco_cv_dac12);
+    }
 }
 
 static void service_envelope_voice(ModuleControl106 *m,
@@ -297,6 +340,10 @@ ControlEvent106 module_control106_service_next(ModuleControl106 *m,
         break;
     case CONTROL106_DCO_VOICE:
         service_dco_voice(m, event.voice, now, &event);
+        break;
+    case CONTROL106_PITCH_AND_PORTAMENTO:
+        m->active_global_pitch_offset_8_8 =
+            m->requested_global_pitch_offset_8_8;
         break;
     case CONTROL106_VCF_GLOBAL_BASE:
         m->vcf_global_raw = vcf106_global_raw(&m->vcf_params);
