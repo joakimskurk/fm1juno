@@ -2,6 +2,8 @@
 #include <stdlib.h>
 
 #include "control106/envelope106.h"
+#include "control106/lfo106.h"
+#include "control106/lfo_delay106.h"
 #include "control106/portamento106.h"
 
 #define CHECK(expr) do { \
@@ -110,12 +112,51 @@ static int test_env_decay_release_compact_law(void)
     return EXIT_SUCCESS;
 }
 
+static int test_lfo_depth_compact_law(void)
+{
+    CHECK(lfo106_depth_scaler(0u) == 0u);
+    CHECK(lfo106_depth_scaler(2u) == 0u);
+    CHECK(lfo106_depth_scaler(3u) == 1u);
+    CHECK(lfo106_depth_scaler(64u) == 62u);
+    CHECK(lfo106_depth_scaler(65u) == 64u);
+    CHECK(lfo106_depth_scaler(95u) == 124u);
+    CHECK(lfo106_depth_scaler(96u) == 128u);
+    CHECK(lfo106_depth_scaler(124u) == 240u);
+    CHECK(lfo106_depth_scaler(125u) == 248u);
+    CHECK(lfo106_depth_scaler(126u) == 255u);
+    CHECK(lfo106_depth_scaler(127u) == 255u);
+    return EXIT_SUCCESS;
+}
+
+static int test_lfo_delay_compact_laws(void)
+{
+    CHECK(lfo_delay106_holdoff_increment(0u) == envelope106_attack_increment(0u));
+    CHECK(lfo_delay106_holdoff_increment(64u) == envelope106_attack_increment(64u));
+    CHECK(lfo_delay106_holdoff_increment(127u) == envelope106_attack_increment(127u));
+
+    CHECK(lfo_delay106_ramp_index(0x00u) == 0u);
+    CHECK(lfo_delay106_ramp_index(0x10u) == 1u);
+    CHECK(lfo_delay106_ramp_index(0x30u) == 3u);
+    CHECK(lfo_delay106_ramp_index(0x70u) == 7u);
+    CHECK(lfo_delay106_ramp_index(0xffu) == 7u);
+
+    CHECK(lfo_delay106_ramp_increment_from_index(0u) == 0xffffu);
+    CHECK(lfo_delay106_ramp_increment_from_index(1u) == 0x0419u);
+    CHECK(lfo_delay106_ramp_increment_from_index(2u) == 0x020cu);
+    CHECK(lfo_delay106_ramp_increment_from_index(3u) == 0x015eu);
+    CHECK(lfo_delay106_ramp_increment_from_index(4u) == 0x0100u);
+    CHECK(lfo_delay106_ramp_increment_from_index(7u) == 0x0100u);
+    return EXIT_SUCCESS;
+}
+
 int main(void)
 {
     if (test_portamento_compact_law()) return EXIT_FAILURE;
     if (test_env_attack_compact_law()) return EXIT_FAILURE;
     if (test_env_sustain_law()) return EXIT_FAILURE;
     if (test_env_decay_release_compact_law()) return EXIT_FAILURE;
+    if (test_lfo_depth_compact_law()) return EXIT_FAILURE;
+    if (test_lfo_delay_compact_laws()) return EXIT_FAILURE;
     puts("fm1juno: compact coefficient-law tests passed");
     return EXIT_SUCCESS;
 }
