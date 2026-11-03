@@ -162,11 +162,83 @@ static int test_trace_determinism(void)
     return EXIT_SUCCESS;
 }
 
+
+static int test_vcf_slot_order_and_restart(void)
+{
+    ModuleControl106 m;
+    module_control106_init(&m);
+    VcfControlParams106 params = {0};
+    params.cutoff7 = 64u;
+    params.key_follow7 = 127u;
+    module_control106_set_vcf_params(&m, params);
+
+    const uint8_t notes[MODULE106_VOICES] = {48u, 54u, 60u, 66u, 72u, 84u};
+    for (uint8_t v = 0u; v < MODULE106_VOICES; ++v) {
+        module_control106_set_envelope_params(&m, v, test_env_params());
+        module_control106_set_voice_pitch(&m, v, (uint16_t)notes[v] << 8u);
+    }
+
+    Fm1junoTimeQ32 now = 0u;
+    (void)service_until(&m, CONTROL106_VCF_GLOBAL_BASE,
+                        CONTROL106_NO_VOICE, &now);
+    CHECK(m.vcf_global_raw == 8192);
+
+    /* A newly received parameter changes RAM now, not the VCF base
+     * that was already calculated earlier in this pass. */
+    params.cutoff7 = 1u;
+    module_control106_set_vcf_params(&m, params);
+    CHECK(m.vcf_global_raw == 8192);
+
+    (void)service_until(&m, CONTROL106_ENV_VCA_VCF_VOICE, 0u, &now);
+    const uint16_t expected_old = vcf106_voice_code14(
+        &params, 8192, 0u, (uint16_t)notes[0] << 8u);
+    CHECK(m.voices[0].vcf_code14 == expected_old);
+    CHECK(m.voices[0].vcf_dac12 == (expected_old >> 2u));
+    CHECK(m.trace.events[m.trace.count - 1u].type == MODULE_TRACE106_VCF_S_H);
+    CHECK(m.trace.events[m.trace.count - 1u].voice == 0u);
+
+    /* Note-event restart abandons all still-unserviced voice slots. */
+    const AssignerEvent106 on = {
+        ASSIGNER106_EVENT_VOICE_ON, 0u, notes[0]
+    };
+    module_control106_apply_assigner_event(&m, on, now);
+    for (uint8_t v = 1u; v < MODULE106_VOICES; ++v)
+        CHECK(m.voices[v].vcf_code14 == 0u);
+    CHECK(module_control106_service_next(&m, now).type ==
+          CONTROL106_FRAME_START);
+    now += FM1JUNO_TIME_ONE_SAMPLE;
+
+    (void)service_until(&m, CONTROL106_VCF_GLOBAL_BASE,
+                        CONTROL106_NO_VOICE, &now);
+    CHECK(m.vcf_global_raw == 128);
+
+    uint64_t sequence = 0u;
+    for (uint8_t v = 0u; v < MODULE106_VOICES; ++v) {
+        const ControlEvent106 event = service_until(
+            &m, CONTROL106_ENV_VCA_VCF_VOICE, v, &now);
+        CHECK(event.type == CONTROL106_ENV_VCA_VCF_VOICE);
+        CHECK(event.voice == v && event.sequence > sequence);
+        sequence = event.sequence;
+        const uint16_t expected = vcf106_voice_code14(
+            &params, 128, m.voices[v].envelope.level,
+            (uint16_t)notes[v] << 8u);
+        CHECK(m.voices[v].vcf_code14 == expected);
+        CHECK(m.voices[v].vcf_dac12 == (expected >> 2u));
+        const ModuleTraceEvent106 *last = &m.trace.events[m.trace.count - 1u];
+        CHECK(last->type == MODULE_TRACE106_VCF_S_H);
+        CHECK(last->voice == v);
+        CHECK(last->value == m.voices[v].vcf_dac12);
+    }
+    CHECK(!m.trace.overflowed);
+    return EXIT_SUCCESS;
+}
+
 int main(void)
 {
     if (test_voice_on_to_timer_reset_then_queue()) return EXIT_FAILURE;
     if (test_sustain_defers_release_and_lfo_rearm()) return EXIT_FAILURE;
     if (test_trace_determinism()) return EXIT_FAILURE;
+    if (test_vcf_slot_order_and_restart()) return EXIT_FAILURE;
     puts("fm1juno: module-control integration tests passed");
     return EXIT_SUCCESS;
 }
