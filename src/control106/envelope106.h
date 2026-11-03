@@ -24,11 +24,9 @@ typedef struct EnvelopeParams106 {
     uint16_t release_coefficient;
 } EnvelopeParams106;
 
-/* Exact raw 0..127 -> aligned 14-bit sustain storage law. */
+/* Exact compact clean-room coefficient laws for raw panel index 0..127. */
+uint16_t envelope106_attack_increment(uint8_t index);
 uint16_t envelope106_sustain_level_from_raw(uint8_t raw);
-
-/* Exact compact clean-room form of the shared Decay/Release coefficient
- * behavior for raw panel index 0..127. */
 uint16_t envelope106_decay_release_coefficient(uint8_t index);
 
 uint16_t envelope106_calc_decay(uint16_t value, uint16_t coefficient);
