@@ -372,6 +372,38 @@ static int test_native_serial_running_status_and_note_restart(void)
     return EXIT_SUCCESS;
 }
 
+
+static int test_adc_only_snapshot_does_not_activate_early_controls(void)
+{
+    ModuleControl106 m;
+    module_control106_init(&m);
+    const EnvelopeParams106 injected = {
+        0x0800u, 0xf000u, 0x2000u, 0xe000u
+    };
+    module_control106_set_envelope_params(&m, 0u, injected);
+    AssignerEvent106 note = {ASSIGNER106_EVENT_VOICE_ON, 0u, 60u};
+    module_control106_apply_assigner_event(&m, note, 0u);
+
+    CHECK(!m.raw_params_active);
+    CHECK(module_control106_receive_native_adc_bank(&m, 0u,
+                 UINT32_C(0xff904085), 0u));
+    CHECK(!m.raw_params_active);
+    CHECK(m.raw_params.tune_adc8 == 128u);
+    Fm1junoTimeQ32 now = FM1JUNO_TIME_ONE_SAMPLE;
+    (void)until(&m, CONTROL106_ENV_VCA_VCF_VOICE, &now);
+    CHECK(!m.raw_params_active);
+    CHECK(m.voices[0].envelope_params.attack_increment == 0x0800u);
+    CHECK(m.voices[0].envelope.level == 0x0800u);
+    CHECK(m.raw_params.tune_adc8 == 128u);
+
+    (void)until(&m, CONTROL106_ADC_PERFORMANCE, &now);
+    CHECK(m.raw_params_active);
+    CHECK(m.raw_params.tune_adc8 == 129u);
+    CHECK(m.raw_params.portamento_adc8 == 60u);
+    CHECK(!m.trace.overflowed);
+    return EXIT_SUCCESS;
+}
+
 int main(void)
 {
     if (test_switch_register_latch_masks_and_active_low()) return EXIT_FAILURE;
@@ -379,6 +411,7 @@ int main(void)
     if (test_module_switch_latch_adc_slot_and_restarts()) return EXIT_FAILURE;
     if (test_native_script_callback_invariance()) return EXIT_FAILURE;
     if (test_native_serial_running_status_and_note_restart()) return EXIT_FAILURE;
+    if (test_adc_only_snapshot_does_not_activate_early_controls()) return EXIT_FAILURE;
     puts("fm1juno: native switch and ADC preprocessing tests passed");
     return EXIT_SUCCESS;
 }
