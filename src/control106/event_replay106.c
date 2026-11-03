@@ -81,7 +81,9 @@ bool event_replay106_validate(const ScriptEvent106 *events, size_t count)
         if ((e->type == SCRIPT106_VOICE_ON || e->type == SCRIPT106_VOICE_OFF)
             && e->value > 127u)
             return false;
-        if (e->type == SCRIPT106_DCO_COMMAND && e->value > UINT16_MAX)
+        if (e->type == SCRIPT106_DCO_COMMAND &&
+            (e->value > UINT16_MAX ||
+             !timer8253_106_regular_mode3_count((uint16_t)e->value)))
             return false;
         previous = e->time;
     }
