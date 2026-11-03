@@ -70,7 +70,7 @@ Each incoming ADC snapshot is **one bank of four 8-bit channels**, packed little
 - `voice=0` → physical channel bank 0..3 (`FF80..83` raw to processed `FF88..8B`);
 - `voice=1` → bank 4..7 (`FF84..87` raw to processed `FF8C..8F`).
 
-The ISR-style `ADC_BANK` event records raw bytes, marks the latest published bank and increments the ADC interrupt counter. It does **not** compute Tune/Bend immediately, and it never restarts the pass.
+The ISR-style `ADC_BANK` event records raw bytes, marks the latest published bank and increments the ADC interrupt counter. It does **not** compute Tune/Bend immediately, and it never restarts the pass. When an ADC snapshot is the first control input, it also does **not** activate semantic raw-control mode until that late ADC slot: injected legacy ENV/pitch harness values remain unchanged in intervening earlier slots.
 
 At a later `ADC_PERFORMANCE` scheduler slot, the latest bank is processed. If multiple interrupts arrived, only the last published bank is serviced by this main-loop call (the earlier snapshot remains in its raw register but is not automatically replayed). This is an explicit *last visible bank* boundary; exact ADC scan conversion cadence and ISR collision timing remain unverified.
 
@@ -130,7 +130,7 @@ All records use `version,sample,frac_q32,type,voice,value,aux`.
 | `ADC_BANK` | 0 or 1 | four packed ADC channel bytes | 0 |
 | `SERIAL_BYTE` | 255 | one UART byte 0..255 | 0 |
 
-See `tests/vectors/p1_native_switch_adc_v1.csv` and `tests/vectors/p1_native_serial_v1.csv`. Source tests: `tests/unit/test_native_panel.c`.
+See `tests/vectors/p1_native_switch_adc_v1.csv` and `tests/vectors/p1_native_serial_v1.csv`. Source tests: `tests/unit/test_native_panel.c`, including an ADC-only ISR test proving an earlier ENV tick uses its previous state until the first ADC slot. CI host-tests #232 passed with this causality guard.
 
 CSV decimal fields are now bounds-checked **before narrowing casts**; invalid voice 511 or value 4294967296 do not alias into valid events. Negative fixtures in `tests/vectors/p1_invalid_*` are expected to fail parsing.
 
