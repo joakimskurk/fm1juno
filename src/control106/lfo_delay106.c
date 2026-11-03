@@ -1,5 +1,35 @@
 #include "control106/lfo_delay106.h"
 
+#include "control106/envelope106.h"
+
+uint16_t lfo_delay106_holdoff_increment(uint8_t delay_raw)
+{
+    return envelope106_attack_increment((uint8_t)(delay_raw & UINT8_C(0x7f)));
+}
+
+uint8_t lfo_delay106_ramp_index(uint8_t delay_raw)
+{
+    return (uint8_t)((delay_raw >> 4u) & UINT8_C(0x07));
+}
+
+uint16_t lfo_delay106_ramp_increment_from_index(uint8_t ramp_index)
+{
+    const uint8_t i = (uint8_t)(ramp_index & UINT8_C(0x07));
+    if (i == 0u) return UINT16_C(0xffff);
+    if (i >= 4u) return UINT16_C(0x0100);
+
+    /* Exact values 0x0419, 0x020c, 0x015e for bins 1..3 as one
+     * rational nearest-integer law: round(1048.5 / i). */
+    return (uint16_t)((UINT32_C(2097) + i) /
+                      ((uint32_t)i * UINT32_C(2)));
+}
+
+uint16_t lfo_delay106_ramp_increment(uint8_t delay_raw)
+{
+    return lfo_delay106_ramp_increment_from_index(
+        lfo_delay106_ramp_index(delay_raw));
+}
+
 void lfo_delay106_init(LfoDelay106 *d)
 {
     d->armed_after_silence = true;
@@ -58,6 +88,13 @@ uint8_t lfo_delay106_tick(LfoDelay106 *d,
     }
 
     return ramp_tick(d, ramp_increment);
+}
+
+uint8_t lfo_delay106_tick_raw(LfoDelay106 *d, uint8_t delay_raw)
+{
+    return lfo_delay106_tick(d,
+                             lfo_delay106_holdoff_increment(delay_raw),
+                             lfo_delay106_ramp_increment(delay_raw));
 }
 
 void performance_lfo106_init(PerformanceLfo106 *p)
