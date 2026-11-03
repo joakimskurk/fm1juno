@@ -21,6 +21,7 @@ add_library(fm1juno_core STATIC
     src/control106/portamento106.c
     src/control106/pitch106.c
     src/control106/control_scheduler106.c
+    src/control106/vcf_control106.c
     src/timer106/timer8253_106.c
 )
 
@@ -56,7 +57,11 @@ target_link_libraries(fm1juno_pitch_tests PRIVATE fm1juno_core)
 add_executable(fm1juno_coefficient_tests tests/unit/test_coefficient_laws.c)
 target_link_libraries(fm1juno_coefficient_tests PRIVATE fm1juno_core)
 
+add_executable(fm1juno_vcf_tests tests/unit/test_vcf_control.c)
+target_link_libraries(fm1juno_vcf_tests PRIVATE fm1juno_core)
+
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(fm1juno_vcf_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_ref PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_render PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -74,6 +79,7 @@ add_test(NAME fm1juno_replay_unit COMMAND fm1juno_replay_tests)
 add_test(NAME fm1juno_event_queue_unit COMMAND fm1juno_event_queue_tests)
 add_test(NAME fm1juno_pitch_unit COMMAND fm1juno_pitch_tests)
 add_test(NAME fm1juno_coefficient_unit COMMAND fm1juno_coefficient_tests)
+add_test(NAME fm1juno_vcf_unit COMMAND fm1juno_vcf_tests)
 add_test(
     NAME fm1juno_render_smoke
     COMMAND fm1juno_render
