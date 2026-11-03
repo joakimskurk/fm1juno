@@ -81,6 +81,7 @@ add_test(NAME fm1juno_event_queue_unit COMMAND fm1juno_event_queue_tests)
 add_test(NAME fm1juno_pitch_unit COMMAND fm1juno_pitch_tests)
 add_test(NAME fm1juno_coefficient_unit COMMAND fm1juno_coefficient_tests)
 add_test(NAME fm1juno_vcf_unit COMMAND fm1juno_vcf_tests)
+add_test(NAME fm1juno_raw_parameter_unit COMMAND fm1juno_raw_parameter_tests)
 add_test(
     NAME fm1juno_render_smoke
     COMMAND fm1juno_render
