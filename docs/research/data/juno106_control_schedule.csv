@@ -1,0 +1,17 @@
+order,region,rom_start,rom_end,event,physical_effect,timing_status,notes
+1,frame_start,02EC,0300,LATCH_AND_VOICERUN,Commit IC40 latch and refresh effective running-voice state,ORDER_FROZEN_OFFSET_PENDING,HPF/chorus/saw-related latch output precedes later CV service
+2,resonance,0301,030C,VCF_RESONANCE_S_H,Update held resonance CV,ORDER_FROZEN_OFFSET_PENDING,Shared/global resonance control path
+3,lfo_delay,030D,03A0,LFO_DELAY_AND_MOD_SCALE,Advance automatic delay/onset calculations and current modulation scalers,ORDER_FROZEN_OFFSET_PENDING,Uses stored LFO state before late LFO advance
+4,global_vca,03A1,03AC,GLOBAL_VCA_LEVEL_S_H,Update global VCA LEVEL held CV,ORDER_FROZEN_OFFSET_PENDING,Physical DAC/S&H event
+5,pitch_portamento,03AD,0406,PITCH_AND_PORTAMENTO_STATE,Build global pitch basis and update per-voice portamento state,ORDER_FROZEN_OFFSET_PENDING,Digital computation region
+6,sub,0407,0412,SUB_LEVEL_S_H,Update common SUB LEVEL held control,ORDER_FROZEN_OFFSET_PENDING,Before six DCO services
+7,dco_voice_1_6,0413,04A3,DCO_TIMER_AND_DCOCV_LOOP,Sequentially load/reset each 8253 counter then update that voice DCO-CV S/H,ORDER_FROZEN_OFFSET_PENDING,Per voice timer write precedes DCO-CV hold commit
+8,vcf_base,04D5,04F6,VCF_GLOBAL_BASE,Compute Cutoff plus or minus LFO plus or minus Bender base,ORDER_FROZEN_OFFSET_PENDING,Digital computation region
+9,env_vca_vcf_voice_1_6,04F7,0652,VOICE_ENV_VCA_VCF_LOOP,Sequential envelope advance and physical VCA/VCF servicing with PWM service in this region,ORDER_FROZEN_OFFSET_PENDING,Do not collapse six voices to one timestamp
+10,adc_performance,0653,074D,ADC_BENDER_PORTA_PERFORMANCE,Process current ADC/bender/portamento/performance-control state and complete late control service,ORDER_FROZEN_OFFSET_PENDING,Changes naturally feed later pass work
+11,lfo_advance,074E,07A8,LFO_ADVANCE,Advance integer LFO accumulator/direction/polarity state,ORDER_FROZEN_OFFSET_PENDING,Late update establishes prior-state causality for earlier DCO/VCF work
+12,noise,07A9,07B5,NOISE_LEVEL_S_H,Update common noise VCA held control then jump to loop start,ORDER_FROZEN_OFFSET_PENDING,Final regular DAC/S&H service before next pass
+interrupt,serial_note_event,008E,014C,VOICE_EVENT_RESTART,Voice note handling may discard stack and jump to 02EB,ROM_CONFIRMED,Abandons remaining interrupted pass rather than resuming
+interrupt,serial_parameter,00C4,010C,PARAMETER_INTERRUPT_RETURN,Update parameter RAM and return from interrupt,ROM_CONFIRMED,Normally resumes interrupted pass
+interrupt,adc,0070,008D,ADC_INTERRUPT_RETURN,Capture ADC bank toggle ADC mode and return,ROM_CONFIRMED,Normally resumes interrupted pass
+primitive,dac_load,082F,083C,DAC_BUS_LOAD,Inhibit MUXes select channel write physical 12-bit DAC bus,ROM_CONFIRMED,Lowest two bits of common 14-bit controls do not reach physical DAC
