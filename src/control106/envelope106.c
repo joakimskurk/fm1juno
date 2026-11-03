@@ -1,5 +1,10 @@
 #include "control106/envelope106.h"
 
+uint16_t envelope106_sustain_level_from_raw(uint8_t raw)
+{
+    return (uint16_t)((uint16_t)(raw & UINT8_C(0x7f)) << 7u);
+}
+
 uint16_t envelope106_decay_release_coefficient(uint8_t index)
 {
     /* Exact compact form of the monotone ROM coefficient behavior.
