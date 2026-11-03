@@ -55,7 +55,7 @@ Behavioral boundary:
 
 This is a well-grounded macro-arithmetic model, **not** a claim that every obscure uPD7811 carry/borrow-flag corner has been compared against a cycle-accurate original-CPU execution.
 
-Current `module_control106_set_voice_pitch()` is an explicit P1 harness boundary for the **already computed** current Portamento pitch; the complete note->Portamento->DCO/VCF producer is not yet wired into the module. Likewise, an arbitrary VCF parameter setter currently stands in for the eventual timestamped parameter-receive path.
+The direct `module_control106_set_voice_pitch()` and `module_control106_set_vcf_params()` APIs remain legacy injection boundaries for standalone tests. The new timestamped raw-parameter mode (sections 6–7) now drives Portamento, global DCO pitch and VCF through the macro scheduler. Full original serial/ADC preprocessing and exact uPD7811 cycle verification remain open.
 
 ## 3. Timer divisor candidate: evidence and gate
 
@@ -112,7 +112,8 @@ Still open before **P1.1 exact digital/control exit**:
 - [ ] Complete VCF global/voice dataflow tests against executable CPU arithmetic for rare carry/borrow cases.
 - [ ] Cover all documented 8253 pending/initial/reset/range/odd-count transition edge cases with independent timestamp vectors.
 - [x] `LFO_DELAY_AND_MOD_SCALE`, `PITCH_AND_PORTAMENTO`, `VCF_GLOBAL_BASE`, `ENV_VCA_VCF_VOICE`, `ADC_PERFORMANCE` and `LFO_ADVANCE` now update persistent digital control state when raw-parameter mode is active.
-- [ ] Verify all secondary 106 control channels (PWM, resonance, global gain, SUB, NOISE) are sampled and applied at their own service slots.
+- [x] Secondary output hold coverage: resonance, global VCA LEVEL, SUB, NOISE and delayed PWM now route through distinct physical mux channels and hold 14-bit/12-bit digital codes; voice VCA 0..4 uses previous-voice slot and voice 5 uses the separate post-ADC slot.
+- [ ] Independently verify native packed switch bitfields and raw ADC preprocessing of PWM/gate modes, beyond the semantic test flags.
 - [ ] Resolve/explicitly defer exact microsecond slot offsets to calibrated scheduler data. Do not fabricate them.
 
 Before the broader **Phase 1A/1D audio exit**:
@@ -156,14 +157,29 @@ Existing direct setters and a manual `DCO_COMMAND` remain usable for legacy harn
 
 **Limit:** successful macro-level traces do not certify original hardware ADC representation, raw MIDI decoding or cycle-accurate scheduler microseconds.
 
-## 7. Next implementation slice
+## 7. Secondary digital control outputs — implemented and tested
 
-Now concentrate on the remaining **strict P1.1 digital exit gates**:
+New files: `src/control106/secondary_control106.h/.c`, `tests/unit/test_secondary_control.c`.
 
-1. Verify full parameter-serialization/ADC scanning and pitch/VCF carry/borrow boundaries against original executable CPU behavior, including sign/end-point asymmetries.
-2. Extend ROM-slot digital-control coverage to PWM, resonance, SUB, NOISE, global gain, and physical held-S/H values. Keep analogue response/calibration separate.
-3. Add independent 8253 Mode-3 edge and range-change vectors, including count=0, odd counts, pending-load edge ordering, reset/normal write interaction and sub-sample traces.
-4. Document exact vs bounded-approximate timer base and DCO-CV profiles separately; do not silently promote a clean-room fit to bit-identical ROM values.
-5. Only then review the P1.1 gate and begin the high-precision `wave5534_ref` audio block.
+- Eight additional stable `RawParameterId106` IDs (21–28) for PWM depth/manual/pulse enable, VCF resonance, SUB, NOISE, global VCA LEVEL and VCA ENV/gate mode; earlier CSV IDs are unchanged.
+- Resonance, SUB, shared NOISE and global VCA LEVEL are individually held as `raw7 << 7` on their original ROM-order mux channels.
+- PWM's 14-bit integer law is computed **at LFO_ADVANCE**, then held to its IC23 channel-7 S/H only when the **next** main-loop pass processes voice-0 ENV. A panel change after the calculation cannot modify this pending PWM code retroactively.
+- Physical voice-VCA 0..4 writes lag the corresponding envelope tick by one voice-service slot: service voice 1 writes VCA 0, etc. Voice 5 VCA hold is now represented by a dedicated **post-ADC** `CONTROL106_FINAL_VCA_VOICE6` scheduler macro.
+- Voice VCA ENV and gate-mode code paths use the running-voice bitmap and the 14-bit envelope state. These are not the global uPC1252 gain cell.
+- Each `SecondaryHold106` retains code14, physical DAC12, commit time, pass ID and validity. Tests cover mux bank/channel distinction, PWM end points, one-pass latency, note-interrupt abort and global hold timing.
+- The timestamped callback-invariance regression now includes all eight new parameters and remains exact across 16/32/64/128/256 outer sizes.
+
+**Verified:** GitHub Actions host-tests #148 passed for new secondary output tests; #150 passed after all new raw IDs were inserted into the timestamped callback-invariance script.
+
+**Boundary:** the 0/1 PWM/manual/gate flags are **normalized semantic test inputs**. They are not proven to be the original 106 packed switch serial bytes. The physical VCA analog response and S/H settling are explicitly not modeled here. See `docs/PHASE1_RAW_PARAMETER_EVENTS.md`.
+
+## 8. Next implementation slice
+
+Continue strict P1.1 gates in this order:
+
+1. Independently test 8253 Mode-3 edge timing, odd/even count=0, queued count activation and reset/range changes with sub-sample Q32.32 timestamp vectors.
+2. Verify original switch-byte and ADC controls against the public ROM operations, especially PWM mode polarity, gate-vs-ENV routing, and the ADC bending endpoints.
+3. Audit all digital path exactness claims (`ROM_EXACT` vs bounded `DERIVED_APPROXIMATE` divisors/CV) and resolve executable CPU corner arithmetic.
+4. Review the P1.1 strict exit. Do not start MC5534 audio reference or FM-1 target port without a passing/reviewed control gate.
 
 `fm1juno_render` is still trace-only, not a WAV synth; no FM-1 target claims until after reference DSP verification.
