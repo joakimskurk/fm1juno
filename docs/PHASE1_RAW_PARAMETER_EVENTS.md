@@ -47,6 +47,14 @@ Reference vector: `tests/vectors/p1_raw_parameter_replay_v1.csv`.
 | 18 | `RAW106_PERFORMANCE_TRIGGER` | 0 or 1 |
 | 19 | `RAW106_PERFORMANCE_SENSITIVITY8` | 0..255 |
 | 20 | `RAW106_MIDI_MOD_DEPTH8` | 0..255 |
+| 21 | `RAW106_PWM_DEPTH7` | 0..127 |
+| 22 | `RAW106_PWM_MANUAL` | 0 or 1 |
+| 23 | `RAW106_PULSE_ENABLED` | 0 or 1 |
+| 24 | `RAW106_VCF_RESONANCE7` | 0..127 |
+| 25 | `RAW106_SUB_LEVEL7` | 0..127 |
+| 26 | `RAW106_NOISE_LEVEL7` | 0..127 |
+| 27 | `RAW106_GLOBAL_VCA_LEVEL7` | 0..127 |
+| 28 | `RAW106_VCA_GATE_MODE` | 0 or 1 |
 
 An update to a recognized raw parameter modifies the module's firmware-like RAM immediately and signals a **parameter interrupt**, but does **not** restart the main-loop pass. Derived outputs update at their own service slots; a VOICE_ON/OFF causes a main-loop restart.
 
@@ -59,7 +67,9 @@ An update to a recognized raw parameter modifies the module's firmware-like RAM 
 5. `VCF_GLOBAL_BASE`: derive Cutoff, LFO, VCF Bend in widened signed arithmetic; no premature clamp.
 6. `ENV_VCA_VCF_VOICE[0..5]`: use current raw ENV A/D/S/R coefficient laws to tick that voice and current ENV depth/key follow to calculate and hold the per-voice 12-bit VCF CV.
 7. `ADC_PERFORMANCE`: advance physical trigger declick / MIDI modulation maximum path (available to the **following** LFO-depth service).
-8. `LFO_ADVANCE`: update rate coefficient and integer LFO accumulator (its new magnitude/polarity is available to the **following** control pass).
+8. `FINAL_VCA_VOICE6`: output physical voice-six VCA sample-and-hold. This happens after ADC, unlike that voice's earlier ENV and VCF writes.
+9. `LFO_ADVANCE`: update rate coefficient and integer LFO accumulator (its new magnitude/polarity is available to the **following** control pass); compute the new PWM register.
+10. `NOISE_LEVEL`: commit shared noise-source VCA control code through the separate IC26 mux channel 7.
 
 This avoids running a synthetic 44.1-kHz LFO or portamento; no output changes solely because a host audio buffer boundary happened.
 
@@ -69,6 +79,41 @@ This avoids running a synthetic 44.1-kHz LFO or portamento; no output changes so
 - `tests/unit/test_event_replay.c`: original event-script behavior remains valid.
 - `tests/unit/test_module_control.c`: prior exact/derived DCO and VCF slot tests remain valid.
 - `fm1juno_render tests/vectors/p1_raw_parameter_replay_v1.csv --samples 128 --outer-frames 64`: host CLI smoke.
+
+## Secondary DAC/S&H control outputs — new P1.1 slice
+
+The exact common ROM parameter scaling for resonance, SUB, NOISE and the global VCA LEVEL is \`raw7 << 7\`. All four feed different physical S/H destinations and must **not** be modeled as a shared analog gain or single simultaneous write:
+
+| ROM macro slot | control | mux bank | channel |
+|---|---|---|---:|
+| \`VCF_RESONANCE\` | resonance | IC26 VCA | 6 |
+| \`GLOBAL_VCA_LEVEL\` | global uPC1252-level control | IC23 VCF | 6 |
+| \`SUB_LEVEL\` | common SUB control | IC24 ramp | 6 |
+| \`ENV_VCA_VCF_VOICE[0]\` | previous-pass PWM register | IC23 VCF | 7 |
+| \`ENV_VCA_VCF_VOICE[1..5]\` | voice VCA for physical voice \`index-1\` | IC26 VCA | 0..4 |
+| \`FINAL_VCA_VOICE6\` | voice VCA for physical voice 5 | IC26 VCA | 5 |
+| \`NOISE_LEVEL\` | common NOISE control | IC26 VCA | 7 |
+
+PWM follows the recovered ROM integer law:
+
+\`\`\`text
+lfo_carrier = (lfo_polarity_negative ? 0x2000 + lfo_magnitude
+                                   : 0x2000 - lfo_magnitude)
+carrier = pwm_manual ? 0x3fff : lfo_carrier
+pwm_code14 = pulse_enabled
+  ? 0x3fff - floor(carrier * (pwm_depth7 << 1) / 256)
+  : 0
+\`\`\`
+
+This computation happens **after** the LFO advances and is held as an intermediate code. The PWM S/H receives that intermediate when the **next** pass services voice 0. Switching between manual and LFO modes during the intervening pass therefore does not retroactively recalculate an already prepared code.
+
+Voice VCA uses current ENV 14-bit code in ENV mode or \`0x3fff\` / \`0x0000\` from \`voiceRun\` in gate mode. It is distinct from the later global uPC1252 VCA and is committed with the ROM's one-voice offset: ENV 1 writes voice VCA 0; ENV 5 writes voice VCA 4; the final voice VCA 5 only writes **after ADC**.
+
+\`SecondaryHold106\` tracks the last 14-bit digital value, 12-bit DAC value, timestamp, pass ID and a validity bit, with explicit physical mux routing. This tracks digital holds only: it does not model analog settling, output headroom, or BA662/uPC1252 control voltage-to-gain curves.
+
+**Raw switch normalization caveat:** \`RAW106_PWM_MANUAL\`, \`RAW106_PULSE_ENABLED\` and \`RAW106_VCA_GATE_MODE\` are semantic 0/1 flags in the test format, **not the original switch 1/2 serial bitfields**. Those packed switch bytes and precise panel ADC/hysteresis effects still need separate native-protocol verification.
+
+Tests: \`tests/unit/test_secondary_control.c\` (mux destinations, PWM extrema, one-pass latch delay, voice VCA one-slot lag and note-event abort) and \`test_raw_parameter_flow.c\` (timestamped cross-callback secondary-control regression).
 
 ## Precision and remaining gates
 
