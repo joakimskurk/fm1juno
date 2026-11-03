@@ -10,6 +10,7 @@ void raw_params106_init(RawParams106 *p)
     p->tune_adc8 = 128u;
     p->env_sustain7 = 127u;
     p->vcf_cutoff7 = 127u;
+    p->global_vca_level7 = 64u;
 }
 
 bool raw_params106_valid(RawParameterId106 id, uint32_t value)
@@ -20,6 +21,9 @@ bool raw_params106_valid(RawParameterId106 id, uint32_t value)
     case RAW106_BEND_NEGATIVE:
     case RAW106_VCF_ENV_INVERTED:
     case RAW106_PERFORMANCE_TRIGGER:
+    case RAW106_PWM_MANUAL:
+    case RAW106_PULSE_ENABLED:
+    case RAW106_VCA_GATE_MODE:
         return value <= 1u;
     case RAW106_TUNE_ADC8:
     case RAW106_PORTAMENTO_ADC8:
@@ -61,6 +65,14 @@ bool raw_params106_set(RawParams106 *p, RawParameterId106 id,
     case RAW106_PERFORMANCE_TRIGGER: p->performance_trigger = v != 0u; break;
     case RAW106_PERFORMANCE_SENSITIVITY8: p->performance_sensitivity8 = v; break;
     case RAW106_MIDI_MOD_DEPTH8: p->midi_mod_depth8 = v; break;
+    case RAW106_PWM_DEPTH7: p->pwm_depth7 = v; break;
+    case RAW106_PWM_MANUAL: p->pwm_manual = v != 0u; break;
+    case RAW106_PULSE_ENABLED: p->pulse_enabled = v != 0u; break;
+    case RAW106_VCF_RESONANCE7: p->vcf_resonance7 = v; break;
+    case RAW106_SUB_LEVEL7: p->sub_level7 = v; break;
+    case RAW106_NOISE_LEVEL7: p->noise_level7 = v; break;
+    case RAW106_GLOBAL_VCA_LEVEL7: p->global_vca_level7 = v; break;
+    case RAW106_VCA_GATE_MODE: p->vca_gate_mode = v != 0u; break;
     default: return false;
     }
     return true;
