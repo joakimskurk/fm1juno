@@ -111,7 +111,8 @@ Still open before **P1.1 exact digital/control exit**:
 - [x] Raw-parameter driven Tune + integer DCO-LFO/depth/Delay + signed Bend and per-voice Portamento now update the shared timer/DCO-CV pitch path at the ROM macro service slots.
 - [ ] Extend raw producer to complete Roland protocol/ADC scan semantics and verify macro and cycle-level timing against executable CPU traces.
 - [ ] Certify a ROM-equivalent divisor base or explicitly label/configure the accepted non-exact tier.
-- [ ] Complete VCF global/voice dataflow tests against executable CPU arithmetic for rare carry/borrow cases.
+- [x] Independent test-only uPD7811 ALU semantics oracle passes exhaustive 256×256 ADC raw/held grid, 2,016 structured VCF cases and 90,000 seeded VCF carry/borrow permutations.
+- [ ] Execute original IC29 instruction windows in a separately validated original-compatible uPD7811 core; the oracle above independently models selected operations but does **not** execute original ROM.
 - [x] Independent Mode-3 vectors now exercise normal even/odd counts, N=0→65536, high/low pending writes, repeated pending overwrites, fractional-sample reset and range-specific reset timings.
 - [ ] Original 8253 count=1/3 corner behavior, GATE/CLK alignment, live-range phase switching and actual MSB-write-to-first-edge timing still need independent hardware-level validation.
 - [x] `LFO_DELAY_AND_MOD_SCALE`, `PITCH_AND_PORTAMENTO`, `VCF_GLOBAL_BASE`, `ENV_VCA_VCF_VOICE`, `ADC_PERFORMANCE` and `LFO_ADVANCE` now update persistent digital control state when raw-parameter mode is active.
@@ -212,12 +213,26 @@ Tests: `tests/unit/test_native_panel.c`, `tests/vectors/p1_native_switch_adc_v1.
 
 **Not claimed:** full external assigner/MIDI CPU, actual ADC clock/bank alternation and ISR collision latency, IC40 line analogue truth table, uPD7811 cycle-accurate condition flags or live PF-clock phase.
 
-## 10. Next implementation slice
+## 10. uPD7811 ALU flags / ADC and VCF arithmetic oracle — implemented, green
 
-1. Build independent uPD7811 instruction-level test vectors for ADC `SUINB/ADDNC` skip semantics, serial command low/high endpoints, VCF underflow/overflow and branch flag behavior. Avoid reproducing original ROM wholesale.
-2. Validate actual ADC bank alternation and scan/interrupt timing with a dedicated emulator/hardware source. Current `ADC_BANK` replay injects bank snapshots explicitly, which is deterministic but not an autonomous ADC scanner.
-3. Verify clock prescaler/range transitions and 8253 GATE/input phase on the original board; preserve **MEASURE_PENDING** where exact physical state cannot be inferred.
-4. Audit digital trace/full parameter boundary against a known original-unit recording and explicitly label remaining `DERIVED_APPROXIMATE` divisor and CV laws.
-5. Only then consider the P1.1 exit review and subsequent MC5534/80017A audio reference stage.
+New isolated regression source: tests/unit/test_upd7811_flag_oracle.c, with **no production helper calls** for expected values.
 
-`fm1juno_render` remains a trace-only CLI, not a WAV generator or verified FM-1 runtime.
+- NEC skip instructions are represented as explicit 8-bit operations with unsigned borrow/carry and skip-next results (SUBNBX, GTI, SUINB and ADDNC). The ADC reference reconstructs threshold gating and upper-range correction from these primitives.
+- All **256×256 = 65,536 pairs** of previous accepted ADC code and new raw ADC code are checked against production native_adc106_process_latest and its conditioned output. Threshold anchors exercise the endpoint branches.
+- The VCF reference is **wrapped 16-bit EA with retained underflow-selection flag**, updated by DADDNC/DSUBNB overflow/borrow. A separate split-byte multiplication path supplies independently computed LFO, ENV and Key Follow contributions; final saturation uses EA upper bits and the retained flag.
+- **2,016 structured** ENV/pitch/sign vectors and **90,000 deterministic seeded** parameter vectors compare signed unclamped global VCF, per-voice 14-bit output, 12-bit DAC and signed Key Follow. Both positive carry and negative borrow paths are required.
+- The oracle's instruction meanings were cross-checked against the independent MAME uPD7810/11 emulator and public IC29 disassembly. It is test code, not a copied CPU/ROM implementation.
+
+**Verified:** GitHub Actions host-tests **#240 passed 18/18**, including the new fm1juno_upd7811_flag_oracle CTest target. No discrepancy was observed within the tested digital state space; no change to the already passing production VCF or ADC formulas was required.
+
+**Important:** Independent arithmetic-model comparisons support these local integer laws, but do not prove cycle-accurate uPD7811 full-program execution, asynchronous interrupts, ADC clock phase or derived note tables. See docs/PHASE1_UPD7811_FLAG_VALIDATION.md for explicit bounds.
+
+## 11. Next implementation slice
+
+1. Execute **original IC29 ROM instruction windows** under a separately validated uPD7811 emulator/cycle harness (MAME's existing CPU core is one independent candidate). Start with ADC address 0x0800–0x0824, then VCF address 0x04D5–0x0640 as feasible.
+2. Independently validate automatic ADC bank alternation and scan/interrupt timing rather than just injected bank snapshots.
+3. Verify physical clock/prescaler and 8253 gate/range transitions; keep unknown phase as **MEASURE_PENDING**.
+4. Distinguish the generated DERIVED_APPROXIMATE 8253 divisor and DCO-CV laws from genuinely ROM-exact data with a machine-readable fidelity gate.
+5. Review strict P1.1 exit before MC5534/80017A audio implementation.
+
+fm1juno_render is still trace-only, not a WAV renderer or verified FM-1 runtime.
