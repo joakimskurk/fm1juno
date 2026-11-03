@@ -1,0 +1,97 @@
+model: JUNO-106
+block: control_timing_dac_sample_hold
+state: CONTROL_TIMING_PHASE0_ARCHITECTURE_FROZEN
+
+frame:
+  nominal_service_cycle_us:
+    value: 4200
+    status: PRIMARY_APPROXIMATE
+    note: Roland service documentation gives approximately 4.2 ms for the multiplexed service cycle.
+  engineering_target_us:
+    value: 4233.5
+    status: SECONDARY_TARGET_ONLY
+    note: Useful first desktop target, not frozen as an exact universal original-hardware constant.
+  measured_mean_us:
+    value: null
+    status: MEASURE_PENDING
+  measured_std_us:
+    value: null
+    status: MEASURE_PENDING
+  workload_period_surface:
+    value: null
+    status: MEASURE_PENDING
+
+physical_dac:
+  bits: 12
+  status: ROM_CONFIRMED
+  common_code14_to_dac12:
+    expression: code14 >> 2
+    status: ROM_DERIVED
+  settle_time_us:
+    value: null
+    status: MEASURE_PENDING
+
+scheduler:
+  macro_order_source: module_ROM_addresses_02EC_to_07B5
+  slot_offsets_us:
+    latch_commit: null
+    vcf_resonance: null
+    global_vca_level: null
+    sub_level: null
+    dco_voice_1: null
+    dco_voice_2: null
+    dco_voice_3: null
+    dco_voice_4: null
+    dco_voice_5: null
+    dco_voice_6: null
+    pwm: null
+    vca_voice_1: null
+    vca_voice_2: null
+    vca_voice_3: null
+    vca_voice_4: null
+    vca_voice_5: null
+    vca_voice_6: null
+    vcf_voice_1: null
+    vcf_voice_2: null
+    vcf_voice_3: null
+    vcf_voice_4: null
+    vcf_voice_5: null
+    vcf_voice_6: null
+    lfo_advance: null
+    noise_level: null
+  slot_offset_status: MEASURE_PENDING
+
+interrupts:
+  adc:
+    behavior: resume_current_pass
+    timing_us: null
+    status: ROM_ARCHITECTURE_CONFIRMED_TIMING_PENDING
+  serial_parameter:
+    behavior: resume_current_pass
+    timing_us: null
+    status: ROM_ARCHITECTURE_CONFIRMED_TIMING_PENDING
+  voice_note_event:
+    behavior: abandon_current_pass_and_restart_at_loop_entry
+    timing_us: null
+    status: ROM_ARCHITECTURE_CONFIRMED_TIMING_PENDING
+
+sample_hold_defaults:
+  first_reference:
+    settle_tau_us: 0
+    droop_per_second: 0
+    source_impedance_ohm: 0
+    mux_charge_error_lsb: 0
+    status: IDEAL_PLACEHOLDER_REPLACEABLE
+  measured:
+    settle_tau_us: null
+    droop_per_second: null
+    source_impedance_ohm: null
+    mux_charge_error_lsb: null
+    status: MEASURE_PENDING
+
+rules:
+  atomic_control_frame: forbidden
+  preserve_voice_order: true
+  preserve_lfo_causality: true
+  quantize_before_analogue_hold: true
+  random_jitter_in_regression_tests: false
