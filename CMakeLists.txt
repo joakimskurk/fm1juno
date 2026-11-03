@@ -20,6 +20,7 @@ add_library(fm1juno_core STATIC
     src/control106/module_control106.c
     src/control106/portamento106.c
     src/control106/raw_params106.c
+    src/control106/secondary_control106.c
     src/control106/pitch106.c
     src/control106/control_scheduler106.c
     src/control106/vcf_control106.c
