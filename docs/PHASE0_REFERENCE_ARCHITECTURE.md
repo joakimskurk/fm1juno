@@ -1,398 +1,333 @@
 # FM1JUNO — Phase 0 Reference Architecture
 
-Status: **authoritative living index for current Phase-0 decisions**.
+Status: **`PHASE0_REFERENCE_ARCHITECTURE_FROZEN`**.
 
-`docs/CIRCUIT_MODEL_SPEC_V0.md` is retained as the early baseline/design draft. Where that older file conflicts with a specialized research document listed here, **the newer specialized document wins**.
+This is the compact integration contract for strict JUNO-106 behavior. Detailed arithmetic, evidence and measurement plans live in the linked specialized documents.
 
-This index intentionally stays compact. Detailed evidence, arithmetic, caveats and tests live in the linked files.
+`docs/CIRCUIT_MODEL_SPEC_V0.md` is historical. Newer block-specific reference models and closure records are authoritative where they disagree.
 
-## 1. Product/model policy
+## 1. Model policy
 
-### Strict `MODEL_106`
+Strict `MODEL_106` rules:
 
-Primary target. Reproduce observable JUNO-106 behavior and circuit/control architecture as closely as practical on FM-1.
-
-Rules:
-
-- no generic VA substitution where 106-specific behavior is known;
 - six physical voices;
 - no normal seventh-note voice stealing;
-- firmware/control-rate stepping is preserved where it is part of the original behavior;
-- analogue modeling begins at real hardware boundaries such as timer edges, DAC/S&H controls and hybrid inputs rather than reinterpreting panel parameters directly at audio rate;
-- unresolved analogue constants live in centralized calibration data as `MEASURE_PENDING`, never as scattered magic numbers.
+- preserve observed firmware integer/control-rate behavior;
+- preserve real hardware boundaries such as 8253 timer edges, multiplexed DAC/S&H controls, MC5534 ramp state and 80017A input/control nodes;
+- preserve drive/headroom rather than normalizing every block;
+- unresolved physical constants live in calibration data with evidence status and verification method;
+- JUNO-60 data may illuminate shared topology but never silently become a 106 constant.
 
-### JUNO-60 evidence
+## 2. Full frozen signal/control graph
 
-Use only where topology is demonstrably shared or as a measurement method.
+```text
+keyboard / MIDI / panel
+  -> Assigner106 / serial voice commands
+  -> ordered module-CPU ControlScheduler106
+       -> integer ENV / LFO / Portamento / pitch / VCF arithmetic
+       -> 12-bit physical DAC boundary
+       -> multiplexed SampleHold106 controls
 
-Allowed example: exposed JUNO-6/60 IR3109 + BA662 VCF/VCA circuit as visibility into the same IC family/topology physically confirmed inside 80017A.
+six physical voices:
+  8253 Mode-3 timer
+    -> MC5534 ramp/reset/PWM/SUB
+    -> WAVE + SUB
 
-Not allowed as silent 106 truth:
+one common physical NOISE source
+    -> BA662 noise VCA / shaping
+    -> same instantaneous NOISE signal distributed to six voices
 
-- IR3R01 ENV;
-- master-clock DCO modulation architecture;
-- HPF loading/output behavior;
-- chorus constants/timing;
-- MC5534 reset passive values unless independently corroborated for 106;
-- any other 60-specific behavior without 106 corroboration.
+per voice:
+  WAVE + SUB + common NOISE
+    -> passive/source input network
+    -> A1QH80017A:
+         IR3109 stage 1
+         IR3109 stage 2
+         IR3109 stage 3
+         IR3109 stage 4
+         + BA662 resonance/Q-compensation loop
+         -> BA662 voice VCA
+    -> six-voice sum
 
-### DEEP
+six-voice sum
+  -> HPF 0/1/2/3
+  -> IC4A/output conditioning
+  -> uPC1252H2 global VCA
+  -> dual MN3009/MN3101 chorus
+  -> original output/jack network
+```
 
-Post-fidelity extension layer. Circuit-derived alternatives/tolerances may live here later, but DEEP must not contaminate strict `MODEL_106` calibration.
+## 3. Assigner / retrigger
 
-## 2. Evidence, provenance and measurement
-
-Authoritative provenance rules:
-
-- [`research/SOURCE_INDEX.md`](research/SOURCE_INDEX.md)
-- [`research/JUNO106_EVIDENCE.md`](research/JUNO106_EVIDENCE.md)
-
-Hardware/validation plan:
-
-- [`research/PHASE0_MEASUREMENT_PLAN.md`](research/PHASE0_MEASUREMENT_PLAN.md)
-
-Clean-room rule:
-
-- use ROM disassembly to understand observable arithmetic/control behavior;
-- do not copy original Roland machine code or wholesale ROM tables;
-- prefer compact independently derived integer laws, equations and calibration vectors;
-- GPL reference projects are not copied unless licensing is deliberately made compatible.
-
-Phase-0 measurement rule:
-
-- raw captures are evidence;
-- model coefficients are derived artifacts;
-- one vintage unit is a calibration target, not universal truth;
-- unknown constants may enter Phase 1 only when paired with an explicit measurement/verification test.
-
-## 3. Normal voice assignment, Solo-Unison and retrigger
-
-Authoritative documents:
+Authority:
 
 - [`research/JUNO106_ASSIGNER_RETRIGGER.md`](research/JUNO106_ASSIGNER_RETRIGGER.md)
 - [`research/JUNO106_SOLO_UNISON_TIMING.md`](research/JUNO106_SOLO_UNISON_TIMING.md)
 
-Frozen highlights:
+Frozen:
 
-- Poly 1: dynamic physical-voice order, released voice moves to back, same-note free-voice reuse;
-- Poly 2: fixed physical first-free scan;
-- seventh simultaneously held key is ignored in normal poly modes;
-- every module Voice On re-arms ENV Attack;
-- ENV re-attack begins from current level;
-- timer reset is separate from ENV retrigger;
-- timer reset occurs for different-note + not-running voice; same-note and/or running/sustained voice preserves Mode-3 phase;
-- Solo-Unison sends the same note as six sequential physical Voice On commands rather than rendering one oscillator six times;
-- assigner->module link runs at 31.25 kbit/s, so unison reset/control timing is inherently staggered rather than one atomic six-voice event.
+- Poly 1 dynamic physical-voice order with release-to-back and same-note free-voice reuse;
+- Poly 2 fixed physical first-free scan;
+- seventh simultaneously held normal-poly key ignored;
+- every Voice On re-arms Attack from current ENV level;
+- timer reset is independent from ENV retrigger;
+- different note + non-running voice requests reset;
+- same-note and/or running voice preserves timer phase;
+- Solo-Unison is six sequential physical voice commands over 31.25-kbit/s serial, not one oscillator duplicated six times.
 
-## 4. Pitch, Portamento, 8253 and DCO CV
+## 4. Control scheduler / physical DAC-S&H — `CONTROL_TIMING_PHASE0_ARCHITECTURE_FROZEN`
 
-Authoritative documents:
+Authority:
+
+- [`research/JUNO106_CONTROL_SCHEDULER_REFERENCE_MODEL.md`](research/JUNO106_CONTROL_SCHEDULER_REFERENCE_MODEL.md)
+- [`research/CONTROL_TIMING_PHASE0_CLOSURE.md`](research/CONTROL_TIMING_PHASE0_CLOSURE.md)
+- [`research/data/juno106_control_schedule.csv`](research/data/juno106_control_schedule.csv)
+
+Frozen:
+
+- approximately 4.2-ms normal service-cycle family;
+- not one atomic 236-Hz parameter update;
+- ROM-derived macro-order from `$02EC..$07B5`;
+- sequential six-voice DCO service;
+- sequential six-voice ENV/VCA/VCF service;
+- timer count/reset work precedes each voice's DCO-CV S/H commit;
+- late LFO advance means early DCO/VCF work uses pre-advance LFO state;
+- physical DAC boundary is 12-bit; common aligned 14-bit controls quantize as `code14 >> 2` before S/H;
+- ADC and normal parameter interrupts return/resume;
+- voice-note event path can discard the interrupted stack and restart the main loop.
+
+Exact slot microseconds, settling and droop are calibration, not architecture.
+
+## 5. Pitch / Portamento / 8253
+
+Authority:
 
 - [`research/JUNO106_PITCH_DCOCV.md`](research/JUNO106_PITCH_DCOCV.md)
 - [`research/JUNO106_BENDER.md`](research/JUNO106_BENDER.md)
 - [`research/JUNO106_ROM_CONTROL.md`](research/JUNO106_ROM_CONTROL.md)
 
-Frozen highlights:
+Frozen:
 
-- pitch domain: 8.8 fixed-point semitone;
-- global pitch offset: Base + Tune + signed LFO + signed Bender;
-- per-voice Portamento pitch is added to that global offset;
-- Portamento is constant-step firmware-rate movement in 8.8 semitone space;
-- 8253 runs Mode 3 with integer count interpolation and separate ordinary reload/reset-and-load behavior;
-- ordinary count changes take effect at a Mode-3 boundary rather than as instant audio-rate phase-increment changes;
-- digital DCO-CV law follows an independently derivable octave-doubling/exponential note law with the same pitch fraction as timer interpolation;
-- RANGE is applied in the analogue current/ramp network rather than included in digital DCO-CV data.
+- 8.8 fixed-point semitone pitch domain;
+- global Base + Tune + signed LFO + signed Bender with per-voice Portamento contribution;
+- Portamento is constant-step firmware-rate movement with overshoot clamp;
+- 8253 Mode 3 with integer divisors and distinct ordinary reload vs reset/control-word + reload;
+- pending ordinary count activation follows Mode-3 boundary behavior;
+- DCO-CV follows recovered octave/exponential note law;
+- RANGE is analogue/post-DCO-CV slope scaling, not part of digital pitch CV.
 
-## 5. Digital envelope
+## 6. ENV / LFO
 
-Authoritative documents:
+Frozen ENV:
 
-- [`research/JUNO106_ROM_CONTROL.md`](research/JUNO106_ROM_CONTROL.md)
-- relevant retrigger rules in [`research/JUNO106_ASSIGNER_RETRIGGER.md`](research/JUNO106_ASSIGNER_RETRIGGER.md)
-
-Frozen highlights:
-
-- 14-bit integer ENV;
-- additive Attack increment;
-- exponential-style Decay/Release through the original three-part 8x8 fixed-point multiply structure;
+- 14-bit integer state;
+- additive Attack;
 - current-level re-attack;
-- firmware/control-rate behavior must be preserved before S/H reconstruction.
+- original truncated multiply-style Decay/Release behavior;
+- sustain/release state retained in firmware domain.
 
-Still measurement/calibration-sensitive:
+Frozen LFO:
 
-- exact main-loop/service timing under workload;
-- final DAC/S&H settling/droop reconstruction.
+- integer triangle-like magnitude accumulator with direction/polarity state;
+- compact exact rate coefficient law;
+- high-rate quantization/plateaus preserved;
+- two-stage automatic Delay: holdoff + depth ramp;
+- automatic Delay retrigger derives from `voiceRun` becoming empty then non-empty;
+- physical LFO-trigger/MIDI performance modulation bypasses automatic panel Delay scaling.
 
-## 6. LFO, LFO Delay and performance modulation
+## 7. MC5534 — `MC5534_PHASE0_ARCHITECTURE_FROZEN`
 
-Authoritative documents:
-
-- [`research/JUNO106_LFO_PORTAMENTO.md`](research/JUNO106_LFO_PORTAMENTO.md)
-- [`research/JUNO106_LFO_TRIGGER_DELAY.md`](research/JUNO106_LFO_TRIGGER_DELAY.md)
-- [`research/JUNO106_LFO_RATE_LAW.md`](research/JUNO106_LFO_RATE_LAW.md)
-
-Frozen highlights:
-
-- integer triangle-like magnitude accumulator with direction/polarity bits and endpoint clamp;
-- full signed period consists of four integer half-ramps;
-- rate coefficient mapping has an exact compact piecewise integer generator;
-- high-rate frequency quantization/plateaus are real firmware behavior;
-- LFO Delay is two-stage: holdoff then depth ramp;
-- automatic Delay is armed only after all `voiceRun` bits become empty and restarts on the first subsequent running voice;
-- overlapping/legato/sustained notes do not restart automatic Delay;
-- physical LFO-trigger/MIDI performance depth is combined after automatic DCO-LFO Delay scaling and therefore bypasses panel Delay.
-
-## 7. MC5534 wave generator — `MC5534_PHASE0_ARCHITECTURE_FROZEN`
-
-Authoritative documents:
+Authority:
 
 - [`research/JUNO106_MC5534_REFERENCE_MODEL.md`](research/JUNO106_MC5534_REFERENCE_MODEL.md)
-- [`research/JUNO106_MC5534_RAMP.md`](research/JUNO106_MC5534_RAMP.md)
 - [`research/MC5534_PHASE0_CLOSURE.md`](research/MC5534_PHASE0_CLOSURE.md)
-- [`research/data/juno106_mc5534_calibration_v0.yaml`](research/data/juno106_mc5534_calibration_v0.yaml)
 
 Frozen graph:
 
 ```text
-8253 timing
- -> positive-edge finite reset event
-
-held DCO CV
- -> RANGE-selected slope resistor
- -> C54-family integrator
- -> analogue ramp
-      -> SAW gate
-      -> PWM comparator against held PWM CV
-      -> WAVE
-
-DCO timing -> /2 -> SUB
+held DCO CV -> RANGE-selected R -> C54-family integrator
+8253 positive edge -> finite reset event
+same ramp -> SAW + PWM comparator -> WAVE
+8253 timing -> divide-by-two -> SUB
 ```
 
-Frozen highlights:
+Working component family remains around `399k / 200k / 100k` and `~1 nF` with evidence qualification. Approximate 12 Vp-p is a hardware target, never per-cycle normalization.
 
-- held DCO CV is slope control, not an audio-rate oscillator-frequency parameter;
-- RANGE is applied after DCO-CV generation;
-- 16' uses the largest slope resistor, 4' the smallest;
-- working 106 component family remains ~399k / 200k / 100k with C54 around 1 nF, while evidence qualification is preserved;
-- positive DCO edge initiates C54 discharge/reset;
-- reset must remain finite/configurable in the strict reference architecture;
-- approximate 12 Vp-p is a validation region, not per-cycle normalization;
-- SAW and PWM share the same physical ramp;
-- SUB remains a timing-domain divide-by-two state;
-- reset duration/residual, loaded DCO-CV law, S/H droop and MC5534 headroom/slew are centralized measurement calibration.
+## 8. Source mixer / common NOISE — `SOURCE_MIXER_PHASE0_ARCHITECTURE_FROZEN`
 
-## 8. Source mixer / common noise — `SOURCE_MIXER_PHASE0_ARCHITECTURE_FROZEN`
-
-Authoritative documents:
+Authority:
 
 - [`research/JUNO106_SOURCE_MIXER_REFERENCE_MODEL.md`](research/JUNO106_SOURCE_MIXER_REFERENCE_MODEL.md)
-- [`research/JUNO106_SOURCE_MIXER_NOISE.md`](research/JUNO106_SOURCE_MIXER_NOISE.md)
 - [`research/SOURCE_MIXER_PHASE0_CLOSURE.md`](research/SOURCE_MIXER_PHASE0_CLOSURE.md)
-- [`research/data/juno106_source_mixer_calibration_v0.yaml`](research/data/juno106_source_mixer_calibration_v0.yaml)
 
-Frozen source architecture:
+Frozen:
 
-```text
-per voice:
-  MC5534 WAVE + physical SUB
-
-one common physical NOISE source:
-  selected transistor -> IC14 BA662 -> RC shaping
-
-for each voice:
-  WAVE + SUB + same instantaneous common NOISE
-    -> original passive/input network
-    -> 80017A input
-```
-
-Frozen highlights:
-
-- one global SUB LEVEL control, six physical SUB phases;
-- one common continuous NOISE source, never six unrelated PRNGs;
-- enabled-source-count normalization and hidden pre-VCF clamp are forbidden;
-- Roland Bank-6 / TP8 / VR32 4 Vp-p noise adjustment is an absolute system validation vector;
-- exact source injection ratios, impedances, level curves and pre-VCF headroom remain centralized measurement calibration.
+- one per-voice WAVE node plus separate timing-derived SUB;
+- one shared SUB LEVEL control but six physical SUB phases;
+- one selected-transistor physical NOISE source feeding IC14 BA662 and RC shaping;
+- exact same instantaneous NOISE waveform distributed to all six voice paths;
+- no enabled-source-count normalization or hidden pre-VCF clamp;
+- Roland Bank-6 / TP8 / VR32 4-Vp-p noise adjustment retained as system validation vector.
 
 ## 9. Digital VCF control
 
-Authoritative document:
+Authority: [`research/JUNO106_VCF_CONTROL.md`](research/JUNO106_VCF_CONTROL.md).
 
-- [`research/JUNO106_VCF_CONTROL.md`](research/JUNO106_VCF_CONTROL.md)
-
-Frozen boundary:
+Frozen:
 
 ```text
-panel/control/voice state
-    -> integer module-CPU arithmetic
-    -> per-voice clamped 14-bit VCF control
-    -> DAC/S&H
-    -> analogue 80017A control law
+Cutoff +/- LFO +/- Bender
+  -> per voice +/- ENV
+  -> signed Key Follow
+  -> clamp 0x0000..0x3fff
+  -> physical 12-bit DAC/S&H boundary
 ```
 
-Frozen highlights:
+The original integer multiply/truncation behavior is retained.
 
-- Cutoff: `raw7 << 7` -> `0x0000..0x3f80`;
-- global order: Cutoff +/- VCF-LFO +/- VCF-Bender;
-- per voice: +/- scaled ENV, then signed Key Follow;
-- ENV/Key Follow use shared `floor(value * m / 256)` 16x8 integer primitive;
-- Key Follow uses `3/8` of current 8.8 voice pitch around exact Middle-C pivot `0x1680`;
-- VCF-LFO panel depth is doubled, multiplied by Delay onset, multiplied by `0..0x1fff` LFO magnitude and halved into near-12-bit range;
-- maximum VCF-LFO signal before sign = 4047 under nominal max values;
-- final VCF control clamps to `0x0000..0x3fff` before analogue conversion.
+## 10. A1QH80017A — `80017A_PHASE0_ARCHITECTURE_FROZEN`
 
-## 10. A1QH80017A filter/VCA
+Authority:
 
-Authoritative document:
+- [`research/JUNO106_80017A_REFERENCE_MODEL.md`](research/JUNO106_80017A_REFERENCE_MODEL.md)
+- [`research/80017A_PHASE0_CLOSURE.md`](research/80017A_PHASE0_CLOSURE.md)
 
-- [`research/JUNO106_80017A_TOPOLOGY.md`](research/JUNO106_80017A_TOPOLOGY.md)
+Frozen:
 
-Frozen topology:
+- four explicit IR3109-family low-pass stages;
+- explicit BA662 resonance/Q-compensation element with stage-4 feedback **and** input feed-forward;
+- explicit BA662 voice VCA;
+- per-voice Frequency, Width, Resonance and VCA calibration;
+- topology-preserving implicit/TPT-style high-precision reference direction;
+- working opened-original-hybrid passive evidence retained with status, not promoted beyond evidence.
+
+Mandatory Roland anchors:
 
 ```text
-source input
- -> IR3109 stage 1
- -> IR3109 stage 2
- -> IR3109 stage 3
- -> IR3109 stage 4
- -> BA662 voice VCA
- -> voice sum
+VCF self oscillation  4.8 Vp-p
+post-VCA              6.0 Vp-p
+C4 Frequency          248 Hz
+C6 Width              992 Hz
+interaction tolerance +/-10 cents after iteration
 ```
 
-with a separate BA662 resonance/Q-compensation loop receiving stage-4 feedback and input feed-forward on opposite differential inputs.
+Vintage silicon nonlinear scales/control laws are fit parameters.
 
-Consequences:
+## 11. Global HPF / output — `GLOBAL_OUTPUT_PHASE0_ARCHITECTURE_FROZEN`
 
-- resonance changes both feedback and effective input/passband drive;
-- strict model cannot be a generic four-pole `x-k*y4` filter plus one post-shaper;
-- nonlinear behavior belongs at OTA/buffer/resonance/VCA nodes;
-- per-voice Frequency, Width, Resonance and VCA calibration terms are mandatory.
-
-Factory validation anchors:
-
-- 4.8 Vp-p self-oscillation at the VCF service point;
-- 6 Vp-p post-VCA under the service condition;
-- 248 Hz C4 Frequency anchor;
-- 992 Hz C6 Width anchor;
-- repeat Frequency/Width until within +/-10 cents after warm-up.
-
-Still measurement-sensitive:
-
-- exact vintage hybrid passive set / 240-vs-~250-pF question;
-- vintage IR3109 nonlinear scale and stage-buffer limits;
-- strict BA662 resonance and VCA transfer/control laws;
-- VCF DAC/S&H code-to-control-voltage/frequency mapping;
-- whether thermal/supply dynamics deserve FM-1 budget after static warmed-up behavior passes.
-
-## 11. Global HPF and output VCA — `GLOBAL_OUTPUT_PHASE0_ARCHITECTURE_FROZEN`
-
-Authoritative documents:
-
-- [`research/JUNO106_HPF_GLOBAL_OUTPUT.md`](research/JUNO106_HPF_GLOBAL_OUTPUT.md)
-- [`research/JUNO106_GLOBAL_OUTPUT_REFERENCE_MODEL.md`](research/JUNO106_GLOBAL_OUTPUT_REFERENCE_MODEL.md)
-- [`research/GLOBAL_OUTPUT_PHASE0_CLOSURE.md`](research/GLOBAL_OUTPUT_PHASE0_CLOSURE.md)
-
-Frozen topology:
+Frozen:
 
 ```text
-six voice outputs
- -> global sum
+six-voice sum
  -> HPF selector
-      0 = direct + active bass-emphasis branch
-      1 = straight/flat path
-      2 = 47k / 15n first-order HPF
-      3 = 47k / 4.7n first-order HPF
- -> IC4A buffer/summer
- -> global uPC1252H2 VCA
- -> post-VCA output stage
+    0 bass emphasis
+    1 straight
+    2 47k/15n first-order HPF
+    3 47k/4.7n first-order HPF
+ -> IC4A/output conditioning
+ -> uPC1252H2 global VCA
  -> chorus
 ```
 
-Frozen numerical anchors:
-
-- HPF 2 ideal RC corner = `225.7516923289 Hz`;
-- HPF 3 ideal RC corner = `720.4841244540 Hz`;
-- Q is not applicable to these first-order branches;
-- HPF 0 remains a circuit-derived direct + two-pole/two-zero bass-emphasis graph whose exact coefficients are measurement/netlist calibration;
-- VCA LEVEL starts as `raw7 << 7` and belongs to Roland's nominal 0..+5 V conditioned-control family;
-- global VCA remains separate from per-voice BA662 VCAs;
-- high VCA LEVEL distortion/headroom is retained as physical behavior.
-
-## 12. JUNO-106 chorus — `CHORUS_PHASE0_FROZEN`
-
-Authoritative documents:
-
-- [`research/JUNO106_CHORUS.md`](research/JUNO106_CHORUS.md)
-- [`research/JUNO106_CHORUS_REFERENCE_MODEL.md`](research/JUNO106_CHORUS_REFERENCE_MODEL.md)
-- [`research/JUNO106_CHORUS_CLOCK.md`](research/JUNO106_CHORUS_CLOCK.md)
-- [`research/JUNO106_CHORUS_FILTERS_MIX.md`](research/JUNO106_CHORUS_FILTERS_MIX.md)
-- [`research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md`](research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md)
-- [`research/data/juno106_chorus_calibration_v0.yaml`](research/data/juno106_chorus_calibration_v0.yaml)
-
-Frozen physical architecture:
+Ideal RC anchors:
 
 ```text
-global mono pre-chorus signal
- -> common dry path -> IC6 L/R summers
- -> wet split
-      -> input/bias/filter -> MN3009 A <- MN3101 A -> post-BBD filter -> TP1
-      -> input/bias/filter -> MN3009 B <- MN3101 B -> post-BBD filter -> TP2
- -> IC6 dry+wet summers
- -> coupling/mute/output/jack network
+HPF2 225.7516923289 Hz
+HPF3 720.4841244540 Hz
 ```
 
-Frozen highlights:
+HPF0 exact coefficients, VCA control curve and headroom remain calibrated physical data.
 
-- `f_cp = f_osc/2`;
-- exact MN3009 delay identity `t_delay = 128/f_cp`;
-- original timing networks A and B = `1.8k / 8.2k / 150p`;
-- multi-element analogue wet path retained;
-- independent VR1/VR2 BBD bias;
-- exact IC6 summer law `Gdry=-0.39`, `Gwet=-39/47`;
-- strict user modes OFF/I/II;
-- all physical clock/delay/filter/headroom/noise quantities not published by Roland remain centralized `MEASURE_PENDING` calibration.
+## 12. Chorus — `CHORUS_PHASE0_FROZEN`
 
-## 13. FM-1 target policy
+Authority:
 
-Current target facts:
+- [`research/JUNO106_CHORUS_REFERENCE_MODEL.md`](research/JUNO106_CHORUS_REFERENCE_MODEL.md)
+- [`research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md`](research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md)
+- [`research/JUNO106_CHORUS_CLOCK.md`](research/JUNO106_CHORUS_CLOCK.md)
+- [`research/JUNO106_CHORUS_FILTERS_MIX.md`](research/JUNO106_CHORUS_FILTERS_MIX.md)
 
-- 44.1 kHz;
-- 128-frame audio blocks;
-- 240x240 display;
-- strict real-time/SRAM placement constraints;
-- existing six-voice FM-106 proves broad platform feasibility but is a performance/integration reference, not a fidelity source.
+Frozen:
 
-Implementation policy:
+- dual MN3009 + dual MN3101;
+- strict OFF/I/II;
+- exact `f_cp = f_osc/2`;
+- exact `t_delay = 128/f_cp`;
+- timing networks A/B = `1.8k / 8.2k / 150p`;
+- original multi-element wet filtering;
+- independent VR1/VR2 bias/headroom;
+- exact IC6 summer gains `Gdry=-0.39`, `Gwet=-39/47`;
+- explicit stereo/output/jack and BBD-noise boundaries.
 
-1. build the desktop/reference engine by physical blocks;
-2. preserve deterministic test vectors at each block boundary;
-3. profile one correct/observable version before approximating it;
-4. choose fixed-point/mixed precision per block only after error/CPU measurement;
-5. reduce linear analogue sub-networks analytically where transfer equivalence is verified;
-6. retain event/control-rate semantics even when the analogue audio block is simplified;
-7. no global 4x oversampling assumption — use event-aware anti-aliasing and selective oversampling first.
+Mode-I/II trajectories and device loss/noise/headroom are physical calibration datasets.
 
-## 14. Phase-0 gate and Phase-1 start condition
+## 13. FM-1 deployment — `FM1_TARGET_PHASE0_ARCHITECTURE_FROZEN`
 
-Authoritative gate:
+Authority:
 
-- [`research/PHASE0_CHECKLIST.md`](research/PHASE0_CHECKLIST.md)
+- [`research/FM1_TARGET_PHASE0_CLOSURE.md`](research/FM1_TARGET_PHASE0_CLOSURE.md)
+- [`research/FM1_TARGET_BUDGET.md`](research/FM1_TARGET_BUDGET.md)
+- [`research/data/fm1_target_budget_v0.yaml`](research/data/fm1_target_budget_v0.yaml)
 
-Authoritative unresolved-parameter test plan:
+Frozen:
+
+- callback-size-independent core;
+- official 44.1-kHz/128-frame source remains API reference;
+- first custom-DSP adapter uses Dinghy/Felucca-family platform;
+- one-core `TARGET_BASE` must retain six voices and strict behavior;
+- core 2 may accelerate `TARGET_FULL` but is not a correctness dependency;
+- target implementation uses fixed-point/integer domains appropriate to the chosen platform;
+- no runtime 64-bit division in Dinghy baseline;
+- separate audio, timer-event, JUNO-control, callback and UI/MIDI time domains;
+- deterministic REF-vs-target profiling and error tests.
+
+## 14. Remaining calibration is not hidden debt
+
+Authoritative measurement plan:
 
 - [`research/PHASE0_MEASUREMENT_PLAN.md`](research/PHASE0_MEASUREMENT_PLAN.md)
 
-Phase 1 may begin **component-by-component** when an item has either:
-
-1. an evidence-backed frozen behavior/model; or
-2. an explicit hypothesis/default with a named validation/measurement test.
-
-This means the reference engine may start before every original-unit measurement exists, provided unresolved constants are:
+Every unresolved physical quantity must remain one of:
 
 ```text
-centralized
-marked MEASURE_PENDING
-covered by deterministic tests
-replaceable without architecture changes
+PRIMARY_CONFIRMED
+ROM_DERIVED
+SCHEMATIC_CONFIRMED
+SCHEMATIC_CROSS_CHECK
+HARDWARE_MEASURED
+DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE
+MODERN_REFERENCE_ONLY
+DERIVED
+MEASURE_PENDING
+DEEP_ONLY
 ```
 
-A prototype may exist before the entire Phase-0 checklist is numerically closed, but it must never be mislabeled as final strict fidelity for unresolved blocks.
+Phase 1 may use provisional values only through centralized calibration surfaces and must be able to report active `MEASURE_PENDING` values.
+
+## 15. Phase transition
+
+Phase 0 is now complete at the architecture level.
+
+Next branch:
+
+```text
+phase1/reference-engine
+```
+
+Implementation order:
+
+```text
+repo/test scaffold
+ -> exact digital/control core + ControlScheduler106
+ -> Timer106
+ -> high-precision MC5534
+ -> common NOISE/source mixer
+ -> high-precision 80017A
+ -> HPF/global VCA
+ -> Chorus106
+ -> integrated REF
+ -> fixed-point target reductions
+ -> FM-1 host/hardware profiling
+```
+
+The target is a reduction of the reference, never the source of truth.
