@@ -156,6 +156,8 @@ These remain useful for project history but are not current authority where newe
 
 **Timestamped parameter and replay interface:** [`PHASE1_RAW_PARAMETER_EVENTS.md`](PHASE1_RAW_PARAMETER_EVENTS.md). This is the stable ID/7-bit/8-bit/flag registry for version-1 `PARAMETER` event scripts, ROM macro service causality, and `MEASURE_PENDING` boundaries.
 
+**8253 Mode-3 edge-validation contract:** [`PHASE1_8253_EDGE_VALIDATION.md`](PHASE1_8253_EDGE_VALIDATION.md). This tracks independently tested normal-count edge sequences, count 0/65536, the supported exceptional-count boundary, and still-unverified physical GATE/RANGE phase.
+
 Phase-0 research branch:
 
 ```text
