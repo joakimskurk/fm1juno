@@ -1,5 +1,34 @@
 #include "control106/envelope106.h"
 
+uint16_t envelope106_decay_release_coefficient(uint8_t index)
+{
+    /* Exact compact form of the monotone ROM coefficient behavior.
+     * Segment boundaries follow the places where the integer increment
+     * changes. No original 128-entry table is stored in the implementation. */
+    if (index <= 4u)
+        return (uint16_t)(UINT16_C(0x1000) +
+                          (uint16_t)index * UINT16_C(0x2000));
+
+    if (index <= 15u)
+        return (uint16_t)(UINT16_C(0xa000) +
+                          (uint16_t)(index - 5u) * UINT16_C(0x0800));
+
+    if (index <= 43u)
+        return (uint16_t)(UINT16_C(0xf000) +
+                          (uint16_t)(index - 15u) * UINT16_C(0x0080));
+
+    if (index <= 65u)
+        return (uint16_t)(UINT16_C(0xfe00) +
+                          (uint16_t)(index - 43u) * UINT16_C(0x000c));
+
+    if (index <= 123u)
+        return (uint16_t)(UINT16_C(0xff08) +
+                          (uint16_t)(index - 65u) * UINT16_C(0x0004));
+
+    return (uint16_t)(UINT16_C(0xfff0) +
+                      (uint16_t)(index - 123u));
+}
+
 uint16_t envelope106_calc_decay(uint16_t value, uint16_t coefficient)
 {
     const uint16_t vh = (uint16_t)(value >> 8u);
