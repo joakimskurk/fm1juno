@@ -264,12 +264,121 @@ static int test_native_script_callback_invariance(void)
     return EXIT_SUCCESS;
 }
 
+
+static int test_native_serial_running_status_and_note_restart(void)
+{
+    ModuleControl106 m;
+    module_control106_init(&m);
+    CHECK(!module_control106_receive_serial_byte(&m, 256u, 0u));
+    CHECK(m.serial_command == 0u);
+    CHECK(m.scheduler.parameter_interrupts == 0u);
+    /* Data without command is ignored, like the original ISR. */
+    CHECK(module_control106_receive_serial_byte(&m, 77u, 0u));
+    CHECK(m.scheduler.parameter_interrupts == 0u);
+
+    CHECK(module_control106_receive_serial_byte(&m, 0x8eu, 0u));
+    CHECK(m.serial_command == 0x8eu);
+    CHECK(module_control106_receive_serial_byte(&m, 0x06u, 0u));
+    CHECK(m.native_switch.switch1_seen && m.native_switch.switch1 == 6u);
+    CHECK(m.serial_command == 0x8fu);
+    CHECK(module_control106_receive_serial_byte(&m, 0x18u, 0u));
+    CHECK(m.native_switch.switch2_seen && m.native_switch.switch2 == 0x18u);
+    CHECK(m.serial_command == 0x90u);
+    CHECK(module_control106_receive_serial_byte(&m, 127u, 0u));
+    CHECK(m.raw_params.lfo_rate7 == 127u);
+    CHECK(m.serial_command == 0x91u);
+    CHECK(module_control106_receive_serial_byte(&m, 126u, 0u));
+    CHECK(m.raw_params.lfo_delay7 == 126u);
+    CHECK(m.serial_command == 0x92u);
+
+    /* Every original patch entry 0x90..0x9f has a real destination;
+     * the native event is NOT the same as a semantic PARAMETER ID. */
+    const struct {uint8_t cmd; RawParameterId106 id;} entries[] = {
+        {0x90u, RAW106_LFO_RATE7},
+        {0x91u, RAW106_LFO_DELAY7},
+        {0x92u, RAW106_DCO_LFO_DEPTH7},
+        {0x93u, RAW106_PWM_DEPTH7},
+        {0x94u, RAW106_NOISE_LEVEL7},
+        {0x95u, RAW106_VCF_CUTOFF7},
+        {0x96u, RAW106_VCF_RESONANCE7},
+        {0x97u, RAW106_VCF_ENV_DEPTH7},
+        {0x98u, RAW106_VCF_LFO_DEPTH7},
+        {0x99u, RAW106_VCF_KEY_FOLLOW7},
+        {0x9au, RAW106_GLOBAL_VCA_LEVEL7},
+        {0x9bu, RAW106_ENV_ATTACK7},
+        {0x9cu, RAW106_ENV_DECAY7},
+        {0x9du, RAW106_ENV_SUSTAIN7},
+        {0x9eu, RAW106_ENV_RELEASE7},
+        {0x9fu, RAW106_SUB_LEVEL7}
+    };
+    for (size_t i = 0u; i < sizeof entries/sizeof entries[0]; ++i) {
+        CHECK(module_control106_receive_serial_byte(&m, entries[i].cmd, 0u));
+        CHECK(module_control106_receive_serial_byte(&m, 77u, 0u));
+        CHECK(m.serial_command == (uint8_t)(entries[i].cmd + 1u));
+        RawParams106 probe;
+        raw_params106_init(&probe);
+        CHECK(raw_params106_set(&probe, entries[i].id, 77u));
+        /* Compare one changed field by structurally matching after setting
+         * it in a fresh zeroed parameter state. */
+        switch (entries[i].id) {
+        case RAW106_LFO_RATE7: CHECK(m.raw_params.lfo_rate7 == 77u); break;
+        case RAW106_LFO_DELAY7: CHECK(m.raw_params.lfo_delay7 == 77u); break;
+        case RAW106_DCO_LFO_DEPTH7: CHECK(m.raw_params.dco_lfo_depth7 == 77u); break;
+        case RAW106_PWM_DEPTH7: CHECK(m.raw_params.pwm_depth7 == 77u); break;
+        case RAW106_NOISE_LEVEL7: CHECK(m.raw_params.noise_level7 == 77u); break;
+        case RAW106_VCF_CUTOFF7: CHECK(m.raw_params.vcf_cutoff7 == 77u); break;
+        case RAW106_VCF_RESONANCE7: CHECK(m.raw_params.vcf_resonance7 == 77u); break;
+        case RAW106_VCF_ENV_DEPTH7: CHECK(m.raw_params.vcf_env_depth7 == 77u); break;
+        case RAW106_VCF_LFO_DEPTH7: CHECK(m.raw_params.vcf_lfo_depth7 == 77u); break;
+        case RAW106_VCF_KEY_FOLLOW7: CHECK(m.raw_params.vcf_key_follow7 == 77u); break;
+        case RAW106_GLOBAL_VCA_LEVEL7: CHECK(m.raw_params.global_vca_level7 == 77u); break;
+        case RAW106_ENV_ATTACK7: CHECK(m.raw_params.env_attack7 == 77u); break;
+        case RAW106_ENV_DECAY7: CHECK(m.raw_params.env_decay7 == 77u); break;
+        case RAW106_ENV_SUSTAIN7: CHECK(m.raw_params.env_sustain7 == 77u); break;
+        case RAW106_ENV_RELEASE7: CHECK(m.raw_params.env_release7 == 77u); break;
+        case RAW106_SUB_LEVEL7: CHECK(m.raw_params.sub_level7 == 77u); break;
+        default: return EXIT_FAILURE;
+        }
+    }
+
+    CHECK(module_control106_receive_serial_byte(&m, 0xa0u, 0u));
+    CHECK(module_control106_receive_serial_byte(&m, 127u, 0u));
+    CHECK(m.raw_params.bend_negative && m.raw_params.bend_magnitude8 == 255u);
+    CHECK(m.serial_command == 0xa1u);
+    CHECK(module_control106_receive_serial_byte(&m, 0u, 0u));
+    CHECK(!m.raw_params.bend_negative && m.raw_params.bend_magnitude8 == 0u);
+    CHECK(m.serial_command == 0xa2u);
+    CHECK(module_control106_receive_serial_byte(&m, 127u, 0u));
+    CHECK(m.raw_params.midi_mod_depth8 == 254u);
+    CHECK(m.serial_command == 0xa3u);
+    CHECK(module_control106_receive_serial_byte(&m, 1u, 0u));
+    CHECK(m.serial_command == 0xa4u); /* test mode deliberately ignored */
+
+    /* Native voice note path aborts current macro pass; switch/patch
+     * receive paths above only increment the parameter interrupt count. */
+    const uint32_t before = m.scheduler.abandoned_passes;
+    CHECK(module_control106_receive_serial_byte(&m, 0x88u, 0u));
+    CHECK(module_control106_receive_serial_byte(&m, 60u, 0u));
+    CHECK(m.note_gate_bits == 1u);
+    CHECK(m.scheduler.abandoned_passes == before + 1u);
+    CHECK(module_control106_receive_serial_byte(&m, 0x86u, 0u));
+    CHECK(m.sustain_on);
+    CHECK(module_control106_receive_serial_byte(&m, 0x87u, 0u));
+    CHECK(!m.sustain_on);
+    CHECK(module_control106_receive_serial_byte(&m, 0x80u, 0u));
+    CHECK(m.note_gate_bits == 0u);
+    CHECK(m.scheduler.abandoned_passes == before + 2u);
+    CHECK(!m.trace.overflowed);
+    return EXIT_SUCCESS;
+}
+
 int main(void)
 {
     if (test_switch_register_latch_masks_and_active_low()) return EXIT_FAILURE;
     if (test_adc_hysteresis_and_two_slope_conditioner()) return EXIT_FAILURE;
     if (test_module_switch_latch_adc_slot_and_restarts()) return EXIT_FAILURE;
     if (test_native_script_callback_invariance()) return EXIT_FAILURE;
+    if (test_native_serial_running_status_and_note_restart()) return EXIT_FAILURE;
     puts("fm1juno: native switch and ADC preprocessing tests passed");
     return EXIT_SUCCESS;
 }
