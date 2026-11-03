@@ -1,6 +1,9 @@
 #include "control106/event_replay106.h"
 
-static void apply_script_event(ModuleControl106 *m, const ScriptEvent106 *event)
+#include "common/event_queue.h"
+
+static bool apply_script_event(ModuleControl106 *m,
+                               const ScriptEvent106 *event)
 {
     switch (event->type) {
     case SCRIPT106_VOICE_ON: {
@@ -26,17 +29,30 @@ static void apply_script_event(ModuleControl106 *m, const ScriptEvent106 *event)
         break;
     case SCRIPT106_DCO_COMMAND:
         module_control106_set_dco_command(
-            m,
-            event->voice,
-            (uint16_t)event->value,
+            m, event->voice, (uint16_t)event->value,
             (TimerRange106)event->aux);
         break;
     case SCRIPT106_CONTROL_STEP:
         (void)module_control106_service_next(m, event->time);
         break;
-    default:
+    case SCRIPT106_PARAMETER:
+        return module_control106_receive_parameter(
+            m, (RawParameterId106)event->aux,
+            event->value, event->time);
+    case SCRIPT106_PITCH_PROFILE: {
+        if (event->value == 0u) {
+            module_control106_set_pitch_timer_profile(m, NULL);
+        } else {
+            PitchTimerBase106 candidate;
+            pitch106_timer_build_derived_candidate(&candidate);
+            module_control106_set_pitch_timer_profile(m, &candidate);
+        }
         break;
     }
+    default:
+        return false;
+    }
+    return true;
 }
 
 bool event_replay106_validate(const ScriptEvent106 *events, size_t count)
@@ -47,7 +63,7 @@ bool event_replay106_validate(const ScriptEvent106 *events, size_t count)
     for (size_t i = 0u; i < count; ++i) {
         const ScriptEvent106 *e = &events[i];
         if (i != 0u && e->time < previous) return false;
-        if (e->type > SCRIPT106_CONTROL_STEP) return false;
+        if (e->type > SCRIPT106_PITCH_PROFILE) return false;
         if ((e->type == SCRIPT106_VOICE_ON ||
              e->type == SCRIPT106_VOICE_OFF ||
              e->type == SCRIPT106_DCO_COMMAND) &&
@@ -55,7 +71,35 @@ bool event_replay106_validate(const ScriptEvent106 *events, size_t count)
             return false;
         if (e->type == SCRIPT106_DCO_COMMAND && e->aux > TIMER106_RANGE_4)
             return false;
+        if (e->type == SCRIPT106_PARAMETER &&
+            (e->voice != UINT8_C(0xff) ||
+             !raw_params106_valid((RawParameterId106)e->aux, e->value)))
+            return false;
+        if (e->type == SCRIPT106_PITCH_PROFILE &&
+            (e->voice != UINT8_C(0xff) || e->value > 1u || e->aux != 0u))
+            return false;
+        if ((e->type == SCRIPT106_VOICE_ON || e->type == SCRIPT106_VOICE_OFF)
+            && e->value > 127u)
+            return false;
+        if (e->type == SCRIPT106_DCO_COMMAND && e->value > UINT16_MAX)
+            return false;
         previous = e->time;
+    }
+    return true;
+}
+
+static bool drain(ModuleControl106 *m, Fm1junoEventQueue *queue)
+{
+    Fm1junoQueuedEvent item;
+    while (fm1juno_event_queue_pop(queue, &item)) {
+        const ScriptEvent106 event = {
+            item.time,
+            (ScriptEventType106)item.type,
+            item.voice,
+            item.value,
+            item.aux
+        };
+        if (!apply_script_event(m, &event)) return false;
     }
     return true;
 }
@@ -72,12 +116,12 @@ bool event_replay106_run(const ScriptEvent106 *events,
 
     ModuleControl106 module;
     module_control106_init(&module);
+    Fm1junoEventQueue queue;
+    fm1juno_event_queue_init(&queue);
 
     const EnvelopeParams106 nominal_test_env = {
-        UINT16_C(0x0800),
-        UINT16_C(0xf000),
-        UINT16_C(0x2000),
-        UINT16_C(0xe000)
+        UINT16_C(0x0800), UINT16_C(0xf000),
+        UINT16_C(0x2000), UINT16_C(0xe000)
     };
     for (uint8_t v = 0u; v < MODULE106_VOICES; ++v)
         module_control106_set_envelope_params(&module, v, nominal_test_env);
@@ -88,21 +132,45 @@ bool event_replay106_run(const ScriptEvent106 *events,
         uint32_t block_end = block_start + outer_frames;
         if (block_end > total_samples || block_end < block_start)
             block_end = total_samples;
-        const Fm1junoTimeQ32 block_end_time = fm1juno_time_from_samples(block_end);
 
-        while (next_event < count && events[next_event].time < block_end_time) {
-            apply_script_event(&module, &events[next_event]);
+        const Fm1junoTimeQ32 block_end_time =
+            fm1juno_time_from_samples(block_end);
+        while (next_event < count &&
+               events[next_event].time < block_end_time) {
+            const ScriptEvent106 *e = &events[next_event];
+            if (!fm1juno_event_queue_push(&queue, e->time,
+                                          (uint32_t)e->type, e->voice,
+                                          e->value, e->aux)) {
+                /* Input is time-ordered. Flush earlier entries first and
+                 * retry; this handles >queue-capacity events in one block
+                 * without a heap and without changing event order. */
+                if (!drain(&module, &queue) ||
+                    !fm1juno_event_queue_push(&queue, e->time,
+                                              (uint32_t)e->type, e->voice,
+                                              e->value, e->aux))
+                    return false;
+            }
             ++next_event;
         }
+        if (!drain(&module, &queue)) return false;
         block_start = block_end;
     }
 
     const Fm1junoTimeQ32 end_time = fm1juno_time_from_samples(total_samples);
     while (next_event < count && events[next_event].time == end_time) {
-        apply_script_event(&module, &events[next_event]);
+        const ScriptEvent106 *e = &events[next_event];
+        if (!fm1juno_event_queue_push(&queue, e->time,
+                                      (uint32_t)e->type, e->voice,
+                                      e->value, e->aux)) {
+            if (!drain(&module, &queue) ||
+                !fm1juno_event_queue_push(&queue, e->time,
+                                          (uint32_t)e->type, e->voice,
+                                          e->value, e->aux))
+                return false;
+        }
         ++next_event;
     }
-    if (next_event != count) return false;
+    if (next_event != count || !drain(&module, &queue)) return false;
 
     result->trace_signature = module_control106_trace_signature(&module.trace);
     result->trace_count = module.trace.count;
