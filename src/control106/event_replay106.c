@@ -48,6 +48,8 @@ static bool apply_script_event(ModuleControl106 *m,
     case SCRIPT106_ADC_BANK:
         return module_control106_receive_native_adc_bank(m,
                     event->voice, event->value, event->time);
+    case SCRIPT106_SERIAL_BYTE:
+        return module_control106_receive_serial_byte(m, event->value, event->time);
     case SCRIPT106_PITCH_PROFILE: {
         if (event->value == 0u) {
             module_control106_set_pitch_timer_profile(m, NULL);
@@ -72,7 +74,10 @@ bool event_replay106_validate(const ScriptEvent106 *events, size_t count)
     for (size_t i = 0u; i < count; ++i) {
         const ScriptEvent106 *e = &events[i];
         if (i != 0u && e->time < previous) return false;
-        if (e->type > SCRIPT106_ADC_BANK) return false;
+        if (e->type > SCRIPT106_SERIAL_BYTE) return false;
+        if (e->type == SCRIPT106_SERIAL_BYTE &&
+            (e->voice != UINT8_C(0xff) || e->value > 255u || e->aux != 0u))
+            return false;
         if ((e->type == SCRIPT106_SWITCH1 || e->type == SCRIPT106_SWITCH2) &&
             (e->voice != UINT8_C(0xff) || e->value > 255u || e->aux != 0u))
             return false;
