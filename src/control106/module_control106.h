@@ -12,6 +12,7 @@
 #include "control106/lfo_delay106.h"
 #include "control106/pitch106.h"
 #include "control106/raw_params106.h"
+#include "control106/secondary_control106.h"
 #include "control106/lfo106.h"
 #include "control106/vcf_control106.h"
 #include "timer106/timer8253_106.h"
@@ -53,7 +54,10 @@ typedef enum ModuleTraceType106 {
     MODULE_TRACE106_DCO_CV_S_H,
     MODULE_TRACE106_PARAMETER_RECEIVED,
     MODULE_TRACE106_LFO_TICK,
-    MODULE_TRACE106_PORTAMENTO_PITCH
+    MODULE_TRACE106_PORTAMENTO_PITCH,
+    MODULE_TRACE106_GLOBAL_S_H,
+    MODULE_TRACE106_VOICE_VCA_S_H,
+    MODULE_TRACE106_PWM_PREPARE
 } ModuleTraceType106;
 
 typedef struct ModuleTraceEvent106 {
@@ -78,6 +82,7 @@ typedef struct ModuleControl106 {
     Lfo106State lfo;
     PerformanceLfo106 performance_lfo;
     RawParams106 raw_params;
+    SecondaryOutputs106 secondary_outputs;
     bool raw_params_active;
     uint8_t lfo_onset;
     uint8_t performance_depth;
