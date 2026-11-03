@@ -14,6 +14,7 @@ typedef struct Lfo106State {
 } Lfo106State;
 
 uint16_t lfo106_rate_coefficient(uint8_t index);
+uint8_t lfo106_depth_scaler(uint8_t raw_depth);
 uint16_t lfo106_half_steps(uint16_t coefficient);
 void lfo106_init(Lfo106State *lfo, uint8_t rate_index);
 int16_t lfo106_signed_magnitude(const Lfo106State *lfo);
