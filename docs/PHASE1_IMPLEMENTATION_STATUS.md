@@ -103,13 +103,16 @@ Confirmed:
 
 Still open before **P1.1 exact digital/control exit**:
 
-- [ ] Full timestamped panel/MIDI parameter ingestion and control-parameter state feeding the scheduler.
+- [x] Versioned CSV script `PARAMETER` events with Q32.32 timestamps; validated 7-bit, 8-bit and flag domains, stable fixed-capacity event queue, original interrupt-vs-restart behavior at macro level.
+- [ ] Validate original hardware/serial/MIDI preprocessing and exact ADC/physical switch endpoint behavior against an executable module-CPU reference.
 - [x] Shared DCO service: an injected Portamento pitch and latched global pitch offset now feed both 8253 count and DCO-CV/S&H from **one** final pitch coordinate (candidate profile explicitly identified).
-- [ ] Replace the current injected pitch/offset harness with complete timestamped Tune/LFO/Bend/Portamento producer state and raw-parameter ingestion.
+- [x] Raw-parameter driven Tune + integer DCO-LFO/depth/Delay + signed Bend and per-voice Portamento now update the shared timer/DCO-CV pitch path at the ROM macro service slots.
+- [ ] Extend raw producer to complete Roland protocol/ADC scan semantics and verify macro and cycle-level timing against executable CPU traces.
 - [ ] Certify a ROM-equivalent divisor base or explicitly label/configure the accepted non-exact tier.
 - [ ] Complete VCF global/voice dataflow tests against executable CPU arithmetic for rare carry/borrow cases.
 - [ ] Cover all documented 8253 pending/initial/reset/range/odd-count transition edge cases with independent timestamp vectors.
-- [ ] Make all necessary LFO and modulation service events produce persistent held-control updates rather than trace-only macro calls.
+- [x] `LFO_DELAY_AND_MOD_SCALE`, `PITCH_AND_PORTAMENTO`, `VCF_GLOBAL_BASE`, `ENV_VCA_VCF_VOICE`, `ADC_PERFORMANCE` and `LFO_ADVANCE` now update persistent digital control state when raw-parameter mode is active.
+- [ ] Verify all secondary 106 control channels (PWM, resonance, global gain, SUB, NOISE) are sampled and applied at their own service slots.
 - [ ] Resolve/explicitly defer exact microsecond slot offsets to calibrated scheduler data. Do not fabricate them.
 
 Before the broader **Phase 1A/1D audio exit**:
@@ -135,16 +138,32 @@ The new integration regression verifies one-frame global-offset causality, initi
 
 **This does not mean the full original 106 pitch pipeline is done.** Real raw parameter reception, LFO/ENV servicing, per-voice Portamento state updates, and full 8253 clock-edge coordination still need implementation and independent vectors.
 
-## 6. Next implementation slice
+## 6. Timestamped raw parameter / control producer — implemented
 
-Complete a **real scheduled control-parameter producer** rather than growing more direct setters:
+New code:
 
-1. raw 7-bit parameter changes enter a timestamped command queue;
-2. derive Tune, LFO depth/onset and signed Bender in their original integer domains;
-3. advance Portamento per physical voice in the earlier ROM control region;
-4. provide the new global offset and per-voice pitch to the already integrated DCO timer/CV and VCF paths;
-5. prove control traces remain identical for callback sizes 16/32/64/128/256 and for interrupted frame/restart vectors.
+- `src/control106/raw_params106.h/.c`: 21 validated raw panel/performance parameters, with explicit 7-bit, 8-bit and boolean domains.
+- `src/control106/module_control106.h/.c`: timestamped parameter-receive API, raw-state mode and actual LFO/Delay/Bend/Portamento/VCF/ENV service-slot writes.
+- `src/control106/event_replay106.h/.c`: version-1 CSV commands `PARAMETER` and explicit derived `PITCH_PROFILE`; stable fixed-capacity event-queue integration.
+- `reference/render_main.cpp`: parser for both new event types.
+- `tests/unit/test_raw_parameter_flow.c`: macro slot causality, LFO/Bend + ENV/VCF integration, note-event restart and 16/32/64/128/256-frame invariance.
+- `tests/vectors/p1_raw_parameter_replay_v1.csv`: reproducible fractional-timestamp script and CLI smoke.
+- `docs/PHASE1_RAW_PARAMETER_EVENTS.md`: parameter registry and authority for this interface.
 
-Keep a distinct profile-quality flag for `ROM_EXACT` versus `DERIVED_APPROXIMATE` divisors. Do not promote the latter silently.
+The LFO state does not advance at sample rate; it advances only at its ROM macro slot. LFO Delay and performance control are separate, and the physical/MIDI performance effect becomes visible on the following LFO depth service. Portamento steps each active voice in 8.8 semitone space before the DCO loop. Raw parameter writes increment the parameter-interrupt counter without rewinding the control pass. A note event still restarts it and abandons unserviced slots.
 
-Do not transition to MC5534 audio fidelity until the remaining exact P1.1 digital gates have an explicit passing test or reviewed exception.
+Existing direct setters and a manual `DCO_COMMAND` remain usable for legacy harness tests when raw-parameter mode is not activated.
+
+**Limit:** successful macro-level traces do not certify original hardware ADC representation, raw MIDI decoding or cycle-accurate scheduler microseconds.
+
+## 7. Next implementation slice
+
+Now concentrate on the remaining **strict P1.1 digital exit gates**:
+
+1. Verify full parameter-serialization/ADC scanning and pitch/VCF carry/borrow boundaries against original executable CPU behavior, including sign/end-point asymmetries.
+2. Extend ROM-slot digital-control coverage to PWM, resonance, SUB, NOISE, global gain, and physical held-S/H values. Keep analogue response/calibration separate.
+3. Add independent 8253 Mode-3 edge and range-change vectors, including count=0, odd counts, pending-load edge ordering, reset/normal write interaction and sub-sample traces.
+4. Document exact vs bounded-approximate timer base and DCO-CV profiles separately; do not silently promote a clean-room fit to bit-identical ROM values.
+5. Only then review the P1.1 gate and begin the high-precision `wave5534_ref` audio block.
+
+`fm1juno_render` is still trace-only, not a WAV synth; no FM-1 target claims until after reference DSP verification.
