@@ -1,36 +1,46 @@
 # FM1JUNO documentation map
 
-This file is the entry point for technical work. The project has accumulated early design drafts and newer evidence-backed specifications; use the authority order below rather than choosing a document by filename alone.
+This file is the entry point for technical work.
 
-## 1. Current authority order
+## 1. Authority order
 
-For implementation decisions, use this order:
+Use this order for implementation decisions:
 
-1. **Newest specialized research/spec document for the block in question.**
-2. [`PHASE0_REFERENCE_ARCHITECTURE.md`](PHASE0_REFERENCE_ARCHITECTURE.md) — compact current integration/index.
-3. [`research/PHASE0_CHECKLIST.md`](research/PHASE0_CHECKLIST.md) plus newer block-specific closure records — Phase-0 gate and open items.
-4. [`research/PHASE0_MEASUREMENT_PLAN.md`](research/PHASE0_MEASUREMENT_PLAN.md) — how unresolved physical constants are closed.
-5. [`research/FM1_TARGET_BUDGET.md`](research/FM1_TARGET_BUDGET.md) — current FM-1 deployment/CPU/memory contract.
-6. [`PHASE1_REFERENCE_ENGINE_PLAN.md`](PHASE1_REFERENCE_ENGINE_PLAN.md) — implementation sequence and test architecture.
-7. Older baseline files only for historical context.
+1. newest block-specific reference model / closure record;
+2. [`PHASE0_REFERENCE_ARCHITECTURE.md`](PHASE0_REFERENCE_ARCHITECTURE.md);
+3. [`research/PHASE0_CHECKLIST.md`](research/PHASE0_CHECKLIST.md);
+4. [`research/PHASE0_MEASUREMENT_PLAN.md`](research/PHASE0_MEASUREMENT_PLAN.md);
+5. [`research/FM1_TARGET_BUDGET.md`](research/FM1_TARGET_BUDGET.md) plus target closure;
+6. [`PHASE1_REFERENCE_ENGINE_PLAN.md`](PHASE1_REFERENCE_ENGINE_PLAN.md);
+7. older baseline drafts only for historical context.
 
-If two documents conflict, do not average them. The newer specialized document wins unless its status explicitly says hypothesis/open.
+If documents conflict, do not average them. The newer specialized document wins unless it explicitly labels a statement as hypothesis/open.
 
-## 2. Primary target
+## 2. Primary model policy
 
-Current project priority is **JUNO-106**.
+Primary target is **JUNO-106**.
 
-JUNO-60 is used selectively to:
+JUNO-60 evidence is used only when topology is demonstrably shared or as a measurement/modeling aid. Strict `MODEL_106` must not silently inherit 60-specific envelope, DCO-clock, HPF/output, MC5534 reset or chorus constants.
 
-- expose shared IR3109/BA662 circuit ancestry hidden inside the 80017A;
-- suggest measurement methods;
-- inform later explicit 60/DEEP alternatives.
+## 3. Phase-0 state
 
-Strict `MODEL_106` must not inherit 60-specific clock, IR3R01 envelope, HPF loading, MC5534 reset constants or chorus constants without independent 106 evidence.
+All major implementation graphs are now architecture-frozen:
 
-## 3. Current block specifications
+```text
+CONTROL_TIMING_PHASE0_ARCHITECTURE_FROZEN
+MC5534_PHASE0_ARCHITECTURE_FROZEN
+SOURCE_MIXER_PHASE0_ARCHITECTURE_FROZEN
+80017A_PHASE0_ARCHITECTURE_FROZEN
+GLOBAL_OUTPUT_PHASE0_ARCHITECTURE_FROZEN
+CHORUS_PHASE0_FROZEN
+FM1_TARGET_PHASE0_ARCHITECTURE_FROZEN
+```
 
-### Control / firmware behavior
+Remaining unknown vintage-unit numbers are calibration/profile data with named fields and explicit verification routes. They are not permission to invent generic VA constants.
+
+## 4. Control / firmware
+
+Behavioral sources:
 
 - [`research/JUNO106_ASSIGNER_RETRIGGER.md`](research/JUNO106_ASSIGNER_RETRIGGER.md)
 - [`research/JUNO106_SOLO_UNISON_TIMING.md`](research/JUNO106_SOLO_UNISON_TIMING.md)
@@ -40,142 +50,128 @@ Strict `MODEL_106` must not inherit 60-specific clock, IR3R01 envelope, HPF load
 - [`research/JUNO106_LFO_TRIGGER_DELAY.md`](research/JUNO106_LFO_TRIGGER_DELAY.md)
 - [`research/JUNO106_PITCH_DCOCV.md`](research/JUNO106_PITCH_DCOCV.md)
 - [`research/JUNO106_BENDER.md`](research/JUNO106_BENDER.md)
+- [`research/JUNO106_VCF_CONTROL.md`](research/JUNO106_VCF_CONTROL.md)
 
-### MC5534 DCO wave generator — Phase-0 frozen architecture
+### Control timing / DAC-S&H
 
-- [`research/JUNO106_MC5534_REFERENCE_MODEL.md`](research/JUNO106_MC5534_REFERENCE_MODEL.md) — authoritative implementation contract; state `MC5534_PHASE0_ARCHITECTURE_FROZEN`.
-- [`research/JUNO106_MC5534_RAMP.md`](research/JUNO106_MC5534_RAMP.md) — detailed evidence/derivation companion.
-- [`research/MC5534_PHASE0_CLOSURE.md`](research/MC5534_PHASE0_CLOSURE.md) — block-specific closure gate.
-- [`research/data/juno106_mc5534_calibration_v0.yaml`](research/data/juno106_mc5534_calibration_v0.yaml) — centralized strict calibration / `MEASURE_PENDING` values.
-- [`research/data/juno106_mc5534_evidence.csv`](research/data/juno106_mc5534_evidence.csv) — per-fact evidence state.
+- [`research/JUNO106_CONTROL_SCHEDULER_REFERENCE_MODEL.md`](research/JUNO106_CONTROL_SCHEDULER_REFERENCE_MODEL.md) — authoritative scheduler contract.
+- [`research/CONTROL_TIMING_PHASE0_CLOSURE.md`](research/CONTROL_TIMING_PHASE0_CLOSURE.md) — closure gate.
+- [`research/data/juno106_control_timing_calibration_v0.yaml`](research/data/juno106_control_timing_calibration_v0.yaml) — timing/S&H calibration surface.
+- [`research/data/juno106_control_timing_evidence.csv`](research/data/juno106_control_timing_evidence.csv) — evidence table.
+- [`research/data/juno106_control_schedule.csv`](research/data/juno106_control_schedule.csv) — machine-readable ROM macro schedule.
 
-The frozen graph keeps physical 8253 edge timing, held DCO CV, RANGE-selected slope resistance, finite C54 reset, shared-ramp SAW/PWM and timing-domain SUB as separate concepts. Exact reset duration/residual, loaded DCO-CV law, S/H droop, MC5534 headroom/slew and measured amplitude-error surfaces remain calibration backlog.
+Frozen scheduler rules include ordered non-atomic service, sequential six-voice DCO and ENV/VCA/VCF work, 12-bit physical DAC quantization before analogue holds, late-LFO causality, normal returning parameter/ADC interrupts and note-event main-loop restart behavior.
 
-### Source mixer / SUB / common NOISE — Phase-0 frozen architecture
+## 5. MC5534 DCO wave generator
 
-- [`research/JUNO106_SOURCE_MIXER_REFERENCE_MODEL.md`](research/JUNO106_SOURCE_MIXER_REFERENCE_MODEL.md) — authoritative implementation contract; state `SOURCE_MIXER_PHASE0_ARCHITECTURE_FROZEN`.
-- [`research/JUNO106_SOURCE_MIXER_NOISE.md`](research/JUNO106_SOURCE_MIXER_NOISE.md) — detailed research/evidence companion.
-- [`research/SOURCE_MIXER_PHASE0_CLOSURE.md`](research/SOURCE_MIXER_PHASE0_CLOSURE.md) — block-specific Phase-0 closure gate.
-- [`research/data/juno106_source_mixer_calibration_v0.yaml`](research/data/juno106_source_mixer_calibration_v0.yaml) — centralized strict calibration / `MEASURE_PENDING` values.
-- [`research/data/juno106_source_mixer_evidence.csv`](research/data/juno106_source_mixer_evidence.csv) — per-fact evidence state.
-- [`research/netlists/juno106_source_mixer_topology.csv`](research/netlists/juno106_source_mixer_topology.csv) — physical WAVE/SUB/common-NOISE topology map.
+- [`research/JUNO106_MC5534_REFERENCE_MODEL.md`](research/JUNO106_MC5534_REFERENCE_MODEL.md)
+- [`research/JUNO106_MC5534_RAMP.md`](research/JUNO106_MC5534_RAMP.md)
+- [`research/MC5534_PHASE0_CLOSURE.md`](research/MC5534_PHASE0_CLOSURE.md)
+- [`research/data/juno106_mc5534_calibration_v0.yaml`](research/data/juno106_mc5534_calibration_v0.yaml)
+- [`research/data/juno106_mc5534_evidence.csv`](research/data/juno106_mc5534_evidence.csv)
 
-Remaining original-hardware captures are calibration backlog: exact WAVE/SUB/NOISE injection ratios, source impedances, analogue level curves, noise spectral transfer and pre-VCF headroom. They do not reopen the frozen source-mixer graph unless measurements contradict primary evidence.
+The graph retains 8253 event timing, held DCO CV, RANGE-selected ramp slope, finite reset, shared-ramp SAW/PWM and timing-domain SUB.
 
-### 80017A VCF / VCA — Phase-0 frozen architecture
+## 6. Source mixer / SUB / common NOISE
 
-- [`research/JUNO106_80017A_REFERENCE_MODEL.md`](research/JUNO106_80017A_REFERENCE_MODEL.md) — authoritative implementation contract; state `80017A_PHASE0_ARCHITECTURE_FROZEN`.
-- [`research/JUNO106_80017A_TOPOLOGY.md`](research/JUNO106_80017A_TOPOLOGY.md) — detailed topology/evidence companion.
-- [`research/JUNO106_VCF_CONTROL.md`](research/JUNO106_VCF_CONTROL.md) — exact upstream digital VCF arithmetic boundary.
-- [`research/80017A_PHASE0_CLOSURE.md`](research/80017A_PHASE0_CLOSURE.md) — block-specific closure gate.
-- [`research/data/juno106_80017a_calibration_v0.yaml`](research/data/juno106_80017a_calibration_v0.yaml) — centralized strict analogue calibration / `MEASURE_PENDING` values.
-- [`research/data/juno106_80017a_evidence.csv`](research/data/juno106_80017a_evidence.csv) — per-fact/value evidence state.
+- [`research/JUNO106_SOURCE_MIXER_REFERENCE_MODEL.md`](research/JUNO106_SOURCE_MIXER_REFERENCE_MODEL.md)
+- [`research/JUNO106_SOURCE_MIXER_NOISE.md`](research/JUNO106_SOURCE_MIXER_NOISE.md)
+- [`research/SOURCE_MIXER_PHASE0_CLOSURE.md`](research/SOURCE_MIXER_PHASE0_CLOSURE.md)
+- [`research/data/juno106_source_mixer_calibration_v0.yaml`](research/data/juno106_source_mixer_calibration_v0.yaml)
+- [`research/data/juno106_source_mixer_evidence.csv`](research/data/juno106_source_mixer_evidence.csv)
+- [`research/netlists/juno106_source_mixer_topology.csv`](research/netlists/juno106_source_mixer_topology.csv)
 
-The frozen graph retains four explicit IR3109-family stages, an explicit BA662 resonance/Q-compensation block with both input feed-forward and stage-4 feedback, and an explicit BA662 voice VCA. Working opened-hybrid passive evidence is retained separately from modern AS3109/AS662 sanity data. Vintage nonlinear scales, exact CV/current mappings, final passive tolerances and VCA/resonance curves remain calibration backlog.
+One physical common NOISE waveform fans to all six filters. Source combinations are never normalized by enabled-source count.
 
-### Global HPF / output — Phase-0 frozen architecture
+## 7. A1QH80017A VCF/VCA
 
-- [`research/JUNO106_HPF_GLOBAL_OUTPUT.md`](research/JUNO106_HPF_GLOBAL_OUTPUT.md) — authoritative compact index; state `GLOBAL_OUTPUT_PHASE0_ARCHITECTURE_FROZEN`.
-- [`research/JUNO106_GLOBAL_OUTPUT_REFERENCE_MODEL.md`](research/JUNO106_GLOBAL_OUTPUT_REFERENCE_MODEL.md) — implementation and closure contract.
-- [`research/GLOBAL_OUTPUT_PHASE0_CLOSURE.md`](research/GLOBAL_OUTPUT_PHASE0_CLOSURE.md) — block-specific Phase-0 gate; supersedes older Section-F wording where they conflict.
-- [`research/data/juno106_global_output_calibration_v0.yaml`](research/data/juno106_global_output_calibration_v0.yaml) — centralized strict calibration / `MEASURE_PENDING` values.
-- [`research/data/juno106_global_output_evidence.csv`](research/data/juno106_global_output_evidence.csv) — per-fact evidence state.
-- [`research/netlists/juno106_hpf23_component_reference.cir`](research/netlists/juno106_hpf23_component_reference.cir) — verified component-ideal HPF2/3 reference.
+- [`research/JUNO106_80017A_REFERENCE_MODEL.md`](research/JUNO106_80017A_REFERENCE_MODEL.md)
+- [`research/JUNO106_80017A_TOPOLOGY.md`](research/JUNO106_80017A_TOPOLOGY.md)
+- [`research/80017A_PHASE0_CLOSURE.md`](research/80017A_PHASE0_CLOSURE.md)
+- [`research/data/juno106_80017a_calibration_v0.yaml`](research/data/juno106_80017a_calibration_v0.yaml)
+- [`research/data/juno106_80017a_evidence.csv`](research/data/juno106_80017a_evidence.csv)
 
-Remaining original-hardware captures are calibration backlog. They must replace `MEASURE_PENDING` values before claiming final hardware-calibrated strict fidelity, but they do not reopen the frozen global-output graph unless measurements contradict primary evidence.
+The strict graph contains four explicit IR3109-family stages, an explicit BA662 resonance/Q-compensation block with input feed-forward plus stage-4 feedback, and an explicit BA662 voice VCA.
 
-### Chorus — Phase-0 frozen architecture
+## 8. Global HPF / output
 
-- [`research/JUNO106_CHORUS.md`](research/JUNO106_CHORUS.md) — authoritative chorus status/index; state `CHORUS_PHASE0_FROZEN`.
-- [`research/JUNO106_CHORUS_REFERENCE_MODEL.md`](research/JUNO106_CHORUS_REFERENCE_MODEL.md) — implementation and closure contract.
-- [`research/JUNO106_CHORUS_CLOCK.md`](research/JUNO106_CHORUS_CLOCK.md) — MN3101/MN3009 clock and exact delay law.
-- [`research/JUNO106_CHORUS_FILTERS_MIX.md`](research/JUNO106_CHORUS_FILTERS_MIX.md) — original BBD audio path, bias, exact IC6 dry/wet summer and output-stage boundary.
-- [`research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md`](research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md) — primary Roland jack-board transcription.
-- [`research/JUNO106_CHORUS_TRANSCRIPTION_COMPLETENESS.md`](research/JUNO106_CHORUS_TRANSCRIPTION_COMPLETENESS.md) — exact boundary between verified transcription and scan/measurement-limited detail.
-- [`research/data/juno106_chorus_component_evidence.csv`](research/data/juno106_chorus_component_evidence.csv) — per-component evidence state.
-- [`research/data/juno106_chorus_calibration_v0.yaml`](research/data/juno106_chorus_calibration_v0.yaml) — centralized strict calibration / `MEASURE_PENDING` values.
-- [`research/netlists/juno106_chorus_primary_pinmap.csv`](research/netlists/juno106_chorus_primary_pinmap.csv) — machine-readable BBD/driver pin-level transcription and IC6 functional summer nodes.
-- [`research/netlists/juno106_chorus_nodes.csv`](research/netlists/juno106_chorus_nodes.csv) — physical node graph with evidence state.
-- [`research/netlists/juno106_chorus_output_mix_reference.cir`](research/netlists/juno106_chorus_output_mix_reference.cir) — verified IC6 summer subcircuit.
-- [`research/netlists/README.md`](research/netlists/README.md) — netlist/transcription verification rules.
+- [`research/JUNO106_HPF_GLOBAL_OUTPUT.md`](research/JUNO106_HPF_GLOBAL_OUTPUT.md)
+- [`research/JUNO106_GLOBAL_OUTPUT_REFERENCE_MODEL.md`](research/JUNO106_GLOBAL_OUTPUT_REFERENCE_MODEL.md)
+- [`research/GLOBAL_OUTPUT_PHASE0_CLOSURE.md`](research/GLOBAL_OUTPUT_PHASE0_CLOSURE.md)
+- [`research/data/juno106_global_output_calibration_v0.yaml`](research/data/juno106_global_output_calibration_v0.yaml)
+- [`research/data/juno106_global_output_evidence.csv`](research/data/juno106_global_output_evidence.csv)
+- [`research/netlists/juno106_hpf23_component_reference.cir`](research/netlists/juno106_hpf23_component_reference.cir)
 
-Remaining original-hardware captures are calibration backlog and must replace `MEASURE_PENDING` values before claiming final hardware-calibrated fidelity. They do not reopen the frozen chorus architecture unless measurements contradict primary evidence.
+## 9. Chorus
 
-### Evidence / implementation boundary
+- [`research/JUNO106_CHORUS.md`](research/JUNO106_CHORUS.md)
+- [`research/JUNO106_CHORUS_REFERENCE_MODEL.md`](research/JUNO106_CHORUS_REFERENCE_MODEL.md)
+- [`research/JUNO106_CHORUS_CLOCK.md`](research/JUNO106_CHORUS_CLOCK.md)
+- [`research/JUNO106_CHORUS_FILTERS_MIX.md`](research/JUNO106_CHORUS_FILTERS_MIX.md)
+- [`research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md`](research/JUNO106_CHORUS_PRIMARY_SCHEMATIC.md)
+- [`research/JUNO106_CHORUS_TRANSCRIPTION_COMPLETENESS.md`](research/JUNO106_CHORUS_TRANSCRIPTION_COMPLETENESS.md)
+- [`research/data/juno106_chorus_component_evidence.csv`](research/data/juno106_chorus_component_evidence.csv)
+- [`research/data/juno106_chorus_calibration_v0.yaml`](research/data/juno106_chorus_calibration_v0.yaml)
+- [`research/netlists/juno106_chorus_primary_pinmap.csv`](research/netlists/juno106_chorus_primary_pinmap.csv)
+- [`research/netlists/juno106_chorus_nodes.csv`](research/netlists/juno106_chorus_nodes.csv)
+- [`research/netlists/juno106_chorus_output_mix_reference.cir`](research/netlists/juno106_chorus_output_mix_reference.cir)
 
+## 10. FM-1 target / deployment
+
+- [`research/FM1_TARGET_BUDGET.md`](research/FM1_TARGET_BUDGET.md) — detailed target strategy and benchmark scenes.
+- [`research/FM1_TARGET_PHASE0_CLOSURE.md`](research/FM1_TARGET_PHASE0_CLOSURE.md) — authoritative deployment closure; state `FM1_TARGET_PHASE0_ARCHITECTURE_FROZEN`.
+- [`research/data/fm1_target_budget_v0.yaml`](research/data/fm1_target_budget_v0.yaml) — machine-readable target contract.
+
+Frozen deployment policy:
+
+- callback-size-independent synthesis core;
+- first custom-DSP adapter from the Dinghy/Felucca family;
+- official FM1 Open remains authoritative API/hardware reference but its native synth engine is a separate binary SDK boundary;
+- one-core `TARGET_BASE` must retain all six voices and strict behavioral semantics;
+- core 2 may accelerate `TARGET_FULL` but is never a correctness dependency;
+- fixed-point/integer target, no runtime 64-bit division in the Dinghy baseline;
+- explicit CPU/memory release bands and deterministic REF-vs-target testing.
+
+## 11. Measurement / evidence
+
+- [`research/PHASE0_MEASUREMENT_PLAN.md`](research/PHASE0_MEASUREMENT_PLAN.md)
 - [`research/SOURCE_INDEX.md`](research/SOURCE_INDEX.md)
 - [`research/JUNO106_EVIDENCE.md`](research/JUNO106_EVIDENCE.md)
 - [`research/IMPLEMENTATION_REFERENCES.md`](research/IMPLEMENTATION_REFERENCES.md)
 
-## 4. Historical baseline documents
+A numerical value without a frozen evidence status is not permission to hard-code it into strict DSP.
 
-These files are retained because they show why the architecture evolved, but they are **not the current implementation authority** where newer specs disagree:
+## 12. Historical baselines
+
+These remain useful for project history but are not current authority where newer block specs disagree:
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md)
 - [`PLAN.md`](PLAN.md)
 - [`REFERENCES.md`](REFERENCES.md)
 - [`CIRCUIT_MODEL_SPEC_V0.md`](CIRCUIT_MODEL_SPEC_V0.md)
 
-In particular, old JUNO-60 chorus numbers, DCO reset constants, 80017A passive assumptions or HPF/output-loading assumptions in baseline documents must never be reused as strict 106 constants without the evidence status carried by the newer block specs.
+## 13. Phase transition
 
-## 5. Evidence labels
-
-Research documents use labels such as:
-
-```text
-PRIMARY_CONFIRMED
-ROM_DERIVED
-SCHEMATIC_CONFIRMED
-SCHEMATIC_CROSS_CHECK
-HARDWARE_MEASURED
-DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE
-MODERN_REFERENCE_ONLY
-DERIVED
-MEASURE_PENDING
-DEEP_ONLY
-```
-
-A numerical value without a frozen evidence status is not permission to hard-code it into strict DSP.
-
-## 6. Branch/PR policy
-
-Current Phase-0 research lives on:
+Phase-0 research branch:
 
 ```text
 research/phase0-juno106-control
 ```
 
-and is reviewed through draft PR #2.
-
-When Phase-1 code starts, cut a separate branch from the reviewed research state:
+Phase-1 implementation branch:
 
 ```text
 phase1/reference-engine
 ```
 
-Phase-0 evidence may continue to evolve, but changes enter Phase 1 through explicit spec/calibration updates.
-
-Do not mix experimental target optimization commits into the research branch.
-
-## 7. Implementation policy
-
-The implementation sequence is deliberately:
+Phase-1 follows:
 
 ```text
-evidence
- -> explicit behavior/spec
- -> high-precision reference
- -> deterministic tests
- -> target approximation
- -> FM-1 profiling
+evidence -> explicit behavior/spec -> high-precision REF -> deterministic tests -> target approximation -> FM-1 profiling
 ```
 
-not:
+Never:
 
 ```text
-FM-1 code
- -> sounds plausible
- -> retroactively call it a model
+FM-1 code -> sounds plausible -> retroactively call it a model
 ```
-
-This distinction is the central engineering rule of FM1JUNO.
