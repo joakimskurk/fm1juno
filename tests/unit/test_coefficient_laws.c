@@ -1,0 +1,93 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "control106/envelope106.h"
+#include "control106/portamento106.h"
+
+#define CHECK(expr) do { \
+    if (!(expr)) { \
+        fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
+        return EXIT_FAILURE; \
+    } \
+} while (0)
+
+static int test_portamento_compact_law(void)
+{
+    CHECK(portamento106_step_from_index(0u) == 0u);
+    CHECK(portamento106_step_from_index(1u) == 255u);
+    CHECK(portamento106_step_from_index(25u) == 63u);
+    CHECK(portamento106_step_from_index(26u) == 61u);
+    CHECK(portamento106_step_from_index(47u) == 19u);
+    CHECK(portamento106_step_from_index(48u) == 18u);
+    CHECK(portamento106_step_from_index(49u) == 17u);
+    CHECK(portamento106_step_from_index(50u) == 16u);
+    CHECK(portamento106_step_from_index(53u) == 16u);
+    CHECK(portamento106_step_from_index(54u) == 15u);
+    CHECK(portamento106_step_from_index(61u) == 14u);
+    CHECK(portamento106_step_from_index(62u) == 13u);
+    CHECK(portamento106_step_from_index(66u) == 13u);
+    CHECK(portamento106_step_from_index(67u) == 12u);
+    CHECK(portamento106_step_from_index(121u) == 2u);
+    CHECK(portamento106_step_from_index(122u) == 1u);
+    CHECK(portamento106_step_from_index(127u) == 1u);
+
+    CHECK(portamento106_step_from_raw(0u) == 0u);
+    CHECK(portamento106_step_from_raw(1u) == 0u);
+    CHECK(portamento106_step_from_raw(2u) == 255u);
+    CHECK(portamento106_step_from_raw(255u) == 1u);
+
+    uint8_t previous = 255u;
+    for (uint16_t i = 1u; i < 128u; ++i) {
+        const uint8_t step = portamento106_step_from_index((uint8_t)i);
+        CHECK(step >= 1u);
+        CHECK(step <= previous);
+        previous = step;
+    }
+    return EXIT_SUCCESS;
+}
+
+static int test_env_sustain_law(void)
+{
+    CHECK(envelope106_sustain_level_from_raw(0u) == 0x0000u);
+    CHECK(envelope106_sustain_level_from_raw(1u) == 0x0080u);
+    CHECK(envelope106_sustain_level_from_raw(64u) == 0x2000u);
+    CHECK(envelope106_sustain_level_from_raw(127u) == 0x3f80u);
+    CHECK(envelope106_sustain_level_from_raw(255u) == 0x3f80u);
+    return EXIT_SUCCESS;
+}
+
+static int test_env_decay_release_compact_law(void)
+{
+    struct Anchor {
+        uint8_t index;
+        uint16_t value;
+    } anchors[] = {
+        {0u, 0x1000u}, {4u, 0x9000u},
+        {5u, 0xa000u}, {15u, 0xf000u},
+        {16u, 0xf080u}, {43u, 0xfe00u},
+        {44u, 0xfe0cu}, {65u, 0xff08u},
+        {66u, 0xff0cu}, {123u, 0xfff0u},
+        {124u, 0xfff1u}, {127u, 0xfff4u}
+    };
+
+    uint16_t previous = 0u;
+    for (size_t i = 0u; i < sizeof anchors / sizeof anchors[0]; ++i)
+        CHECK(envelope106_decay_release_coefficient(anchors[i].index) == anchors[i].value);
+
+    for (uint16_t i = 0u; i < 128u; ++i) {
+        const uint16_t value =
+            envelope106_decay_release_coefficient((uint8_t)i);
+        if (i != 0u) CHECK(value > previous);
+        previous = value;
+    }
+    return EXIT_SUCCESS;
+}
+
+int main(void)
+{
+    if (test_portamento_compact_law()) return EXIT_FAILURE;
+    if (test_env_sustain_law()) return EXIT_FAILURE;
+    if (test_env_decay_release_compact_law()) return EXIT_FAILURE;
+    puts("fm1juno: compact coefficient-law tests passed");
+    return EXIT_SUCCESS;
+}
