@@ -65,7 +65,11 @@ target_link_libraries(fm1juno_vcf_tests PRIVATE fm1juno_core)
 add_executable(fm1juno_raw_parameter_tests tests/unit/test_raw_parameter_flow.c)
 target_link_libraries(fm1juno_raw_parameter_tests PRIVATE fm1juno_core)
 
+add_executable(fm1juno_secondary_tests tests/unit/test_secondary_control.c)
+target_link_libraries(fm1juno_secondary_tests PRIVATE fm1juno_core)
+
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(fm1juno_secondary_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_raw_parameter_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_vcf_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_ref PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -87,6 +91,7 @@ add_test(NAME fm1juno_pitch_unit COMMAND fm1juno_pitch_tests)
 add_test(NAME fm1juno_coefficient_unit COMMAND fm1juno_coefficient_tests)
 add_test(NAME fm1juno_vcf_unit COMMAND fm1juno_vcf_tests)
 add_test(NAME fm1juno_raw_parameter_unit COMMAND fm1juno_raw_parameter_tests)
+add_test(NAME fm1juno_secondary_unit COMMAND fm1juno_secondary_tests)
 add_test(
     NAME fm1juno_render_smoke
     COMMAND fm1juno_render
