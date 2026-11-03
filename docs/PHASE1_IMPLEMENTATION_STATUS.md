@@ -22,6 +22,7 @@ Portable C core:
 - `src/control106/pitch106.*`: 8.8 pitch arithmetic, exact index/clamp/interpolation, derived DCO-CV curve and replaceable 8253 base-count candidate;
 - `src/control106/vcf_control106.*`: firmware-domain VCF global base, per-voice ENV/Key Follow, final clamp and DAC quantization;
 - `src/control106/dac106.*`: 14-bit-to-physical-12-bit boundary;
+- `src/control106/native_panel106.*`: original IC29 packed switches, IC40 frame latch, ADC ISR bank snapshot, ±1 code hysteresis and bounded endpoint correction;
 - `src/control106/control_scheduler106.*`: non-atomic ROM macro schedule plus voice-event restart;
 - `src/control106/module_control106.*`: six-voice integration harness, event trace, timer/ENV, now ordered per-voice VCF holds;
 - `src/timer106/timer8253_106.*`: 8253 Mode-3 event-time model.
@@ -104,7 +105,8 @@ Confirmed:
 Still open before **P1.1 exact digital/control exit**:
 
 - [x] Versioned CSV script `PARAMETER` events with Q32.32 timestamps; validated 7-bit, 8-bit and flag domains, stable fixed-capacity event queue, original interrupt-vs-restart behavior at macro level.
-- [ ] Validate original hardware/serial/MIDI preprocessing and exact ADC/physical switch endpoint behavior against an executable module-CPU reference.
+- [x] Recover original packed switch and raw ADC integer preprocessing from public IC29 disassembly and test macro-level signed/bank/endpoint behavior via native UART and ADC_BANK inputs.
+- [ ] Independently certify native CPU flags, full ADC acquisition timing and physical endpoints against an executable uPD7811 or original-hardware trace.
 - [x] Shared DCO service: an injected Portamento pitch and latched global pitch offset now feed both 8253 count and DCO-CV/S&H from **one** final pitch coordinate (candidate profile explicitly identified).
 - [x] Raw-parameter driven Tune + integer DCO-LFO/depth/Delay + signed Bend and per-voice Portamento now update the shared timer/DCO-CV pitch path at the ROM macro service slots.
 - [ ] Extend raw producer to complete Roland protocol/ADC scan semantics and verify macro and cycle-level timing against executable CPU traces.
@@ -114,7 +116,9 @@ Still open before **P1.1 exact digital/control exit**:
 - [ ] Original 8253 count=1/3 corner behavior, GATE/CLK alignment, live-range phase switching and actual MSB-write-to-first-edge timing still need independent hardware-level validation.
 - [x] `LFO_DELAY_AND_MOD_SCALE`, `PITCH_AND_PORTAMENTO`, `VCF_GLOBAL_BASE`, `ENV_VCA_VCF_VOICE`, `ADC_PERFORMANCE` and `LFO_ADVANCE` now update persistent digital control state when raw-parameter mode is active.
 - [x] Secondary output hold coverage: resonance, global VCA LEVEL, SUB, NOISE and delayed PWM now route through distinct physical mux channels and hold 14-bit/12-bit digital codes; voice VCA 0..4 uses previous-voice slot and voice 5 uses the separate post-ADC slot.
-- [ ] Independently verify native packed switch bitfields and raw ADC preprocessing of PWM/gate modes, beyond the semantic test flags.
+- [x] Native IC29 switch1/switch2 byte paths now decode active-low pulse/PWM/VCF ENV/VCA gate and HPF/IC40 bit outputs; native ADC bank processing includes ±1-code hystereses and two-slope endpoint correction, with delayed scheduler semantics.
+- [x] Native IC29 serial command receiver handles patch-data running status, 0x80..0x8D physical voice/sustain commands, negative/positive MIDI bend and doubled MIDI modulation; original test-mode command is deliberately suppressed.
+- [ ] Verify all switch/ADC condition flags in an executable original uPD7811 model and validate scan clock, ADC ISR timing and live PF range-phase on original hardware.
 - [ ] Resolve/explicitly defer exact microsecond slot offsets to calibrated scheduler data. Do not fabricate them.
 
 Before the broader **Phase 1A/1D audio exit**:
@@ -144,7 +148,7 @@ The new integration regression verifies one-frame global-offset causality, initi
 
 New code:
 
-- `src/control106/raw_params106.h/.c`: 21 validated raw panel/performance parameters, with explicit 7-bit, 8-bit and boolean domains.
+- `src/control106/raw_params106.h/.c`: 29 validated raw panel/performance parameters, with explicit 7-bit, 8-bit and boolean domains.
 - `src/control106/module_control106.h/.c`: timestamped parameter-receive API, raw-state mode and actual LFO/Delay/Bend/Portamento/VCF/ENV service-slot writes.
 - `src/control106/event_replay106.h/.c`: version-1 CSV commands `PARAMETER` and explicit derived `PITCH_PROFILE`; stable fixed-capacity event-queue integration.
 - `reference/render_main.cpp`: parser for both new event types.
@@ -190,11 +194,30 @@ Implemented/validated:
 
 Authoritative documentation: `docs/PHASE1_8253_EDGE_VALIDATION.md`.
 
-## 9. Next implementation slice
+## 9. Original IC29 switch, ADC and serial receiver — implemented and tested
 
-1. Recover packed serial switch 1/2 byte semantics (PWM manual/LFO, pulse enable, VCA ENV/gate, HPF/chorus and octave range bits), and validate against the original module-ROM instructions and route maps.
-2. Audit physical ADC/hysteresis and bender endpoint handling. Preserve normalization boundaries and avoid inventing native MIDI/ADC equivalence.
-3. Check 8253 and 80017A coupling: full count precision, physical clock phase, and original range change while running. Keep the exceptional count and live-range cases explicitly open if hardware evidence is insufficient.
-4. Close remaining exact digital P1.1 regression gates before any MC5534 waveform reference or FM-1 target implementation.
+New module: `src/control106/native_panel106.h/.c`. Integrated into `module_control106` and the version-1 event replay and CLI.
 
-`fm1juno_render` is still trace-only; no original-unit analogue/audio fidelity is claimed.
+- Switch-1: decoded the original active-low oscillator range/pulse flags, saw and chorus latch lines. Switch-2: inverted HPF selector plus PWM manual/LFO, ENV polarity and ENV/GATE mode.
+- IC40 keeps distinct **register** vs **frame-latched output** at `FRAME_START`. The PF range value is retained as a digital output, **not** used to invent live 8253 clock-phase behavior.
+- Raw four-channel ADC interrupt snapshots are banked (`ADC_BANK 0/1`), condition ±1-byte hysteresis and a piecewise endpoint law at the late `ADC_PERFORMANCE` slot, then feed Tune, Portamento, LFO trigger/sensitivity, VCF/DCO bend sensitivity, polarity and magnitude.
+- `SERIAL_BYTE` interprets module-CPU UART commands 0x80..0xA3: immediate physical voice-off and sustain, note-on followed by note data and scheduler restart, patch command data 0x8E..0xA2 with running status, and deliberately ignored original test-mode 0xA3.
+- Parser rejects narrowing overflow before casting to 8-/32-bit event fields. Two negative CTest fixtures guard the exact bug class.
+- Existing `PARAMETER` semantic ID scripts remain backwards-compatible. Native bytes and normalized setters coexist, with later input determining the semantic value without retroactively changing original received raw registers.
+- Primary disassembly address map, active-low bit truth tables, ADC conversion threshold examples and fidelity boundaries are documented in `docs/PHASE1_NATIVE_PANEL_SERIAL_ADC.md`.
+
+Tests: `tests/unit/test_native_panel.c`, `tests/vectors/p1_native_switch_adc_v1.csv`, `tests/vectors/p1_native_serial_v1.csv`, CMake/CTest CLI smoke for both, and invalid parser vectors.
+
+**CI verified:** native switch/ADC/serial unit tests #209, native serial CSV #213, hardened parser regressions #220 all **passed**.
+
+**Not claimed:** full external assigner/MIDI CPU, actual ADC clock/bank alternation and ISR collision latency, IC40 line analogue truth table, uPD7811 cycle-accurate condition flags or live PF-clock phase.
+
+## 10. Next implementation slice
+
+1. Build independent uPD7811 instruction-level test vectors for ADC `SUINB/ADDNC` skip semantics, serial command low/high endpoints, VCF underflow/overflow and branch flag behavior. Avoid reproducing original ROM wholesale.
+2. Validate actual ADC bank alternation and scan/interrupt timing with a dedicated emulator/hardware source. Current `ADC_BANK` replay injects bank snapshots explicitly, which is deterministic but not an autonomous ADC scanner.
+3. Verify clock prescaler/range transitions and 8253 GATE/input phase on the original board; preserve **MEASURE_PENDING** where exact physical state cannot be inferred.
+4. Audit digital trace/full parameter boundary against a known original-unit recording and explicitly label remaining `DERIVED_APPROXIMATE` divisor and CV laws.
+5. Only then consider the P1.1 exit review and subsequent MC5534/80017A audio reference stage.
+
+`fm1juno_render` remains a trace-only CLI, not a WAV generator or verified FM-1 runtime.
