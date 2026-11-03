@@ -1,5 +1,42 @@
 #include "control106/envelope106.h"
 
+uint16_t envelope106_attack_increment(uint8_t index)
+{
+    /* Exact compact form of the 128-entry Attack behavior.
+     *
+     * 1..63 follows the rounded reciprocal family 8192/index, with three
+     * one-LSB corrections recovered from the observed integer behavior.
+     * The slower half collapses to three rational/linear segments.
+     * This retains bit identity without embedding the original table. */
+    if (index == 0u) return UINT16_C(0x4000);
+
+    if (index <= 63u) {
+        uint16_t value = (uint16_t)(
+            (UINT32_C(8192) + (uint32_t)(index >> 1u)) /
+            (uint32_t)index);
+        if (index == 3u || index == 20u || index == 28u)
+            --value;
+        return value;
+    }
+
+    if (index <= 85u) {
+        const uint16_t j = (uint16_t)(index - 64u);
+        return (uint16_t)(127u - (uint16_t)((47u * j) / 17u));
+    }
+
+    if (index <= 108u) {
+        const uint16_t j = (uint16_t)(index - 86u);
+        return (uint16_t)(66u - (uint16_t)((3u * j + 1u) / 2u));
+    }
+
+    if (index <= 121u) {
+        const uint16_t j = (uint16_t)(index - 109u);
+        return (uint16_t)(33u - (uint16_t)((j + 1u) / 2u));
+    }
+
+    return (uint16_t)(148u - index);
+}
+
 uint16_t envelope106_sustain_level_from_raw(uint8_t raw)
 {
     return (uint16_t)((uint16_t)(raw & UINT8_C(0x7f)) << 7u);
