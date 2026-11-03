@@ -205,6 +205,22 @@ static int test_script_queue_invariance(void)
         255u, 0u, RAW106_LFO_DELAY7);
     ADD(fm1juno_time_from_samples(0u), SCRIPT106_PARAMETER,
         255u, 64u, RAW106_PORTAMENTO_ADC8);
+    ADD(fm1juno_time_from_samples(0u), SCRIPT106_PARAMETER,
+        255u, 127u, RAW106_PWM_DEPTH7);
+    ADD(fm1juno_time_from_samples(0u), SCRIPT106_PARAMETER,
+        255u, 1u, RAW106_PULSE_ENABLED);
+    ADD(fm1juno_time_from_samples(0u), SCRIPT106_PARAMETER,
+        255u, 0u, RAW106_PWM_MANUAL);
+    ADD(fm1juno_time_from_samples(0u), SCRIPT106_PARAMETER,
+        255u, 95u, RAW106_VCF_RESONANCE7);
+    ADD(fm1juno_time_from_samples(0u), SCRIPT106_PARAMETER,
+        255u, 51u, RAW106_SUB_LEVEL7);
+    ADD(fm1juno_time_from_samples(0u), SCRIPT106_PARAMETER,
+        255u, 65u, RAW106_NOISE_LEVEL7);
+    ADD(fm1juno_time_from_samples(0u), SCRIPT106_PARAMETER,
+        255u, 64u, RAW106_GLOBAL_VCA_LEVEL7);
+    ADD(fm1juno_time_from_samples(0u), SCRIPT106_PARAMETER,
+        255u, 0u, RAW106_VCA_GATE_MODE);
     ADD(fm1juno_time_from_samples(0u), SCRIPT106_VOICE_ON,
         0u, 72u, 0u);
     for (uint32_t i = 1u; i <= 24u; ++i)
