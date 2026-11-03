@@ -6,6 +6,12 @@
 #define TIMER106_Q32_PER_2MHZ UINT64_C(94704029)
 #define TIMER106_Q32_PER_1MHZ UINT64_C(189408058)
 
+bool timer8253_106_regular_mode3_count(uint16_t count_register)
+{
+    return count_register == 0u || count_register == 2u ||
+           count_register >= 4u;
+}
+
 uint32_t timer8253_106_effective_count(uint16_t count_register)
 {
     return count_register == 0u ? UINT32_C(65536) : (uint32_t)count_register;
