@@ -118,3 +118,11 @@ add_test(
             --outer-frames 64
             --samples 128
 )
+
+add_test(
+    NAME fm1juno_native_script_smoke
+    COMMAND fm1juno_render
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/vectors/p1_native_switch_adc_v1.csv
+            --outer-frames 64
+            --samples 128
+)
