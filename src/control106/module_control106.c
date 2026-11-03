@@ -261,6 +261,100 @@ static void apply_voice_off(ModuleControl106 *m,
     control_scheduler106_voice_event_restart(&m->scheduler);
 }
 
+static bool serial106_patch_parameter(uint8_t command,
+                                      RawParameterId106 *parameter)
+{
+    switch (command) {
+    case 0x90u: *parameter = RAW106_LFO_RATE7; break;
+    case 0x91u: *parameter = RAW106_LFO_DELAY7; break;
+    case 0x92u: *parameter = RAW106_DCO_LFO_DEPTH7; break;
+    case 0x93u: *parameter = RAW106_PWM_DEPTH7; break;
+    case 0x94u: *parameter = RAW106_NOISE_LEVEL7; break;
+    case 0x95u: *parameter = RAW106_VCF_CUTOFF7; break;
+    case 0x96u: *parameter = RAW106_VCF_RESONANCE7; break;
+    case 0x97u: *parameter = RAW106_VCF_ENV_DEPTH7; break;
+    case 0x98u: *parameter = RAW106_VCF_LFO_DEPTH7; break;
+    case 0x99u: *parameter = RAW106_VCF_KEY_FOLLOW7; break;
+    case 0x9au: *parameter = RAW106_GLOBAL_VCA_LEVEL7; break;
+    case 0x9bu: *parameter = RAW106_ENV_ATTACK7; break;
+    case 0x9cu: *parameter = RAW106_ENV_DECAY7; break;
+    case 0x9du: *parameter = RAW106_ENV_SUSTAIN7; break;
+    case 0x9eu: *parameter = RAW106_ENV_RELEASE7; break;
+    case 0x9fu: *parameter = RAW106_SUB_LEVEL7; break;
+    default: return false;
+    }
+    return true;
+}
+
+bool module_control106_receive_serial_byte(ModuleControl106 *m,
+                                            uint32_t byte_value,
+                                            Fm1junoTimeQ32 now)
+{
+    if (byte_value > UINT8_MAX) return false;
+    const uint8_t byte = (uint8_t)byte_value;
+
+    if ((byte & UINT8_C(0x80)) != 0u) {
+        m->serial_command = byte;
+        trace_push(m, MODULE_TRACE106_SERIAL_COMMAND, now,
+                   m->scheduler.pass_id, m->scheduler.sequence,
+                   MODULE106_NO_VOICE, byte);
+        if (byte >= 0x80u && byte <= 0x85u) {
+            const uint8_t voice = (uint8_t)(byte - 0x80u);
+            const uint8_t note = m->voices[voice].previous_note_valid
+                ? m->voices[voice].previous_note : 0u;
+            apply_voice_off(m, voice, note, now);
+        } else if (byte == 0x86u) {
+            module_control106_set_sustain(m, true, now);
+        } else if (byte == 0x87u) {
+            module_control106_set_sustain(m, false, now);
+        }
+        return true;
+    }
+
+    const uint8_t command = m->serial_command;
+    if (command >= 0x88u && command <= 0x8du) {
+        /* Voice-on has its own ISR exit: it restarts the macro loop
+         * instead of incrementing patch running status. */
+        apply_voice_on(m, (uint8_t)(command - 0x88u), byte, now);
+        return true;
+    }
+    if (command < 0x8eu || command > 0xa3u)
+        return true; /* no valid recognized data destination */
+
+    /* $0106: patch commands auto-increment after each data byte. */
+    m->serial_command = (uint8_t)(command + 1u);
+    if (command == 0x8eu)
+        return module_control106_receive_native_switch(m, 1u, byte, now);
+    if (command == 0x8fu)
+        return module_control106_receive_native_switch(m, 2u, byte, now);
+
+    RawParameterId106 id;
+    if (serial106_patch_parameter(command, &id))
+        return module_control106_receive_parameter(m, id, byte, now);
+
+    if (command == 0xa0u || command == 0xa1u) {
+        /* $0223..$0234: serial bend has its own signed/doubled path;
+         * D==0 remains zero, nonzero becomes (2*D)+1. */
+        const uint8_t magnitude = byte == 0u
+            ? 0u : (uint8_t)(2u * (uint16_t)byte + 1u);
+        (void)raw_params106_set(&m->raw_params,
+            RAW106_BEND_NEGATIVE, command == 0xa0u ? 1u : 0u);
+        (void)raw_params106_set(&m->raw_params,
+            RAW106_BEND_MAGNITUDE8, magnitude);
+        m->raw_params_active = true;
+        control_scheduler106_parameter_interrupt(&m->scheduler);
+        trace_push(m, MODULE_TRACE106_PARAMETER_RECEIVED, now,
+                   m->scheduler.pass_id, m->scheduler.sequence,
+                   MODULE106_NO_VOICE, ((uint32_t)command << 8u) | byte);
+    } else if (command == 0xa2u) {
+        return module_control106_receive_parameter(
+            m, RAW106_MIDI_MOD_DEPTH8, (uint32_t)byte * 2u, now);
+    }
+    /* $A3 is a hardware test-mode command. Deliberately not executed
+     * by this normal-play reference; never enter destructive test mode. */
+    return true;
+}
+
 void module_control106_apply_assigner_event(ModuleControl106 *m,
                                             AssignerEvent106 event,
                                             Fm1junoTimeQ32 now)
