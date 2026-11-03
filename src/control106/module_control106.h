@@ -12,6 +12,7 @@
 #include "control106/lfo_delay106.h"
 #include "control106/pitch106.h"
 #include "control106/raw_params106.h"
+#include "control106/native_panel106.h"
 #include "control106/secondary_control106.h"
 #include "control106/lfo106.h"
 #include "control106/vcf_control106.h"
@@ -57,7 +58,11 @@ typedef enum ModuleTraceType106 {
     MODULE_TRACE106_PORTAMENTO_PITCH,
     MODULE_TRACE106_GLOBAL_S_H,
     MODULE_TRACE106_VOICE_VCA_S_H,
-    MODULE_TRACE106_PWM_PREPARE
+    MODULE_TRACE106_PWM_PREPARE,
+    MODULE_TRACE106_NATIVE_SWITCH_RECEIVED,
+    MODULE_TRACE106_IC40_LATCH,
+    MODULE_TRACE106_ADC_ISR_BANK,
+    MODULE_TRACE106_ADC_BANK_SERVICE
 } ModuleTraceType106;
 
 typedef struct ModuleTraceEvent106 {
@@ -82,6 +87,8 @@ typedef struct ModuleControl106 {
     Lfo106State lfo;
     PerformanceLfo106 performance_lfo;
     RawParams106 raw_params;
+    NativeSwitch106 native_switch;
+    NativeAdc106 native_adc;
     SecondaryOutputs106 secondary_outputs;
     bool raw_params_active;
     uint8_t lfo_onset;
@@ -107,6 +114,16 @@ bool module_control106_receive_parameter(ModuleControl106 *m,
                                           RawParameterId106 id,
                                           uint32_t value,
                                           Fm1junoTimeQ32 now);
+/* Raw physical-domain input uses original IC29 bank/byte encodings.
+ * These do not renumber or reinterpret normalized PARAMETER IDs. */
+bool module_control106_receive_native_switch(ModuleControl106 *m,
+                                              uint8_t switch_number,
+                                              uint32_t byte_value,
+                                              Fm1junoTimeQ32 now);
+bool module_control106_receive_native_adc_bank(ModuleControl106 *m,
+                                                uint8_t bank,
+                                                uint32_t packed_le_bytes,
+                                                Fm1junoTimeQ32 now);
 void module_control106_clear_trace(ModuleControl106 *m);
 
 void module_control106_set_envelope_params(ModuleControl106 *m,
