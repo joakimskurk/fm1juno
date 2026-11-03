@@ -61,7 +61,11 @@ target_link_libraries(fm1juno_coefficient_tests PRIVATE fm1juno_core)
 add_executable(fm1juno_vcf_tests tests/unit/test_vcf_control.c)
 target_link_libraries(fm1juno_vcf_tests PRIVATE fm1juno_core)
 
+add_executable(fm1juno_raw_parameter_tests tests/unit/test_raw_parameter_flow.c)
+target_link_libraries(fm1juno_raw_parameter_tests PRIVATE fm1juno_core)
+
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(fm1juno_raw_parameter_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_vcf_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_ref PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_render PRIVATE -Wall -Wextra -Wpedantic -Werror)
