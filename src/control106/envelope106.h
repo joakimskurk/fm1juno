@@ -24,6 +24,10 @@ typedef struct EnvelopeParams106 {
     uint16_t release_coefficient;
 } EnvelopeParams106;
 
+/* Exact compact clean-room form of the shared Decay/Release coefficient
+ * behavior for raw panel index 0..127. */
+uint16_t envelope106_decay_release_coefficient(uint8_t index);
+
 uint16_t envelope106_calc_decay(uint16_t value, uint16_t coefficient);
 uint16_t envelope106_attack_tick(uint16_t current, uint16_t increment);
 uint16_t envelope106_decay_tick(uint16_t current,
