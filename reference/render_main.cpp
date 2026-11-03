@@ -25,6 +25,7 @@ bool parse_type(const std::string &text, ScriptEventType106 &type)
     else if (text == "SWITCH1") type = SCRIPT106_SWITCH1;
     else if (text == "SWITCH2") type = SCRIPT106_SWITCH2;
     else if (text == "ADC_BANK") type = SCRIPT106_ADC_BANK;
+    else if (text == "SERIAL_BYTE") type = SCRIPT106_SERIAL_BYTE;
     else return false;
     return true;
 }
