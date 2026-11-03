@@ -346,6 +346,7 @@ static int test_scheduler_order(void)
         CHECK(e.type == CONTROL106_ENV_VCA_VCF_VOICE && e.voice == v);
     }
     CHECK(control_scheduler106_next(&s).type == CONTROL106_ADC_PERFORMANCE);
+    CHECK(control_scheduler106_next(&s).type == CONTROL106_FINAL_VCA_VOICE6);
     CHECK(control_scheduler106_next(&s).type == CONTROL106_LFO_ADVANCE);
     CHECK(control_scheduler106_next(&s).type == CONTROL106_NOISE_LEVEL);
     const ControlEvent106 next = control_scheduler106_next(&s);
