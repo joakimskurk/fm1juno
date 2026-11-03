@@ -94,3 +94,42 @@ uint16_t pitch106_dco_cv12_from_pitch(uint16_t pitch_8_8)
         pitch106_dco_cv_base_derived((uint8_t)(coordinate.index + 1u));
     return pitch106_interpolate_ascending(current, next, coordinate.fraction);
 }
+
+/* Clean-room experimental inverse semitone candidate:
+ * N(i) ~= A*2^(-i/12) + B*2^(-i/6).
+ * A and B are fitted to observable count behavior, NOT a ROM table dump.
+ * This profile is explicitly derived/approximate and MUST NOT be marked as
+ * strict bit-identical until the per-index error gate is established.
+ * The 64-bit multiplications are initialization-only, never per-sample. */
+#define PITCH106_INV_RATIO_Q24 UINT32_C(15835583)
+#define PITCH106_TIMER_A UINT32_C(61383)
+#define PITCH106_TIMER_B UINT32_C(168)
+
+void pitch106_timer_build_derived_candidate(PitchTimerBase106 *profile)
+{
+    uint64_t ratio_q24 = UINT64_C(1) << 24u;
+    for (uint32_t i = 0u; i < PITCH106_TIMER_ENTRY_COUNT; ++i) {
+        const uint64_t sq_q24 = (ratio_q24 * ratio_q24 +
+                                PITCH106_Q24_HALF) >> 24u;
+        const uint64_t scaled = (uint64_t)PITCH106_TIMER_A * ratio_q24 +
+                                (uint64_t)PITCH106_TIMER_B * sq_q24;
+        const uint64_t count = (scaled + PITCH106_Q24_HALF) >> 24u;
+        profile->counts[i] = count > UINT16_MAX ? UINT16_MAX
+                            : count == 0u ? 1u : (uint16_t)count;
+        ratio_q24 = (ratio_q24 * PITCH106_INV_RATIO_Q24 +
+                     PITCH106_Q24_HALF) >> 24u;
+    }
+}
+
+uint16_t pitch106_timer_count_from_pitch(const PitchTimerBase106 *profile,
+                                          uint16_t pitch_8_8)
+{
+    const PitchLookupCoordinate106 coordinate =
+        pitch106_lookup_coordinate(pitch_8_8);
+    const uint16_t current = profile->counts[coordinate.index];
+    if (coordinate.fraction == 0u)
+        return current;
+    const uint16_t next = profile->counts[(uint32_t)coordinate.index + 1u];
+    return pitch106_interpolate_descending(current, next,
+                                            coordinate.fraction);
+}
