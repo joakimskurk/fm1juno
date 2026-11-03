@@ -250,6 +250,39 @@ static void service_frame_start(ModuleControl106 *m,
     }
 }
 
+/* The mux bank and channel are specified by secondary106_route().
+ * The trace's 'voice' field is a global secondary-lane ID, not a
+ * physical voice number, for MODULE_TRACE106_GLOBAL_S_H events. */
+static void service_global_hold(ModuleControl106 *m,
+                                SecondaryLane106 lane,
+                                uint16_t code14,
+                                Fm1junoTimeQ32 now,
+                                const ControlEvent106 *event)
+{
+    SecondaryHold106 *hold = &m->secondary_outputs.global[lane];
+    secondary106_commit(hold, code14, now, event->pass_id);
+    trace_push(m, MODULE_TRACE106_GLOBAL_S_H, now,
+               event->pass_id, event->sequence,
+               (uint8_t)lane, hold->dac12);
+}
+
+static void service_voice_vca_hold(ModuleControl106 *m,
+                                   uint8_t voice_index,
+                                   Fm1junoTimeQ32 now,
+                                   const ControlEvent106 *event)
+{
+    const ModuleVoiceControl106 *voice = &m->voices[voice_index];
+    const bool running = voice_is_running(m, voice_index);
+    const uint16_t code = secondary106_voice_vca_code14(
+        voice->envelope.level, m->raw_params.vca_gate_mode, running);
+    SecondaryHold106 *hold =
+        &m->secondary_outputs.voice_vca[voice_index];
+    secondary106_commit(hold, code, now, event->pass_id);
+    trace_push(m, MODULE_TRACE106_VOICE_VCA_S_H, now,
+               event->pass_id, event->sequence,
+               voice_index, hold->dac12);
+}
+
 static void service_raw_lfo_depth(ModuleControl106 *m)
 {
     if (m->voice_run_bits != 0u)
@@ -414,6 +447,21 @@ static void service_envelope_voice(ModuleControl106 *m,
                voice_index,
                level);
 
+    if (m->raw_params_active) {
+        if (voice_index == 0u) {
+            /* ROM 0x0599: first voice sends PWM register from the
+             * previous LFO_ADVANCE at 0x0761..0x0788. */
+            service_global_hold(m, SECONDARY106_PWM,
+                                m->secondary_outputs.pwm_next_code14,
+                                now, event);
+        } else {
+            /* ROM 0x05A6..0x05B2: voice k service writes the
+             * *previous* voice k-1 VCA; voice 6 is done after ADC. */
+            service_voice_vca_hold(m, (uint8_t)(voice_index - 1u),
+                                   now, event);
+        }
+    }
+
     /* Firmware ENV has advanced for this voice before its held VCF CV.
      * Global base comes from the earlier VCF_GLOBAL_BASE slot. */
     voice->vcf_code14 = vcf106_voice_code14(&m->vcf_params,
@@ -464,10 +512,49 @@ ControlEvent106 module_control106_service_next(ModuleControl106 *m,
             m->lfo.rate_coefficient = lfo106_rate_coefficient(
                 m->raw_params.lfo_rate7);
             const int16_t signed_lfo = lfo106_tick(&m->lfo);
+            m->secondary_outputs.pwm_next_code14 =
+                secondary106_pwm_code14(
+                    m->raw_params.pwm_depth7,
+                    m->raw_params.pwm_manual,
+                    m->raw_params.pulse_enabled,
+                    m->lfo.magnitude,
+                    (m->lfo.phase_flags & LFO106_POLARITY_BIT) != 0u);
+            trace_push(m, MODULE_TRACE106_PWM_PREPARE, now,
+                       event.pass_id, event.sequence,
+                       (uint8_t)SECONDARY106_PWM,
+                       m->secondary_outputs.pwm_next_code14);
             trace_push(m, MODULE_TRACE106_LFO_TICK, now,
                        event.pass_id, event.sequence, MODULE106_NO_VOICE,
                        (uint32_t)(uint16_t)signed_lfo);
         }
+        break;
+    case CONTROL106_VCF_RESONANCE:
+        if (m->raw_params_active)
+            service_global_hold(m, SECONDARY106_RESONANCE,
+                secondary106_patch_code14(m->raw_params.vcf_resonance7),
+                now, &event);
+        break;
+    case CONTROL106_GLOBAL_VCA_LEVEL:
+        if (m->raw_params_active)
+            service_global_hold(m, SECONDARY106_GLOBAL_VCA,
+                secondary106_patch_code14(m->raw_params.global_vca_level7),
+                now, &event);
+        break;
+    case CONTROL106_SUB_LEVEL:
+        if (m->raw_params_active)
+            service_global_hold(m, SECONDARY106_SUB_LEVEL,
+                secondary106_patch_code14(m->raw_params.sub_level7),
+                now, &event);
+        break;
+    case CONTROL106_NOISE_LEVEL:
+        if (m->raw_params_active)
+            service_global_hold(m, SECONDARY106_NOISE,
+                secondary106_patch_code14(m->raw_params.noise_level7),
+                now, &event);
+        break;
+    case CONTROL106_FINAL_VCA_VOICE6:
+        if (m->raw_params_active)
+            service_voice_vca_hold(m, 5u, now, &event);
         break;
     case CONTROL106_DCO_VOICE:
         service_dco_voice(m, event.voice, now, &event);
