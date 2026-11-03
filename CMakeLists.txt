@@ -13,6 +13,7 @@ add_library(fm1juno_core STATIC
     src/control106/dac106.c
     src/control106/control_math106.c
     src/control106/envelope106.c
+    src/control106/event_replay106.c
     src/control106/lfo106.c
     src/control106/lfo_delay106.c
     src/control106/module_control106.c
@@ -38,11 +39,16 @@ target_link_libraries(fm1juno_tests PRIVATE fm1juno_core)
 
 add_executable(fm1juno_module_tests tests/unit/test_module_control.c)
 target_link_libraries(fm1juno_module_tests PRIVATE fm1juno_core)
+
+add_executable(fm1juno_replay_tests tests/unit/test_event_replay.c)
+target_link_libraries(fm1juno_replay_tests PRIVATE fm1juno_core)
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(fm1juno_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_module_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    target_compile_options(fm1juno_replay_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
 enable_testing()
 add_test(NAME fm1juno_unit COMMAND fm1juno_tests)
 add_test(NAME fm1juno_module_unit COMMAND fm1juno_module_tests)
+add_test(NAME fm1juno_replay_unit COMMAND fm1juno_replay_tests)
