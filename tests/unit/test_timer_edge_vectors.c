@@ -17,6 +17,13 @@
 
 static int test_independent_mode3_duty_vectors(void)
 {
+    CHECK(timer8253_106_regular_mode3_count(0u));
+    CHECK(timer8253_106_regular_mode3_count(2u));
+    CHECK(timer8253_106_regular_mode3_count(4u));
+    CHECK(timer8253_106_regular_mode3_count(65535u));
+    CHECK(!timer8253_106_regular_mode3_count(1u));
+    CHECK(!timer8253_106_regular_mode3_count(3u));
+
     const struct Vector {
         uint16_t register_count;
         uint32_t effective;
