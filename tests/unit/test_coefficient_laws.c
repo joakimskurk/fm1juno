@@ -46,6 +46,33 @@ static int test_portamento_compact_law(void)
     return EXIT_SUCCESS;
 }
 
+static int test_env_attack_compact_law(void)
+{
+    struct Anchor {
+        uint8_t index;
+        uint16_t value;
+    } anchors[] = {
+        {0u, 0x4000u}, {1u, 0x2000u}, {2u, 0x1000u},
+        {3u, 0x0aaau}, {8u, 0x0400u}, {20u, 0x0199u},
+        {28u, 0x0124u}, {32u, 0x0100u}, {63u, 0x0082u},
+        {64u, 0x007fu}, {85u, 0x0045u}, {86u, 0x0042u},
+        {87u, 0x0040u}, {108u, 0x0021u}, {109u, 0x0021u},
+        {121u, 0x001bu}, {122u, 0x001au}, {127u, 0x0015u}
+    };
+
+    for (size_t i = 0u; i < sizeof anchors / sizeof anchors[0]; ++i)
+        CHECK(envelope106_attack_increment(anchors[i].index) == anchors[i].value);
+
+    uint16_t previous = envelope106_attack_increment(0u);
+    for (uint16_t i = 1u; i < 128u; ++i) {
+        const uint16_t value = envelope106_attack_increment((uint8_t)i);
+        CHECK(value <= previous);
+        CHECK(value > 0u);
+        previous = value;
+    }
+    return EXIT_SUCCESS;
+}
+
 static int test_env_sustain_law(void)
 {
     CHECK(envelope106_sustain_level_from_raw(0u) == 0x0000u);
@@ -86,6 +113,7 @@ static int test_env_decay_release_compact_law(void)
 int main(void)
 {
     if (test_portamento_compact_law()) return EXIT_FAILURE;
+    if (test_env_attack_compact_law()) return EXIT_FAILURE;
     if (test_env_sustain_law()) return EXIT_FAILURE;
     if (test_env_decay_release_compact_law()) return EXIT_FAILURE;
     puts("fm1juno: compact coefficient-law tests passed");
