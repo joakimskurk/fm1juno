@@ -8,6 +8,7 @@
 #define PITCH106_LOOKUP_MAX_NOTE 150u
 #define PITCH106_LOOKUP_MAX_INDEX 102u
 #define PITCH106_DCO_CV_MAX UINT16_C(0x0fff)
+#define PITCH106_TIMER_ENTRY_COUNT 104u
 
 typedef struct PitchLookupCoordinate106 {
     uint8_t index;
@@ -39,5 +40,19 @@ uint16_t pitch106_interpolate_ascending(uint16_t current,
  * physical 12-bit maximum. It is intentionally not a copied ROM table. */
 uint16_t pitch106_dco_cv_base_derived(uint8_t index);
 uint16_t pitch106_dco_cv12_from_pitch(uint16_t pitch_8_8);
+
+/* Explicit, replaceable base-count profile. An independently generated
+ * engineering candidate is provided for host experiments; it is NOT yet
+ * validated as bit-identical to JUNO-106 firmware note divisors. */
+typedef struct PitchTimerBase106 {
+    uint16_t counts[PITCH106_TIMER_ENTRY_COUNT];
+} PitchTimerBase106;
+
+void pitch106_timer_build_derived_candidate(PitchTimerBase106 *profile);
+
+/* Exact interpolation / low-high clamp given a calibrated base-count profile.
+ * The active profile's fidelity status must be tracked by the caller. */
+uint16_t pitch106_timer_count_from_pitch(const PitchTimerBase106 *profile,
+                                          uint16_t pitch_8_8);
 
 #endif
