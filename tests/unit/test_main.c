@@ -235,6 +235,39 @@ static int test_dac_boundary(void)
     return 0;
 }
 
+static int test_timer_subsample_timeline(void)
+{
+    CHECK(timer8253_106_input_clock_hz(TIMER106_RANGE_16) == 1000000u);
+    CHECK(timer8253_106_input_clock_hz(TIMER106_RANGE_8) == 2000000u);
+    CHECK(timer8253_106_input_clock_hz(TIMER106_RANGE_4) == 4000000u);
+    CHECK(timer8253_106_clock_q32(TIMER106_RANGE_16) == UINT64_C(189408058));
+    CHECK(timer8253_106_clock_q32(TIMER106_RANGE_8) == UINT64_C(94704029));
+    CHECK(timer8253_106_clock_q32(TIMER106_RANGE_4) == UINT64_C(47352014));
+
+    Timer8253Voice106 t;
+    const Fm1junoTimeQ32 start = fm1juno_time_from_samples(100u);
+    timer8253_106_reset_and_load_at(&t, 10u, TIMER106_RANGE_8, start);
+    const Fm1junoTimeQ32 first_edge = start +
+        timer8253_106_clocks_to_time_q32(TIMER106_RANGE_8, 5u);
+    CHECK(t.next_edge_time == first_edge);
+
+    timer8253_106_request_count(&t, 8u);
+    CHECK(t.next_edge_time == first_edge);
+    CHECK(timer8253_106_commit_edge(&t) == first_edge);
+    CHECK(!t.output_high);
+    CHECK(t.current_count == 8u);
+    CHECK(t.clocks_remaining == 4u);
+    CHECK(t.next_edge_time == first_edge +
+          timer8253_106_clocks_to_time_q32(TIMER106_RANGE_8, 4u));
+
+    const Fm1junoTimeQ32 reset_at = fm1juno_time_from_samples(123u) + 17u;
+    timer8253_106_reset_and_load_at(&t, 9u, TIMER106_RANGE_4, reset_at);
+    CHECK(t.output_high);
+    CHECK(t.next_edge_time == reset_at +
+          timer8253_106_clocks_to_time_q32(TIMER106_RANGE_4, 5u));
+    return 0;
+}
+
 static int test_timer_mode3_lengths(void)
 {
     CHECK(timer8253_106_high_clocks(10u) == 5u);
@@ -364,6 +397,7 @@ int main(void)
     if (test_portamento()) return EXIT_FAILURE;
     if (test_fixed_time()) return EXIT_FAILURE;
     if (test_dac_boundary()) return EXIT_FAILURE;
+    if (test_timer_subsample_timeline()) return EXIT_FAILURE;
     if (test_timer_mode3_lengths()) return EXIT_FAILURE;
     if (test_timer_pending_vs_reset()) return EXIT_FAILURE;
     if (test_scheduler_order()) return EXIT_FAILURE;
