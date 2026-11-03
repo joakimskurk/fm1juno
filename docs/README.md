@@ -160,6 +160,8 @@ These remain useful for project history but are not current authority where newe
 
 **Native switch/ADC/IC29 serial protocol:** [`PHASE1_NATIVE_PANEL_SERIAL_ADC.md`](PHASE1_NATIVE_PANEL_SERIAL_ADC.md). This is the frozen clean-room native input contract, packed bit truth tables, ADC integer conditioning, running-status command map, and remaining CPU-cycle validation limits.
 
+**Independent uPD7811 ADC/VCF ALU flag oracle:** [`PHASE1_UPD7811_FLAG_VALIDATION.md`](PHASE1_UPD7811_FLAG_VALIDATION.md). Exhaustive 8-bit ADC history-pair checks and VCF carry/borrow integer tests, with strict full-ROM execution gate still open.
+
 Phase-0 research branch:
 
 ```text
