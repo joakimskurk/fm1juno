@@ -62,7 +62,8 @@ typedef enum ModuleTraceType106 {
     MODULE_TRACE106_NATIVE_SWITCH_RECEIVED,
     MODULE_TRACE106_IC40_LATCH,
     MODULE_TRACE106_ADC_ISR_BANK,
-    MODULE_TRACE106_ADC_BANK_SERVICE
+    MODULE_TRACE106_ADC_BANK_SERVICE,
+    MODULE_TRACE106_SERIAL_COMMAND
 } ModuleTraceType106;
 
 typedef struct ModuleTraceEvent106 {
@@ -89,6 +90,7 @@ typedef struct ModuleControl106 {
     RawParams106 raw_params;
     NativeSwitch106 native_switch;
     NativeAdc106 native_adc;
+    uint8_t serial_command;
     SecondaryOutputs106 secondary_outputs;
     bool raw_params_active;
     uint8_t lfo_onset;
@@ -116,6 +118,11 @@ bool module_control106_receive_parameter(ModuleControl106 *m,
                                           Fm1junoTimeQ32 now);
 /* Raw physical-domain input uses original IC29 bank/byte encodings.
  * These do not renumber or reinterpret normalized PARAMETER IDs. */
+/* IC29 8-bit UART stream: 0x80..0xa3 command byte, 7-bit data.
+ * Data for patch controls runs through the original sequential command map. */
+bool module_control106_receive_serial_byte(ModuleControl106 *m,
+                                            uint32_t byte_value,
+                                            Fm1junoTimeQ32 now);
 bool module_control106_receive_native_switch(ModuleControl106 *m,
                                               uint8_t switch_number,
                                               uint32_t byte_value,
