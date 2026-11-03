@@ -11,6 +11,8 @@
 #include "control106/envelope106.h"
 #include "control106/lfo_delay106.h"
 #include "control106/pitch106.h"
+#include "control106/raw_params106.h"
+#include "control106/lfo106.h"
 #include "control106/vcf_control106.h"
 #include "timer106/timer8253_106.h"
 
@@ -48,7 +50,10 @@ typedef enum ModuleTraceType106 {
     MODULE_TRACE106_ENVELOPE_TICK,
     MODULE_TRACE106_LFO_DELAY_RESTART,
     MODULE_TRACE106_VCF_S_H,
-    MODULE_TRACE106_DCO_CV_S_H
+    MODULE_TRACE106_DCO_CV_S_H,
+    MODULE_TRACE106_PARAMETER_RECEIVED,
+    MODULE_TRACE106_LFO_TICK,
+    MODULE_TRACE106_PORTAMENTO_PITCH
 } ModuleTraceType106;
 
 typedef struct ModuleTraceEvent106 {
@@ -70,6 +75,13 @@ typedef struct ModuleControl106 {
     ControlScheduler106 scheduler;
     ModuleVoiceControl106 voices[MODULE106_VOICES];
     LfoDelay106 lfo_delay;
+    Lfo106State lfo;
+    PerformanceLfo106 performance_lfo;
+    RawParams106 raw_params;
+    bool raw_params_active;
+    uint8_t lfo_onset;
+    uint8_t performance_depth;
+    uint8_t combined_dco_lfo_depth;
     VcfControlParams106 vcf_params;
     int32_t vcf_global_raw;
     bool pitch_timer_profile_enabled;
@@ -83,6 +95,13 @@ typedef struct ModuleControl106 {
 } ModuleControl106;
 
 void module_control106_init(ModuleControl106 *m);
+/* A timestamped raw parameter write updates the emulated firmware RAM;
+ * the derived outputs change only at their own scheduler service slots.
+ * Returns false without side effects on invalid id/value. */
+bool module_control106_receive_parameter(ModuleControl106 *m,
+                                          RawParameterId106 id,
+                                          uint32_t value,
+                                          Fm1junoTimeQ32 now);
 void module_control106_clear_trace(ModuleControl106 *m);
 
 void module_control106_set_envelope_params(ModuleControl106 *m,
