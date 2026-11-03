@@ -136,7 +136,7 @@ CSV decimal fields are now bounds-checked **before narrowing casts**; invalid vo
 
 ## Remaining strictness gates
 
-- Validate ADC condition and switch-flag edge cases in an **executable original uPD7811 instruction model** for every branch/condition; current law is recovered from disassembly, not cycle-accurate simulated.
+- **New:** independent ADC/VCF instruction-semantic flag oracle now confirms all 65,536 ADC raw/held combinations plus 2,016 structured and 90,000 seeded VCF cases (`PHASE1_UPD7811_FLAG_VALIDATION.md`, CI #240). The remaining strict gate is original IC29 ROM *execution* under an independently validated uPD7811 engine, not just this separate arithmetic oracle.
 - Preserve/verify the original ADC ISR's automatic bank alternation, exact interrupt timing and conversion clock rather than treating supplied bank snapshots as a physical scanner.
 - Verify original range-selected 8253 clocks and live clock-phase switching; only PF output bits have been decoded.
 - Verify original IC40 bit polarities against chorus/HPF/saw circuit truth tables.
