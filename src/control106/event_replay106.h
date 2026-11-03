@@ -20,7 +20,8 @@ typedef enum ScriptEventType106 {
     SCRIPT106_PITCH_PROFILE,
     SCRIPT106_SWITCH1,
     SCRIPT106_SWITCH2,
-    SCRIPT106_ADC_BANK
+    SCRIPT106_ADC_BANK,
+    SCRIPT106_SERIAL_BYTE
 } ScriptEventType106;
 
 typedef struct ScriptEvent106 {
