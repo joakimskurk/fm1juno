@@ -158,6 +158,8 @@ These remain useful for project history but are not current authority where newe
 
 **8253 Mode-3 edge-validation contract:** [`PHASE1_8253_EDGE_VALIDATION.md`](PHASE1_8253_EDGE_VALIDATION.md). This tracks independently tested normal-count edge sequences, count 0/65536, the supported exceptional-count boundary, and still-unverified physical GATE/RANGE phase.
 
+**Native switch/ADC/IC29 serial protocol:** [`PHASE1_NATIVE_PANEL_SERIAL_ADC.md`](PHASE1_NATIVE_PANEL_SERIAL_ADC.md). This is the frozen clean-room native input contract, packed bit truth tables, ADC integer conditioning, running-status command map, and remaining CPU-cycle validation limits.
+
 Phase-0 research branch:
 
 ```text
