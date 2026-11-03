@@ -36,6 +36,8 @@ void module_control106_init(ModuleControl106 *m)
     control_scheduler106_init(&m->scheduler);
     lfo_delay106_init(&m->lfo_delay);
     raw_params106_init(&m->raw_params);
+    native_switch106_init(&m->native_switch);
+    native_adc106_init(&m->native_adc);
     lfo106_init(&m->lfo, m->raw_params.lfo_rate7);
     performance_lfo106_init(&m->performance_lfo);
     m->requested_global_pitch_offset_8_8 = PITCH106_GLOBAL_BASE;
@@ -65,6 +67,86 @@ bool module_control106_receive_parameter(ModuleControl106 *m,
                m->scheduler.pass_id, m->scheduler.sequence,
                MODULE106_NO_VOICE, ((uint32_t)id << 8u) | value);
     return true;
+}
+
+bool module_control106_receive_native_switch(ModuleControl106 *m,
+                                              uint8_t switch_number,
+                                              uint32_t byte_value,
+                                              Fm1junoTimeQ32 now)
+{
+    if (byte_value > 255u || (switch_number != 1u && switch_number != 2u))
+        return false;
+
+    if (switch_number == 1u) {
+        native_switch106_receive1(&m->native_switch, (uint8_t)byte_value);
+        m->raw_params.pulse_enabled =
+            native_switch106_pulse_enabled(&m->native_switch);
+        /* PF prescaler is NOT changed on active 8253 timers here.
+         * Actual live range-switch clock phase is MEASURE_PENDING. */
+    } else {
+        native_switch106_receive2(&m->native_switch, (uint8_t)byte_value);
+        m->raw_params.pwm_manual =
+            native_switch106_pwm_manual(&m->native_switch);
+        m->raw_params.vcf_env_inverted =
+            native_switch106_vcf_env_inverted(&m->native_switch);
+        m->raw_params.vca_gate_mode =
+            native_switch106_vca_gate(&m->native_switch);
+    }
+
+    m->raw_params_active = true;
+    control_scheduler106_parameter_interrupt(&m->scheduler);
+    trace_push(m, MODULE_TRACE106_NATIVE_SWITCH_RECEIVED, now,
+               m->scheduler.pass_id, m->scheduler.sequence,
+               switch_number, byte_value);
+    return true;
+}
+
+bool module_control106_receive_native_adc_bank(ModuleControl106 *m,
+                                                uint8_t bank,
+                                                uint32_t packed_le_bytes,
+                                                Fm1junoTimeQ32 now)
+{
+    if (!native_adc106_receive_bank(&m->native_adc, bank, packed_le_bytes))
+        return false;
+    /* IC29 ADC ISR $0070..$008d: publishes 4 samples and returns.
+     * Filtering and semantic control writes occur at the late ADC slot. */
+    control_scheduler106_adc_interrupt(&m->scheduler);
+    m->raw_params_active = true;
+    trace_push(m, MODULE_TRACE106_ADC_ISR_BANK, now,
+               m->scheduler.pass_id, m->scheduler.sequence,
+               bank, packed_le_bytes);
+    return true;
+}
+
+static void service_native_adc(ModuleControl106 *m,
+                               Fm1junoTimeQ32 now,
+                               const ControlEvent106 *event)
+{
+    uint8_t bank;
+    if (!native_adc106_process_latest(&m->native_adc, &bank)) return;
+    const uint8_t *v = m->native_adc.conditioned;
+    if (bank == 0u) {
+        /* $06e2..$0724: tune, porta, LFO trigger, sensitivity. */
+        m->raw_params.tune_adc8 = v[0];
+        m->raw_params.portamento_adc8 = v[1];
+        m->raw_params.performance_trigger =
+            (v[2] & UINT8_C(0x80)) != 0u;
+        m->raw_params.performance_sensitivity8 = v[3];
+    } else {
+        /* $065a..$06df: VCF/DCO bend sensitivity and bend control.
+         * Direction is a physical sign byte, unlike the already
+         * normalized RAW106_BEND_NEGATIVE flag input. */
+        m->raw_params.vcf_bend_sensitivity8 = v[4];
+        m->raw_params.dco_bend_sensitivity8 = v[5];
+        m->raw_params.bend_negative = (v[6] & UINT8_C(0x80)) == 0u;
+        m->raw_params.bend_magnitude8 = v[7];
+    }
+    trace_push(m, MODULE_TRACE106_ADC_BANK_SERVICE, now,
+               event->pass_id, event->sequence, bank,
+               (uint32_t)v[4u * bank] |
+               ((uint32_t)v[4u * bank + 1u] << 8u) |
+               ((uint32_t)v[4u * bank + 2u] << 16u) |
+               ((uint32_t)v[4u * bank + 3u] << 24u));
 }
 
 void module_control106_clear_trace(ModuleControl106 *m)
@@ -238,6 +320,12 @@ static void service_frame_start(ModuleControl106 *m,
                                 Fm1junoTimeQ32 now,
                                 const ControlEvent106 *event)
 {
+    if (m->native_switch.ic40_output != m->native_switch.ic40_register) {
+        native_switch106_frame_latch(&m->native_switch);
+        trace_push(m, MODULE_TRACE106_IC40_LATCH, now,
+                   event->pass_id, event->sequence,
+                   MODULE106_NO_VOICE, m->native_switch.ic40_output);
+    }
     const uint8_t previous = m->voice_run_bits;
     m->voice_run_bits = module106_update_voice_run(m->note_gate_bits,
                                                    previous,
@@ -502,6 +590,7 @@ ControlEvent106 module_control106_service_next(ModuleControl106 *m,
         if (m->raw_params_active) service_raw_lfo_depth(m);
         break;
     case CONTROL106_ADC_PERFORMANCE:
+        service_native_adc(m, now, &event);
         if (m->raw_params_active) {
             m->performance_depth = performance_lfo106_tick(
                 &m->performance_lfo,
