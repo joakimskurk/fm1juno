@@ -1,37 +1,55 @@
 # FM1JUNO
 
-Circuit-informed Juno-family virtual-analog instrument for the M-VAVE FM-1.
+Circuit-informed JUNO-106 reference engine and M-VAVE FM-1 deployment project.
 
-## Status
+## Current state
 
-**Planning and research only. No synth implementation has started yet.**
+**Phase 0 architecture is complete.**
 
-The project goal is not a generic "Juno-ish" subtractive synth. The target is a compact engine whose signal flow and control behaviour are derived from the Roland JUNO-60 and JUNO-106 circuits, with three operating profiles:
+Primary handoff:
 
-- **60** — JUNO-60-oriented DCO/control behaviour, analogue-style per-voice envelope behaviour, 60 HPF/output voicing and chorus.
-- **106** — JUNO-106 timer/DCO behaviour, digitally generated control/envelope behaviour, 106 HPF/output voicing and chorus.
-- **DEEP** — the same circuit blocks exposed and extended rather than replaced: voice-card spread, calibration/age, expanded modulation, detailed BBD controls, unison/voice options and 60↔106 block morphing where technically meaningful.
+- [`docs/PHASE0_COMPLETE.md`](docs/PHASE0_COMPLETE.md)
+- [`docs/PHASE0_REFERENCE_ARCHITECTURE.md`](docs/PHASE0_REFERENCE_ARCHITECTURE.md)
+- [`docs/research/PHASE0_CHECKLIST.md`](docs/research/PHASE0_CHECKLIST.md)
+- [`docs/PHASE1_REFERENCE_ENGINE_PLAN.md`](docs/PHASE1_REFERENCE_ENGINE_PLAN.md)
 
-Authentic mode starts at **6 voices**. Higher polyphony is a DEEP target only after benchmarking on the FM-1.
+Documentation map:
 
-## Proposed signal path
+- [`docs/README.md`](docs/README.md)
 
-`MIDI / keyboard → note allocator → DCO timing → saw / pulse / sub + noise → voice mixer → 4-pole VCF + resonance path → voice VCA → six-voice sum → global HPF / output VCA → dual-BBD chorus → stereo out`
+## Frozen strict-106 blocks
 
-The implementation will preserve the important architectural distinction between the two machines instead of treating them as different EQ curves on the same generic synth.
+```text
+CONTROL_TIMING_PHASE0_ARCHITECTURE_FROZEN
+MC5534_PHASE0_ARCHITECTURE_FROZEN
+SOURCE_MIXER_PHASE0_ARCHITECTURE_FROZEN
+80017A_PHASE0_ARCHITECTURE_FROZEN
+GLOBAL_OUTPUT_PHASE0_ARCHITECTURE_FROZEN
+CHORUS_PHASE0_FROZEN
+FM1_TARGET_PHASE0_ARCHITECTURE_FROZEN
+```
 
-## FM-1 target
+The remaining unknown original-hardware values are explicit calibration/profile data with measurement routes. They are not hidden generic-VA assumptions.
 
-The current FM-1 open platform renders stereo audio at **44.1 kHz in 128-frame blocks**. Device work must therefore be deterministic, allocation-free in the audio path and explicitly budgeted for CPU/SRAM before adding oversampling or extra voices.
+## Next branch
 
-The 240×240 display and physical controls will use a page-oriented JUNO panel rather than attempting to squeeze the original front panel onto one screen.
+Implementation belongs on:
 
-## Documents
+```text
+phase1/reference-engine
+```
 
-- `docs/ARCHITECTURE.md` — proposed audio/control architecture.
-- `docs/PLAN.md` — staged research, prototype, validation and FM-1 integration plan.
-- `docs/REFERENCES.md` — primary and secondary technical sources.
+The first Phase-1 milestone is a deterministic host/reference scaffold plus the exact digital/control core and `Timer106`, before analogue fidelity DSP is added.
 
-## Ground rule
+## Core engineering rule
 
-Fidelity comes before feature count. DEEP features may extend the instrument, but authentic 60/106 profiles must remain reproducible and testable.
+```text
+evidence
+ -> explicit specification
+ -> high-precision reference
+ -> deterministic tests
+ -> measured target approximation
+ -> FM-1 profiling
+```
+
+The FM-1 build is a reduction of the reference model, never the source of truth.

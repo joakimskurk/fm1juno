@@ -1,0 +1,113 @@
+schema: fm1juno.juno106.80017a_calibration.v0
+status: PHASE0_ARCHITECTURE_FROZEN_MEASUREMENT_PENDING
+
+filter_stages:
+  count: 4
+  family: IR3109
+  working_passives:
+    r_stage_ohm: 68000
+    r_shunt_ohm: 560
+    c_stage_f: 2.50e-10
+    status: DIRECT_REPAIR_MEASURED_WORKING_DEFAULT
+  alternate_reference:
+    c_stage_f: 2.40e-10
+    status: JUNO60_AS3109_REFERENCE_ONLY
+  per_stage:
+    stage1:
+      gm_scale: MEASURE_PENDING
+      positive_headroom_v: MEASURE_PENDING
+      negative_headroom_v: MEASURE_PENDING
+      slew: MEASURE_PENDING
+    stage2:
+      gm_scale: MEASURE_PENDING
+      positive_headroom_v: MEASURE_PENDING
+      negative_headroom_v: MEASURE_PENDING
+      slew: MEASURE_PENDING
+    stage3:
+      gm_scale: MEASURE_PENDING
+      positive_headroom_v: MEASURE_PENDING
+      negative_headroom_v: MEASURE_PENDING
+      slew: MEASURE_PENDING
+    stage4:
+      gm_scale: MEASURE_PENDING
+      positive_headroom_v: MEASURE_PENDING
+      negative_headroom_v: MEASURE_PENDING
+      slew: MEASURE_PENDING
+
+cutoff_control:
+  digital_input_bits: 14
+  held_voltage_law: MEASURE_PENDING
+  voice_frequency_offset: MEASURE_PENDING_PER_VOICE
+  voice_width_scale: MEASURE_PENDING_PER_VOICE
+  nonlinear_log2_correction: 0.0
+  modern_reference:
+    sensitivity_v_per_oct: -0.019
+    single_stage_fc_hz_at_vc0_68k_240p: 250
+    status: AS3109_SANITY_REFERENCE_ONLY
+
+resonance_network:
+  reported_passives:
+    differential_shunt_a_ohm: 1500
+    differential_shunt_b_ohm: 1500
+    feedforward_from_vcf_in_ohm: 5100
+    feedback_from_vcf_out_ohm: 100000
+    additional_direct_input_ohm: 3900
+    status: DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE
+  a_in: MEASURE_PENDING
+  a_fb: MEASURE_PENDING
+  g_direct: MEASURE_PENDING
+  control_to_current_curve: MEASURE_PENDING
+  ba662_input_scale_v: MEASURE_PENDING
+  positive_limit: MEASURE_PENDING
+  negative_limit: MEASURE_PENDING
+  offset_v: MEASURE_PENDING
+  resonance_cal_per_voice: MEASURE_PENDING
+
+voice_vca:
+  family: BA662
+  reported_passives:
+    input_r_ohm: 4700
+    local_shunt_ohm: 560
+    output_load_r_ohm: 47000
+    output_parallel_c_f: MEASURE_PENDING
+    status: DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE
+  control_to_current_curve: MEASURE_PENDING
+  input_scale: MEASURE_PENDING
+  gain_cal_per_voice: MEASURE_PENDING
+  offset_cal_per_voice: MEASURE_PENDING
+  positive_headroom: MEASURE_PENDING
+  negative_headroom: MEASURE_PENDING
+  nonlinear_curve: MEASURE_PENDING
+  modern_reference:
+    gm_s_at_500ua: 0.0085
+    status: AS662_SANITY_REFERENCE_ONLY
+
+factory_anchors:
+  warmup_minutes_min: 10
+  resonance_c4_pre_vca_vpp: 4.8
+  vca_gain_c4_post_vca_vpp: 6.0
+  frequency_c4_hz: 248
+  width_c6_hz: 992
+  frequency_width_tolerance_cents: 10
+
+self_oscillation:
+  native_feedback_required: true
+  external_sine_generator_allowed: false
+  device_noise_seed: MEASURE_PENDING
+
+solver:
+  desktop_reference: TPT_IMPLICIT
+  oversampling_candidates: [1, 2]
+  final_fm1_choice: PROFILE_PENDING
+
+thermal:
+  warmed_up_static_reference_first: true
+  slow_drift_model: MEASURE_PENDING_OPTIONAL
+
+phase0_rules:
+  centralized_calibration_only: true
+  no_generic_fourpole_plus_post_saturator: true
+  no_as3109_values_as_vintage_truth: true
+  no_as662_values_as_vintage_truth: true
+  no_fake_self_oscillation_sine: true
+  physical_measurement_plan: docs/research/PHASE0_MEASUREMENT_PLAN.md

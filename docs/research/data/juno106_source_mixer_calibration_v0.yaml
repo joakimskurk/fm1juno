@@ -1,0 +1,135 @@
+schema: fm1juno.juno106.source_mixer_calibration.v0
+status: PHASE0_ARCHITECTURE_FROZEN_MEASUREMENT_PENDING
+
+voice_mapping:
+  pair_12:
+    wave_generator: IC12
+    filters:
+      voice_1: IC13
+      voice_2: IC11
+  pair_34:
+    wave_generator: IC8
+    filters:
+      voice_3: IC9
+      voice_4: IC7
+  pair_56:
+    wave_generator: IC4
+    filters:
+      voice_5: IC5
+      voice_6: IC3
+  evidence: PRIMARY_106_SCHEMATIC
+
+wave:
+  physical_boundary: MC5534_WAVE_NODE
+  saw_pulse_share_ramp: true
+  saw_off_preserves_ramp_pwm_state: true
+  pulse_off_preserves_timer_sub_state: true
+  per_voice_probe_nodes:
+    voice_1: D6_CATHODE
+    voice_2: D5_CATHODE
+    voice_3: D4_CATHODE
+    voice_4: D3_CATHODE
+    voice_5: D2_CATHODE
+    voice_6: D1_CATHODE
+  wave_to_80017_gain:
+    voice_1: MEASURE_PENDING
+    voice_2: MEASURE_PENDING
+    voice_3: MEASURE_PENDING
+    voice_4: MEASURE_PENDING
+    voice_5: MEASURE_PENDING
+    voice_6: MEASURE_PENDING
+  wave_source_impedance:
+    voice_1: MEASURE_PENDING
+    voice_2: MEASURE_PENDING
+    voice_3: MEASURE_PENDING
+    voice_4: MEASURE_PENDING
+    voice_5: MEASURE_PENDING
+    voice_6: MEASURE_PENDING
+
+pwm:
+  code_law:
+    depth: "raw7 << 1"
+    code: "0x3fff - floor(0x3fff * depth / 256)"
+    pulse_off_code: 0
+  analogue_anchors:
+    fifty_percent_v: 6.0
+    ninety_five_percent_v: 0.6
+    comparator_off_v: -0.8
+  slider10_duty_acceptance_percent:
+    min: 93
+    max: 97
+  calibration_status: PRIMARY_106_SERVICE
+
+sub:
+  code_law: "raw7 << 7"
+  code_range:
+    min: 0
+    max: 16256
+  shared_level_control: true
+  per_voice_phase: true
+  code_to_held_voltage: MEASURE_PENDING
+  held_voltage_to_amplitude: MEASURE_PENDING
+  injection_gain_to_80017:
+    voice_1: MEASURE_PENDING
+    voice_2: MEASURE_PENDING
+    voice_3: MEASURE_PENDING
+    voice_4: MEASURE_PENDING
+    voice_5: MEASURE_PENDING
+    voice_6: MEASURE_PENDING
+  headroom: MEASURE_PENDING
+
+noise:
+  topology:
+    generator_transistor: TR21_SELECTED_2SC945P
+    vca: IC14_BA662
+    calibration_trim: VR32
+    shaping_family: C41_POST_VCA_RC
+  single_common_source: true
+  deterministic_seed_required_for_regression: true
+  code_law: "raw7 << 7"
+  code_range:
+    min: 0
+    max: 16256
+  conditioned_control_class_v:
+    min: 0.0
+    max: 10.0
+  healthy_bandwidth_target_hz: 5000
+  healthy_bandwidth_status: HARDWARE_REPAIR_CROSS_CHECK
+  code_to_held_voltage: MEASURE_PENDING
+  ba662_control_to_gain: MEASURE_PENDING
+  exact_spectral_transfer: MEASURE_PENDING
+  fanout_gain_to_80017:
+    voice_1: MEASURE_PENDING
+    voice_2: MEASURE_PENDING
+    voice_3: MEASURE_PENDING
+    voice_4: MEASURE_PENDING
+    voice_5: MEASURE_PENDING
+    voice_6: MEASURE_PENDING
+  factory_acceptance:
+    prerequisite: VCA_GAIN_CALIBRATED
+    bank: 6
+    assignment: POLY1
+    test_point: TP8
+    target_vpp: 4.0
+    trim: VR32
+    evidence: PRIMARY_106_SERVICE
+
+source_input:
+  normalize_enabled_sources: false
+  clamp_before_vcf: false
+  dc_offsets: MEASURE_PENDING
+  coupling_transfer: MEASURE_PENDING
+  maximum_pre_vcf_excursion: MEASURE_PENDING
+  first_nonlinear_node: MEASURE_PENDING
+  source_dependent_loading: MEASURE_PENDING
+  combined_source_headroom: MEASURE_PENDING
+
+phase0_rules:
+  centralized_calibration_only: true
+  one_common_noise_source: true
+  no_six_private_noise_generators: true
+  no_source_count_normalization: true
+  no_direct_pwm_slider_to_duty_mapping: true
+  no_linear_sub_gain_assumption: true
+  no_linear_noise_gain_assumption: true
+  physical_measurement_plan: docs/research/PHASE0_MEASUREMENT_PLAN.md

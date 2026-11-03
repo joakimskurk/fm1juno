@@ -1,0 +1,30 @@
+item,value_or_fact,status,source_class,notes
+hybrid_core,"IR3109 + 2x BA662-class + passives",PRIMARY_PLUS_TEARDOWN_CONFIRMED,Roland_service_plus_physical_teardown,One BA662 resonance/Q block and one final VCA
+filter_poles,4,PRIMARY_PLUS_TOPOLOGY_CONFIRMED,Roland_plus_shared_Juno_topology,24dB/oct low-pass
+resonance_feedforward,VCF_input_to_resonance_differential_stage,TOPOLOGY_CONFIRMED,shared_original_topology,Required Q/passband compensation path
+resonance_feedback,stage4_output_to_resonance_differential_stage,TOPOLOGY_CONFIRMED,shared_original_topology,Do not collapse to generic x-k*y4 only
+stage_resistor,68k,DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE,opened_original_80017A,Also consistent with exposed Juno-6/60 topology
+stage_shunt,550_to_560_ohm,DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE,opened_original_80017A,Use 560 working default
+stage_capacitor,~250pF,DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE,opened_original_80017A,Carry 240p alternative reference separately
+Juno60_stage_capacitor,240pF,SHARED_FAMILY_REFERENCE_ONLY,original_Juno6_60_schematic,Not strict 106 truth
+resonance_shunts,1.5k_each,DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE,opened_original_80017A,Surrounding BA662 resonance differential inputs
+resonance_feedforward_r,5.1k,DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE,opened_original_80017A,From VCF input to one resonance input side
+resonance_feedback_r,100k,DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE,opened_original_80017A,From VCF output/stage4 side to feedback input side
+resonance_direct_input_r,3.9k,DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE,opened_original_80017A,Additional VCF-input/direct-path resistor
+voice_vca_input_r,4.7k,DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE,opened_original_80017A,Final BA662 audio input network
+voice_vca_shunt,~560ohm,DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE,opened_original_80017A,Local VCA network
+voice_vca_output_load,47k_parallel_unknown_cap,DIRECT_REPAIR_MEASURED_WORKING_EVIDENCE,opened_original_80017A,Cap value remains unresolved
+AS3109_sensitivity,-19mV_per_oct_typ,MODERN_REFERENCE_ONLY,AS3109_datasheet,Sanity envelope only
+AS3109_fc_reference,250Hz_at_VC0_with_68k_240p,MODERN_REFERENCE_ONLY,AS3109_datasheet,Not vintage 80017A truth
+AS662_gm_reference,8.5mS_at_500uA_typ,MODERN_REFERENCE_ONLY,AS662_datasheet,Sanity envelope only
+factory_resonance_anchor,4.8Vp-p_C4_preVCA,PRIMARY_CONFIRMED,Roland_adjustment,Per-voice self-oscillation calibration
+factory_vca_anchor,6.0Vp-p_C4_postVCA,PRIMARY_CONFIRMED,Roland_adjustment,Per-voice VCA gain calibration
+factory_frequency_anchor,248Hz_C4,PRIMARY_CONFIRMED,Roland_adjustment,Per-voice Frequency trim
+factory_width_anchor,992Hz_C6,PRIMARY_CONFIRMED,Roland_adjustment,Per-voice Width trim
+factory_interaction_tolerance,+/-10cents,PRIMARY_CONFIRMED,Roland_adjustment,Repeat Frequency/Width until both pass
+warmup,10min_minimum,PRIMARY_CONFIRMED,Roland_adjustment,VCF adjustments require warm-up
+vintage_IR3109_nonlinear_scale,MEASURE_PENDING,MEASURE_PENDING,physical_fit,Do not copy AS3109 blindly
+resonance_control_curve,MEASURE_PENDING,MEASURE_PENDING,physical_fit,Must include per-voice trim and BA662 behavior
+VCF_code_to_frequency,MEASURE_PENDING,MEASURE_PENDING,physical_fit,Use 248/992 anchors plus captured control path
+VCA_control_to_gain,MEASURE_PENDING,MEASURE_PENDING,physical_fit,Use 4.8->6.0 service condition plus sweep
+thermal_dynamic_value,MEASURE_PENDING_OPTIONAL,MEASURE_PENDING,physical_AB,Only after static warmed-up model passes

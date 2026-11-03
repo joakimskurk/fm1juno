@@ -1,0 +1,105 @@
+model: FM1JUNO
+block: fm1_target_deployment
+state: FM1_TARGET_PHASE0_ARCHITECTURE_FROZEN
+verified_date: 2026-11-03
+
+platform:
+  first_custom_dsp_family: dinghy_felucca
+  official_reference:
+    repository: m-vave/fm1_open
+    release: V14
+    sample_rate_hz: 44100
+    block_frames: 128
+    channels: 2
+    engine_boundary: binary_sdk_libfm1_engine_a
+  dinghy:
+    repository: zvenson/dinghy
+    app_audio_frames: 256
+    sample_rate_hz: 44100
+    output_full_scale: 32767
+    output_format: Q15_style_stereo_int32_buffer
+
+cpu_budget:
+  normalized_128:
+    hard_deadline_us: 2902.494
+    green_target_us: 1451.247
+    green_max_fraction: 0.50
+    yellow_max_fraction: 0.70
+  dinghy_256:
+    hard_deadline_us: 5804.989
+    green_target_us: 2902.494
+  timer_hz: 24000000
+  release_overruns_allowed: 0
+  measured_single_core_ticks:
+    value: null
+    status: PHASE1_PROFILE_PENDING
+
+core_policy:
+  target_base:
+    cores_required: 1
+    voices: 6
+    strict_behavior_required: true
+  target_full:
+    core2_optional: true
+    allowed_quality_upgrade:
+      - selective_filter_oversampling
+      - measured_expensive_refinement_terms
+    fallback_must_keep:
+      - six_voices
+      - allocator_semantics
+      - control_timing_semantics
+      - full_signal_graph
+
+numeric:
+  runtime_float_double_dinghy: forbidden
+  runtime_64bit_division: forbidden
+  runtime_64bit_multiply: allowed_if_profiled
+  universal_q_format: forbidden
+  output_dinghy: Q15
+  constants_generated_offline: true
+
+memory:
+  dinghy_limits_kib:
+    code_constants_xip: 568
+    data_bss: 96
+    pool: 336
+    stack: 24
+  fm1juno_targets_kib:
+    core_ui_ordinary_ram_max: 64
+    persistent_voice_state_preferred_max: 24
+    block_scratch_bss_preferred_max: 12
+    pool_preferred_max: 64
+    code_constants_preferred_max: 450
+  large_arrays_on_stack: forbidden
+
+chorus:
+  delay_ring_samples_per_channel: 1024
+  int16_stereo_ring_kib: 4
+  int32_stereo_ring_kib: 8
+  literal_256_bucket_clock_simulation_default: false
+
+render:
+  callback_size_independent: true
+  adapter_test_frames: [16, 32, 64, 128, 256]
+  preferred_internal_chunk_frames: [16, 32]
+  chunk_is_behavior_boundary: false
+  time_domains_separate:
+    - audio_sample
+    - timer_event
+    - juno_control_scheduler
+    - outer_callback
+    - ui_midi_main_loop
+
+quality_tiers:
+  - REF
+  - TARGET_FULL
+  - TARGET_BASE
+  - DIAGNOSTIC_SIMPLE
+
+phase1_profile_pending:
+  - actual_single_core_block_ticks
+  - actual_linker_memory_map
+  - per_block_q_formats
+  - 80017a_1x_vs_2x_error_cost
+  - dual_core_benefit_and_reliability
+  - long_soak_overrun_results

@@ -1,0 +1,22 @@
+node,scope,upstream,downstream,evidence_status,notes
+WAVE_V1,voice1,IC12 MC5534 WAVE,D6 cathode -> source input -> IC13 A1QH80017A,PRIMARY_GRAPH_VERIFIED,Saw and PWM share one physical WAVE boundary
+SUB_V1,voice1,IC12 MC5534 SUB,per-voice analogue SUB level stage -> source input -> IC13,PRIMARY_GRAPH_VERIFIED,Exact gain/impedance pending
+WAVE_V2,voice2,IC12 MC5534 WAVE,D5 cathode -> source input -> IC11 A1QH80017A,PRIMARY_GRAPH_VERIFIED,Mirror of voice1
+SUB_V2,voice2,IC12 MC5534 SUB,per-voice analogue SUB level stage -> source input -> IC11,PRIMARY_GRAPH_VERIFIED,Exact gain/impedance pending
+WAVE_V3,voice3,IC8 MC5534 WAVE,D4 cathode -> source input -> IC9 A1QH80017A,PRIMARY_GRAPH_VERIFIED,Repeated architecture
+SUB_V3,voice3,IC8 MC5534 SUB,per-voice analogue SUB level stage -> source input -> IC9,PRIMARY_GRAPH_VERIFIED,Exact gain/impedance pending
+WAVE_V4,voice4,IC8 MC5534 WAVE,D3 cathode -> source input -> IC7 A1QH80017A,PRIMARY_GRAPH_VERIFIED,Repeated architecture
+SUB_V4,voice4,IC8 MC5534 SUB,per-voice analogue SUB level stage -> source input -> IC7,PRIMARY_GRAPH_VERIFIED,Exact gain/impedance pending
+WAVE_V5,voice5,IC4 MC5534 WAVE,D2 cathode -> source input -> IC5 A1QH80017A,PRIMARY_GRAPH_VERIFIED,Repeated architecture
+SUB_V5,voice5,IC4 MC5534 SUB,per-voice analogue SUB level stage -> source input -> IC5,PRIMARY_GRAPH_VERIFIED,Exact gain/impedance pending
+WAVE_V6,voice6,IC4 MC5534 WAVE,D1 cathode -> source input -> IC3 A1QH80017A,PRIMARY_GRAPH_VERIFIED,Repeated architecture
+SUB_V6,voice6,IC4 MC5534 SUB,per-voice analogue SUB level stage -> source input -> IC3,PRIMARY_GRAPH_VERIFIED,Exact gain/impedance pending
+NOISE_RAW,shared,Tr21 selected 2SC945P,IC14 BA662 noise VCA,PRIMARY_GRAPH_VERIFIED,One physical stochastic source
+NOISE_VCA_OUT,shared,IC14 BA662,post-VCA RC shaping incl C41 region,PRIMARY_GRAPH_VERIFIED,VR32 is calibration trim in common path
+NOISE_COMMON,shared,post-noise-VCA RC shaping,fanout to all six source-input regions,PRIMARY_GRAPH_VERIFIED,Same instantaneous noise signal reaches all voices before VCFs
+SOURCE_IN_V1,voice1,WAVE_V1 + SUB_V1 + NOISE_COMMON,IC13 A1QH80017A audio input,PRIMARY_GRAPH_VERIFIED_NUMERIC_PENDING,Exact passive ratios/source impedances pending
+SOURCE_IN_V2,voice2,WAVE_V2 + SUB_V2 + NOISE_COMMON,IC11 A1QH80017A audio input,PRIMARY_GRAPH_VERIFIED_NUMERIC_PENDING,Exact passive ratios/source impedances pending
+SOURCE_IN_V3,voice3,WAVE_V3 + SUB_V3 + NOISE_COMMON,IC9 A1QH80017A audio input,PRIMARY_GRAPH_VERIFIED_NUMERIC_PENDING,Exact passive ratios/source impedances pending
+SOURCE_IN_V4,voice4,WAVE_V4 + SUB_V4 + NOISE_COMMON,IC7 A1QH80017A audio input,PRIMARY_GRAPH_VERIFIED_NUMERIC_PENDING,Exact passive ratios/source impedances pending
+SOURCE_IN_V5,voice5,WAVE_V5 + SUB_V5 + NOISE_COMMON,IC5 A1QH80017A audio input,PRIMARY_GRAPH_VERIFIED_NUMERIC_PENDING,Exact passive ratios/source impedances pending
+SOURCE_IN_V6,voice6,WAVE_V6 + SUB_V6 + NOISE_COMMON,IC3 A1QH80017A audio input,PRIMARY_GRAPH_VERIFIED_NUMERIC_PENDING,Exact passive ratios/source impedances pending

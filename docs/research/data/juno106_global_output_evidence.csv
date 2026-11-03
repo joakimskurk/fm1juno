@@ -1,0 +1,27 @@
+item,value_or_topology,evidence_status,source,notes
+signal_order,voice sum -> HPF selector -> IC4A -> uPC1252 -> post-VCA output -> chorus,PRIMARY_106,Roland service schematic,Global block order
+HPF0_semantic,bass boost,PRIMARY_106,Roland owner/service docs,Not bypass and not cutoff zero
+HPF1_semantic,straight/flat,PRIMARY_106,Roland owner/service docs,Physical downstream path remains active
+HPF2_R,47 kOhm,PRIMARY_106_SCHEMATIC,Roland service schematic,First-order branch
+HPF2_C,15 nF,PRIMARY_106_SCHEMATIC,Roland service schematic,First-order branch
+HPF2_fc,225.7516923289 Hz,SCHEMATIC_DERIVED,47k and 15n,Ideal component corner
+HPF3_R,47 kOhm,PRIMARY_106_SCHEMATIC,Roland service schematic,First-order branch
+HPF3_C,4.7 nF,PRIMARY_106_SCHEMATIC,Roland service schematic,First-order branch
+HPF3_fc,720.4841244540 Hz,SCHEMATIC_DERIVED,47k and 4.7n,Ideal component corner
+HPF2_3_Q,NOT_APPLICABLE,DERIVED,first-order transfer,Corrects outdated checklist wording
+HPF0_architecture,direct contribution + two-stage two-pole/two-zero shaped contribution into IC4A,PRIMARY_TOPOLOGY_PLUS_SECONDARY_CROSSCHECK,Roland schematic + independent circuit analysis,Exact numerical transfer remains pending
+HPF0_C8,0.01 uF,PRIMARY_106_SCHEMATIC,Roland service schematic,Primary-readable bass-emphasis component
+HPF0_stage1,C8/C9/R22 pole-zero family,SCHEMATIC_CROSSCHECK,Roland schematic + independent circuit analysis,Formal full-value transcription still pending
+HPF0_stage2,R18/R19/R20/C6/IC4B active pole-zero family,SCHEMATIC_CROSSCHECK,Roland schematic + independent circuit analysis,Formal full-value transcription still pending
+HPF0_sum,R24/R25 into IC4A,SCHEMATIC_CROSSCHECK,Roland schematic + independent circuit analysis,Direct + shaped contributions
+selector,TC4052 family,PRIMARY_106_SCHEMATIC,Roland service schematic,Discrete four-route selector
+selector_Ron_15V_typ,~80 ohm,COMPONENT_DATASHEET_CLASS_ANCHOR,Toshiba TC4052 datasheet,Not exact installed-unit value
+selector_Ron_15V_max,~160 ohm,COMPONENT_DATASHEET_CLASS_ANCHOR,Toshiba TC4052 datasheet,Not exact installed-unit value
+IC4A_role,HPF output buffer and HPF0 summer,PRIMARY_106_SCHEMATIC,Roland service schematic,Important 106-vs-60 isolation
+VCA_LEVEL_code,raw7 << 7,ROM_FIRMWARE_CONFIRMED,JUNO-106 module firmware,0x0000..0x3f80
+VCA_LEVEL_conditioned_family,nominal 0..+5 V,PRIMARY_106,Roland DAC/control documentation,Before jack-board network
+uPC1252_type,current-mode dbx-family VCA,COMPONENT_DATASHEET,NEC uPC1252H2 documentation,Global patch-level VCA
+uPC1252_component_control,approximately dB-linear around control input; -300mV~+50dB 0V~0dB +300mV~-50dB,COMPONENT_DATASHEET_REFERENCE,NEC uPC1252H2 documentation,Not equivalent to JUNO panel law
+JUNO_external_VCA_network,separate scale/offset/current-conversion network,PRIMARY_TOPOLOGY_PLUS_HARDWARE_CROSSCHECK,Roland schematic + repair measurements,Exact code-to-control curve pending
+post_VCA_stage,current-to-voltage/output conversion retained,PRIMARY_TOPOLOGY_PLUS_HARDWARE_CROSSCHECK,Roland schematic + repair analysis,Do not mislabel as generic LPF
+high_level_distortion,normal possible behavior at excessive VCA LEVEL,PRIMARY_106,Roland owner's manual,Headroom/nonlinearity must remain modelable

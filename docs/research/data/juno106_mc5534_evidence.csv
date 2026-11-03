@@ -1,0 +1,26 @@
+item,value_or_fact,status,source_class,notes
+MC5534_packages,"IC4, IC8, IC12",PRIMARY_CONFIRMED,Roland_service_notes,Three wave-generator package positions on Module Board
+wave_generator_function,"divide-by-two SUB + saw + variable-width rectangular",PRIMARY_CONFIRMED,Roland_service_notes,Direct service description
+DCO_CV_contents,"key + LFO + Bender + Portamento + Tune; no RANGE",PRIMARY_CONFIRMED,Roland_service_notes,RANGE applied after DCO-CV generation
+range_selector,"R85/R86/R87 selected by RANGE code",PRIMARY_CONFIRMED,Roland_service_notes,Physical resistor-selection architecture
+range16_mapping,"16' uses R85",PRIMARY_CONFIRMED,Roland_service_notes,Explicitly stated in service description
+R85_value,399k,SCHEMATIC_CROSS_CHECK_STRONG,independent_106_circuit_read,Do not promote beyond evidence until clean primary value read archived
+R86_value,200k,SCHEMATIC_CROSS_CHECK_STRONG,independent_106_circuit_read,Consistent with physical 4:2:1 range law
+R87_value,100k,SCHEMATIC_CROSS_CHECK_STRONG,independent_106_circuit_read,Consistent with physical 4:2:1 range law
+C54_role,ramp_integration_capacitor,PRIMARY_CONFIRMED,Roland_service_notes,Roland explicitly names C54 in sawtooth description
+C54_value,~1nF,SCHEMATIC_CROSS_CHECK_STRONG,derived_plus_circuit_crosscheck,Strongly consistent with range network + DCO-CV + 12 Vp-p target
+reset_trigger,positive-going_DCO_edge,PRIMARY_CONFIRMED,Roland_service_notes,C54 discharged through reset transistor path
+reset_duration,MEASURE_PENDING,MEASURE_PENDING,physical_capture,No strict numeric duration from primary 106 material
+reset_hypothesis,"10k/270p differentiator; 2.2k/1n discharge; ~5us",HYPOTHESIS_ONLY,secondary_reconstruction,Must not become strict constant without 106 corroboration
+wave_amplitude_target,~12_Vp-p,PRIMARY_CONFIRMED,Roland_service_notes,Nearly constant rather than exact
+PWM_50_percent,+6.0V,PRIMARY_CONFIRMED,Roland_service_notes,Comparator threshold anchor
+PWM_95_percent,+0.6V,PRIMARY_CONFIRMED,Roland_service_notes,Comparator threshold anchor
+PWM_off,-0.8V,PRIMARY_CONFIRMED,Roland_service_notes,Rectangular output disabled/high
+PWM_factory_50_tolerance,48_to_52_percent,PRIMARY_CONFIRMED,Roland_adjustment,Factory test tolerance
+PWM_factory_high_tolerance,93_to_97_percent,PRIMARY_CONFIRMED,Roland_adjustment,Factory test tolerance
+SUB_source,divide_by_two_DCO_timing,PRIMARY_CONFIRMED,Roland_service_notes,Separate timing-derived source
+SUB_amplitude_mechanism,collector_supply_voltage,PRIMARY_CONFIRMED,Roland_service_notes,Not assumed to be linear post-DSP gain
+DCO_CV_zero_calibration,0V_at_TP3,PRIMARY_CONFIRMED,Roland_adjustment,VR33 calibrated with DAC forced to zero
+DCO_CV_loaded_law,MEASURE_PENDING,MEASURE_PENDING,physical_capture,Includes S/H output impedance/droop/switch loading
+MC5534_buffer_slew,MEASURE_PENDING,MEASURE_PENDING,physical_capture,Needed only if audible/significant
+amplitude_error_surface,MEASURE_PENDING,MEASURE_PENDING,physical_capture,Measure note/range structured error rather than normalize away

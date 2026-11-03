@@ -1,94 +1,183 @@
 # Phase 0 — JUNO-106 circuit freeze checklist
 
-This checklist is the gate before fidelity DSP implementation.
+Status: **`PHASE0_ARCHITECTURE_COMPLETE`**.
+
+Phase 0 is complete when every implementation graph is frozen and every unresolved physical number is represented by a named calibration field plus an explicit verification route. Exact vintage-unit measurements do not have to exist before Phase 1 if they cannot change the graph.
 
 ## A. Control / firmware
 
-- [x] Confirm master/slave CPU split.
-- [x] Confirm 12 MHz slave CPU clock.
-- [x] Confirm multiplexed DAC/S&H control architecture.
-- [x] Confirm ~4.2 ms complete control service frame from Roland timing diagram.
-- [ ] Verify exact control-frame period from ROM execution timing or direct capture.
-- [x] Recover the core D7811G envelope algorithm and identify the ROM attack + decay/release tables.
-- [ ] Verify complete envelope-table extraction, slider indexing, retrigger and service-loop timing against the module ROM.
-- [ ] Recover LFO algorithm, waveform, rate law and delay law.
-- [ ] Recover portamento law.
-- [x] Confirm normal user-facing Poly 1 / Poly 2 / Solo-Unison semantics from Roland owner's documentation.
-- [ ] Freeze exact Poly 1 / Poly 2 allocator, retrigger and voice-steal state machine from assigner/module firmware.
+- [x] Poly 1 / Poly 2 allocation and six-note limit frozen.
+- [x] Solo-Unison sequential physical-voice behavior frozen.
+- [x] ENV current-level re-attack frozen and separated from DCO timer reset.
+- [x] 8.8 pitch, Tune, Bender and Portamento order frozen.
+- [x] 8253 Mode-3 count/reload/reset semantics frozen.
+- [x] DCO-CV octave/exponential law and RANGE separation frozen.
+- [x] Integer ENV architecture frozen.
+- [x] Integer LFO/rate/Delay/retrigger architecture frozen.
+- [x] Digital VCF arithmetic frozen.
 
-## B. DCO
+## B. Control timing / DAC-S&H — `CONTROL_TIMING_PHASE0_ARCHITECTURE_FROZEN`
 
-- [x] Confirm 8 MHz master oscillator.
-- [x] Confirm /2, /4, /8 range divider before 8253.
-- [x] Confirm two 8253 devices / six counters.
-- [x] Confirm key + LFO + bend + portamento + tune feed divide data.
-- [x] Confirm MC5534 analogue-inspired saw/PWM/sub generation.
-- [x] Confirm ~12 Vpp saw/pulse amplitude compensation target.
-- [x] Confirm PWM calibration anchors.
-- [x] Identify 8253 operating mode: Mode 3, binary, LSB then MSB (`36/76/B6`).
-- [x] Confirm Mode-3 count relation and odd/even duty behaviour from 8253 documentation.
-- [x] Locate module-ROM note-divisor table and 8.8-semitone interpolation path.
-- [x] Confirm distinct ordinary count reload vs reset/control-word + reload paths.
-- [ ] Finish exact pitch-build order/scaling for LFO, bender, portamento and tune.
-- [ ] Determine full count-write cadence and 8253 reload timing consequences during modulation.
-- [ ] Derive DCO-CV/range resistor ramp slope law from schematic.
-- [ ] Freeze oscillator reset/retrigger conditions from `resetVoiceBits` / allocator tracing.
+- [x] Approximately 4.2-ms normal service-cycle family retained.
+- [x] Non-atomic ROM-derived macro order frozen.
+- [x] Sequential six-voice DCO service frozen.
+- [x] Sequential six-voice ENV/VCA/VCF service frozen.
+- [x] Per-voice timer work precedes that voice's DCO-CV S/H commit.
+- [x] Late-LFO / later-pass causality frozen.
+- [x] Physical 12-bit DAC boundary frozen.
+- [x] DAC-bus load and MUX/S&H commit separated.
+- [x] ADC/parameter resume-class interrupts separated from note-event restart class.
+- [x] Note-event stack-discard/main-loop restart behavior frozen.
+- [x] Timing/S&H calibration centralized.
+- [x] Machine-readable schedule and evidence table added.
+- [x] **CONTROL TIMING GATE CLOSED.**
 
-## C. Mixer / noise
+Calibration backlog:
 
-- [ ] Extract saw/pulse/sub/noise source gains from schematic.
-- [ ] Derive sub-level law.
-- [ ] Derive noise-level law.
-- [ ] Characterise noise generator spectrum and bandwidth.
-- [ ] Establish pre-VCF clipping/headroom reference.
+- [ ] exact mean/workload-dependent frame periods;
+- [ ] exact per-slot microsecond offsets;
+- [ ] interrupt latency/jitter;
+- [ ] low-level ambiguous VCA/PWM MUX interleave;
+- [ ] DAC settling and S/H settling/droop/source impedance/charge injection.
 
-## D. 80017A VCF/VCA
+## C. MC5534 DCO — `MC5534_PHASE0_ARCHITECTURE_FROZEN`
 
-- [x] Confirm IR3109 + 2x BA662 internal family/topology.
-- [x] Confirm separate per-voice calibration for resonance, VCA gain, VCF frequency and VCF width.
-- [ ] Freeze passive values from teardown/schematic.
-- [ ] Choose first reference equations for four OTA stages.
-- [ ] Derive resonance loop scaling.
-- [ ] Derive VCF CV -> cutoff mapping.
-- [ ] Derive VCA CV -> gain mapping.
-- [ ] Define self-oscillation and saturation test vectors.
+- [x] 8253 edge-timed physical source architecture frozen.
+- [x] held DCO CV -> RANGE-selected R -> C54-family ramp frozen.
+- [x] finite positive-edge reset frozen.
+- [x] SAW/PWM shared-ramp behavior frozen.
+- [x] timing-domain SUB frozen.
+- [x] working original-106 399k/200k/100k + ~1 nF family retained with evidence qualification.
+- [x] ~12 Vp-p treated as validation region, not normalization target.
+- [x] unresolved reset/headroom/S&H values centralized.
+- [x] **MC5534 GATE CLOSED.**
 
-## E. HPF / global output
+Calibration backlog:
 
-- [x] Confirm HPF modes: 0 bass boost, 1 flat, 2/3 HPF.
-- [x] Confirm global placement after voice sum.
-- [x] Confirm 106 buffering distinction from 60.
-- [ ] Calculate exact mode 0 transfer function.
-- [ ] Calculate modes 2/3 cutoff/Q from component values.
-- [ ] Model global uPC1252 gain/headroom if audibly relevant.
+- [ ] direct R85/R86/R87/C54 confirmation;
+- [ ] DCO-CV code->volts and S/H loading;
+- [ ] reset duration/residual/recovery;
+- [ ] MC5534 slew/headroom/comparator behavior;
+- [ ] note/range amplitude-error surface.
 
-## F. Chorus
+## D. Source mixer / SUB / common NOISE — `SOURCE_MIXER_PHASE0_ARCHITECTURE_FROZEN`
 
-- [x] Confirm dual MN3009 BBD architecture.
-- [x] Confirm dual bias calibration and surrounding filters/amplifiers.
-- [ ] Derive I and II oscillator/clock circuits from 106 schematic.
-- [ ] Establish min/max BBD clock frequency and corresponding delay.
-- [ ] Establish stereo phase relation.
-- [ ] Calculate pre/de-emphasis / reconstruction bandwidth.
-- [ ] Characterise noise and bias nonlinearity.
-- [ ] Confirm whether any non-standard I+II state is worth DEEP-only support.
+- [x] WAVE + SUB + one common NOISE graph frozen.
+- [x] one global SUB LEVEL with six physical SUB phases frozen.
+- [x] one selected-transistor common NOISE source + IC14 BA662 frozen.
+- [x] same instantaneous NOISE waveform fanout to all six voices frozen.
+- [x] ~5-kHz healthy-noise shaping target retained.
+- [x] Bank-6 / TP8 / VR32 4-Vp-p validation vector retained.
+- [x] source normalization and hidden pre-VCF clamping forbidden.
+- [x] source gains/impedances/headroom centralized.
+- [x] **SOURCE MIXER GATE CLOSED.**
 
-## G. FM-1 target
+Calibration backlog:
 
-- [x] Confirm 44.1 kHz / 128-frame open-SDK audio contract.
-- [x] Confirm 240x240 display.
-- [x] Confirm strict SRAM/audio-callback placement constraints.
-- [x] Identify existing six-voice FM-106 as performance/platform reference.
-- [ ] Establish single-core baseline budget for reference blocks.
-- [ ] Establish dual-core strategy only after single-core block profiling.
-- [ ] Decide fixed-point vs mixed precision per block.
-- [ ] Define CPU, SRAM and delay-memory budgets with safety margins.
+- [ ] WAVE/SUB/NOISE injection ratios and impedances;
+- [ ] SUB and NOISE analogue control curves;
+- [ ] exact healthy noise spectrum/RC transfer;
+- [ ] pre-VCF headroom/loading/compression.
 
-## Gate
+## E. A1QH80017A VCF/VCA — `80017A_PHASE0_ARCHITECTURE_FROZEN`
 
-Phase 1 fidelity implementation begins only when unresolved items either:
+- [x] four explicit IR3109-family stages frozen.
+- [x] BA662 resonance/Q-compensation with input feed-forward + stage-4 feedback frozen.
+- [x] explicit BA662 voice VCA frozen.
+- [x] per-voice Frequency/Width/Resonance/VCA calibration surfaces frozen.
+- [x] opened-original-hybrid passive evidence retained with qualification.
+- [x] topology-preserving implicit/TPT reference direction frozen.
+- [x] Roland anchors frozen: 4.8 Vp-p, 6 Vp-p, 248 Hz, 992 Hz, +/-10 cents.
+- [x] unresolved silicon/control-law coefficients centralized.
+- [x] **80017A GATE CLOSED.**
 
-1. have evidence-backed answers, or
-2. have a written hypothesis plus an explicit measurement/verification test.
+Calibration backlog:
 
-No generic VA assumption is allowed to silently cross this gate.
+- [ ] IR3109 nonlinear scale/buffer headroom/asymmetry;
+- [ ] effective 240-vs-250-pF stage set/tolerances;
+- [ ] resonance effective coefficients and BA662 control law;
+- [ ] VCF code->cutoff mapping;
+- [ ] voice-VCA code/CV->gain/headroom;
+- [ ] optional thermal/supply dynamics after static reference passes.
+
+## F. Global HPF / output — `GLOBAL_OUTPUT_PHASE0_ARCHITECTURE_FROZEN`
+
+- [x] HPF 0/1/2/3 graph frozen.
+- [x] 106 IC4A isolation retained.
+- [x] HPF2 ideal corner 225.7516923289 Hz frozen.
+- [x] HPF3 ideal corner 720.4841244540 Hz frozen.
+- [x] HPF0 direct + active bass-emphasis graph frozen.
+- [x] uPC1252H2 global VCA boundary frozen.
+- [x] high-level headroom/distortion retained as physical behavior.
+- [x] unresolved coefficients/control curves centralized.
+- [x] **GLOBAL OUTPUT GATE CLOSED.**
+
+Calibration backlog:
+
+- [ ] exact HPF0 transfer and selector Ron;
+- [ ] VCA LEVEL -> uPC1252 gain law;
+- [ ] global output headroom/THD/loading.
+
+## G. Chorus — `CHORUS_PHASE0_FROZEN`
+
+- [x] dual MN3009 + dual MN3101 graph frozen.
+- [x] strict OFF/I/II frozen.
+- [x] `f_cp=f_osc/2` and `t_delay=128/f_cp` frozen.
+- [x] original 1.8k/8.2k/150p timing networks frozen.
+- [x] original multi-element wet filtering retained.
+- [x] independent BBD bias/headroom frozen.
+- [x] exact IC6 dry/wet summer gains frozen.
+- [x] stereo/output/jack and separate BBD-noise boundaries frozen.
+- [x] machine-readable pin/node/component evidence added.
+- [x] unresolved clock/filter/noise/headroom values centralized.
+- [x] **CHORUS GATE CLOSED.**
+
+Calibration backlog:
+
+- [ ] original Mode-I/II clock trajectories;
+- [ ] exact delay excursion/channel mismatch;
+- [ ] wet-path transfer/BBD insertion loss and bandwidth;
+- [ ] final dry/wet/mono-jack loading;
+- [ ] BBD headroom/clipping/noise/correlation.
+
+## H. FM-1 target / deployment — `FM1_TARGET_PHASE0_ARCHITECTURE_FROZEN`
+
+- [x] official 44.1-kHz / 128-frame API reference verified.
+- [x] Dinghy/Felucca custom-DSP deployment family selected.
+- [x] callback-size-independent core frozen.
+- [x] 256-frame Dinghy timing deadline accounted for.
+- [x] Green/yellow/red CPU acceptance bands frozen.
+- [x] Dinghy integer/fixed-point and no-64-bit-division target rule frozen.
+- [x] one-core six-voice `TARGET_BASE` correctness requirement frozen.
+- [x] core 2 restricted to optional `TARGET_FULL` acceleration with correctness-preserving fallback.
+- [x] RAM/pool/stack/code engineering margins frozen.
+- [x] separate audio/timer/control/callback/UI time domains frozen.
+- [x] event-aware 8253/MC5534 target strategy frozen.
+- [x] 80017A quality/oversampling ladder frozen.
+- [x] deterministic profiling/benchmark/release policy frozen.
+- [x] **FM-1 TARGET GATE CLOSED.**
+
+Phase-1 profiling backlog:
+
+- [ ] actual single-core per-block ticks;
+- [ ] actual linker/memory map;
+- [ ] selected Q format per block;
+- [ ] 80017A 1x-vs-2x error/cost;
+- [ ] optional core-2 benefit/reliability;
+- [ ] physical long-run overrun soak tests.
+
+## Final gate
+
+- [x] Every major block has an architecture-frozen reference contract.
+- [x] Every unresolved physical constant is either centralized `MEASURE_PENDING` or explicitly deferred to measured target profiling.
+- [x] No known generic-VA substitution is required to begin the reference engine.
+- [x] Phase-1 branch boundary is documented.
+- [x] **PHASE 0 ARCHITECTURE COMPLETE.**
+
+Next branch:
+
+```text
+phase1/reference-engine
+```
+
+The next task is implementation, not further speculative circuit design.

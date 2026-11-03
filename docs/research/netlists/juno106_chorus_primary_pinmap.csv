@@ -1,0 +1,45 @@
+device,pin,pin_name,node,direct_connection,evidence_status,notes
+IC8,1,GND,GND,GND,PRIMARY_CONNECTION_VERIFIED,MN3009 pin function from Panasonic datasheet and Roland schematic
+IC8,2,CP1,CLOCK_A_CP1,IC9 pin 2 CP1,PRIMARY_CONNECTION_VERIFIED,Direct MN3101-to-MN3009 clock connection
+IC8,3,IN,BBD_A_IN,C44/R122/VR1 input-bias region,PRIMARY_VISIBLE_NODE_DETAIL_PENDING,Input node is primary-visible; exact passive junction ordering retained for final continuity/rescan rather than guessed
+IC8,4,VGG,VGG_A,IC9 pin 8 VGG_OUT,PRIMARY_CONNECTION_VERIFIED,Direct driver bias supply connection
+IC8,5,VDD,VDD_NEG15,-15V rail,PRIMARY_CONNECTION_VERIFIED,Original negative BBD supply
+IC8,6,CP2,CLOCK_A_CP2,IC9 pin 4 CP2,PRIMARY_CONNECTION_VERIFIED,Direct complementary clock connection
+IC8,7,OUT1,BBD_A_OUT1,R119 3.3k -> BBD_A_OUT_SUM,PRIMARY_CONNECTION_VERIFIED,MN3009 pin assignment by Panasonic datasheet; equal output-combine resistor
+IC8,8,OUT2,BBD_A_OUT2,R118 3.3k -> BBD_A_OUT_SUM,PRIMARY_CONNECTION_VERIFIED,MN3009 pin assignment by Panasonic datasheet; equal output-combine resistor
+IC9,1,GND,GND,GND,PRIMARY_CONNECTION_VERIFIED,MN3101 pin function from Panasonic datasheet and Roland schematic
+IC9,2,CP1,CLOCK_A_CP1,IC8 pin 2 CP1,PRIMARY_CONNECTION_VERIFIED,CP1 is one physical clock phase
+IC9,3,VDD,VDD_NEG15,-15V rail,PRIMARY_CONNECTION_VERIFIED,MN3101 supply
+IC9,4,CP2,CLOCK_A_CP2,IC8 pin 6 CP2,PRIMARY_CONNECTION_VERIFIED,CP2 opposite phase to CP1
+IC9,5,OX3,OSC_A_OX3,C53 150p -> OSC_A_COMMON,PRIMARY_CONNECTION_VERIFIED,Original timing capacitor
+IC9,6,OX2,OSC_A_OX2,R124 8.2k -> OSC_A_COMMON,PRIMARY_CONNECTION_VERIFIED,Original timing resistor independently cross-checked by MN3009-to-MN3007 modification
+IC9,7,OX1,OSC_A_OX1,R123 1.8k -> OSC_A_COMMON,PRIMARY_CONNECTION_VERIFIED,Original schematic value visible
+IC9,8,VGG_OUT,VGG_A,IC8 pin 4 VGG,PRIMARY_CONNECTION_VERIFIED,MN3101 generates BBD gate bias
+IC10,1,GND,GND,GND,PRIMARY_CONNECTION_VERIFIED,MN3009 channel B
+IC10,2,CP1,CLOCK_B_CP1,IC11 pin 2 CP1,PRIMARY_CONNECTION_VERIFIED,Direct MN3101-to-MN3009 clock connection
+IC10,3,IN,BBD_B_IN,C47/R113/VR2 input-bias region,PRIMARY_VISIBLE_NODE_DETAIL_PENDING,Input node is primary-visible; exact passive junction ordering retained for final continuity/rescan rather than guessed
+IC10,4,VGG,VGG_B,IC11 pin 8 VGG_OUT,PRIMARY_CONNECTION_VERIFIED,Direct driver bias supply connection
+IC10,5,VDD,VDD_NEG15,-15V rail,PRIMARY_CONNECTION_VERIFIED,Original negative BBD supply
+IC10,6,CP2,CLOCK_B_CP2,IC11 pin 4 CP2,PRIMARY_CONNECTION_VERIFIED,Direct complementary clock connection
+IC10,7,OUT1,BBD_B_OUT1,R112 3.3k -> BBD_B_OUT_SUM,PRIMARY_CONNECTION_VERIFIED,MN3009 pin assignment by Panasonic datasheet; equal output-combine resistor
+IC10,8,OUT2,BBD_B_OUT2,R111 3.3k -> BBD_B_OUT_SUM,PRIMARY_CONNECTION_VERIFIED,MN3009 pin assignment by Panasonic datasheet; equal output-combine resistor
+IC11,1,GND,GND,GND,PRIMARY_CONNECTION_VERIFIED,MN3101 channel B
+IC11,2,CP1,CLOCK_B_CP1,IC10 pin 2 CP1,PRIMARY_CONNECTION_VERIFIED,CP1 is one physical clock phase
+IC11,3,VDD,VDD_NEG15,-15V rail,PRIMARY_CONNECTION_VERIFIED,MN3101 supply
+IC11,4,CP2,CLOCK_B_CP2,IC10 pin 6 CP2,PRIMARY_CONNECTION_VERIFIED,CP2 opposite phase to CP1
+IC11,5,OX3,OSC_B_OX3,C57 150p -> OSC_B_COMMON,PRIMARY_CONNECTION_VERIFIED,Original timing capacitor
+IC11,6,OX2,OSC_B_OX2,R137 8.2k -> OSC_B_COMMON,PRIMARY_CONNECTION_VERIFIED,Original timing resistor independently cross-checked
+IC11,7,OX1,OSC_B_OX1,R136 1.8k -> OSC_B_COMMON,PRIMARY_CONNECTION_VERIFIED,Original schematic value visible
+IC11,8,VGG_OUT,VGG_B,IC10 pin 4 VGG,PRIMARY_CONNECTION_VERIFIED,MN3101 generates BBD gate bias
+IC6,A_MINUS,INVERTING_INPUT,IC6_A_SUM,R71 47k from TP1_WET_A + R70 100k from CH_DRY + R72 39k feedback from IC6_A_OUT,PRIMARY_CONNECTION_VERIFIED,Functional op-amp node used instead of package pin number because TA75558S is SIP-9 and schematic orientation is the primary authority
+IC6,A_PLUS,NONINVERTING_INPUT,GND,GND reference,PRIMARY_CONNECTION_VERIFIED,Original inverting summer topology
+IC6,A_OUT,OUTPUT,IC6_A_OUT,R72 39k feedback + post-IC6 coupling/output network,PRIMARY_CONNECTION_VERIFIED,Ideal summer law Gdry=-39/100 Gwet=-39/47
+IC6,B_MINUS,INVERTING_INPUT,IC6_B_SUM,R73 47k from TP2_WET_B + R67 100k from CH_DRY + R74 39k feedback from IC6_B_OUT,PRIMARY_CONNECTION_VERIFIED,Mirrored channel-B summer
+IC6,B_PLUS,NONINVERTING_INPUT,GND,GND reference,PRIMARY_CONNECTION_VERIFIED,Original inverting summer topology
+IC6,B_OUT,OUTPUT,IC6_B_OUT,R74 39k feedback + post-IC6 coupling/output network,PRIMARY_CONNECTION_VERIFIED,Ideal summer law matches channel A
+TP1,,TEST_POINT,TP1_WET_A,wet A filter/output node -> R71 47k,PRIMARY_CONNECTION_VERIFIED,Roland chorus-bias calibration point for VR1
+TP2,,TEST_POINT,TP2_WET_B,wet B filter/output node -> R73 47k,PRIMARY_CONNECTION_VERIFIED,Roland chorus-bias calibration point for VR2
+TP3,,TEST_POINT,CTRL_A_TP3,chorus-control trajectory A,PRIMARY_VISIBLE,Exact voltage trajectory remains MEASURE_PENDING
+TP4,,TEST_POINT,CTRL_B_TP4,chorus-control trajectory B,PRIMARY_VISIBLE,Complementary control trajectory; exact phase error remains MEASURE_PENDING
+VR1,,BIAS_TRIM,BBD_A_BIAS,input-bias network -> IC8 pin 3 region,PRIMARY_CONNECTION_VERIFIED,Factory adjusted for symmetrical TP1 clipping
+VR2,,BIAS_TRIM,BBD_B_BIAS,input-bias network -> IC10 pin 3 region,PRIMARY_CONNECTION_VERIFIED,Factory adjusted for symmetrical TP2 clipping
