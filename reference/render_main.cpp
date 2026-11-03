@@ -22,6 +22,9 @@ bool parse_type(const std::string &text, ScriptEventType106 &type)
     else if (text == "CONTROL_STEP") type = SCRIPT106_CONTROL_STEP;
     else if (text == "PARAMETER") type = SCRIPT106_PARAMETER;
     else if (text == "PITCH_PROFILE") type = SCRIPT106_PITCH_PROFILE;
+    else if (text == "SWITCH1") type = SCRIPT106_SWITCH1;
+    else if (text == "SWITCH2") type = SCRIPT106_SWITCH2;
+    else if (text == "ADC_BANK") type = SCRIPT106_ADC_BANK;
     else return false;
     return true;
 }
