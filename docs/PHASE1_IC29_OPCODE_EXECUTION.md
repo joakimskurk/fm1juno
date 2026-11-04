@@ -53,7 +53,7 @@ Test-only harness, with **no genuine Roland ROM distributed or claimed**:
 - Tests create 8192-byte synthetic assigner and module ROM files in an isolated temporary directory. A deliberately small synthetic uPD7810 bootstrap sets the CPU V page, stack, HL/DE or EA, relevant RAM operands and then calls/jumps into the original disassembly-extracted, SHA-256-verified IC29 instruction bytes.
 - MAME correctly reports ROM **checksum mismatches** because these fixtures are synthetic. That warning is expected, never suppressed or treated as validation of original full-chip firmware.
 - A debugger breakpoint after the original instruction window logs actual MAME CPU memory/register values via debugger logerror. MAME's supported Qt debugger runs with QT_QPA_PLATFORM=offscreen. The subprocess must exit successfully **and** produce the tagged breakpoint result; a missing trace is a test failure.
-- The MAME debugger's JAM? No: these are ordinary supported CPU device breakpoint and memory/register commands. No original software audio or patches are run.
+- The debugger script uses MAME's supported CPU breakpoints and memory/register expressions. No original instrument software audio or patches are run.
 - The output is independently compared against the **compiled project production C** (not a Python copy of its formulas). Original public opcodes are separately hashed and checked by the earlier window runner.
 
 **Actual executed samples:**
