@@ -441,10 +441,14 @@ evidence-led, not an unverified acoustic approximation.
 cycle-accurate original machine, physical FM-1 deployment or waveform
 engine/audio result has been certified.**
 
-## 18. Original DECAY/RELEASE paths in independent MAME — CI verification pending
+## 18. Original DECAY/RELEASE paths in independent MAME — MAME #31 verified
 
-The next P1.1 slice is now committed as a **seventh** independent MAME
-CPU probe stage, but must not be counted as PASS until CI finishes green.
+**Verified MAME independent CPU #31 SUCCESS** on code commit `11634dc`:
+**288/288 original DECAY/RELEASE scenarios passed** with matching
+compiled production C; all six earlier MAME stages passed in that same
+workflow. The independent CPU total is now **682/682 selected process
+scenarios** (394 previous + 288 DECAY/RELEASE). Host-tests #351 and #350
+also passed on that test-code commit.
 
 - `tests/cpu_ic29/run_mame_vcf_original_decay_release_probe.py`:
   checks both original first-voice DECAY and RELEASE branches across all
@@ -471,7 +475,39 @@ CPU probe stage, but must not be counted as PASS until CI finishes green.
 **Strict proof boundary:** synthetic boot and initially injected
 coefficient/state are not original whole-ROM execution, autonomous
 coefficient lookup, complete six-voice scheduling, original IRQ phase,
-nor a real UPD7811 chip. Preserve the previous **394/394 certified
-scenarios** until MAME explicitly reports a new verified result.
+nor a real UPD7811 chip. MAME #31 confirms the **original first-voice
+ATTACK, DECAY and RELEASE arithmetic paths** (on their separately seeded
+entry states), not natural phase transitions through an entire note life.
+
+## 19. Next original ROM slice: bounded six-voice control pass
+
+**Goal: verify the natural 6-voice envelope/VCF loop while retaining
+the original program-flow and DAC instruction bytes.**
+
+The public IC29 listing shows a natural loop after the currently
+checked per-voice VCF checkpoint:
+
+- `0x063C..0x0640`: load VCF DAC channel from FF0F and call the
+  original `0x082F` DAC-output helper;
+- `0x0643..0x0649`: double FF34 active-voice bit, advance FF0F voice
+  pointer; these operations also advance the per-voice envelope/pitch
+  cursors as side effects of the earlier `0x0590/0x05E1` code;
+- `0x064B..0x064E`: decide whether all six voices are processed;
+  branch back to **original 0x0503** for the next voice; 
+- `0x0651`: pop global base value after the sixth voice, then
+  continue into the next ADC/output control stage.
+
+Build a separate independent MAME probe with *all six* FF27..FF32
+envelope words, FF71..FF7C note-pitch words and six voice phase masks
+seeded; exercise a stable family of ATTACK/DECAY/RELEASE phases.
+Monitor the six VCF-DAC writes and the final FF0F/FF34/SP/DE/HL
+state, and compare all six envelope and VCF values against compiled
+production. The required MAME debugger capture must continue past
+each 0x063C checkpoint **without rewriting original bytes**. Stop
+before 0x0653 ADC scheduling until independently scoped.
+Prove branch-local behavior first; do not claim full original schedule,
+six-voice audio, original UPD7811 silicon or IRQ timing.
+
+**Current gate: P1.1_DIGITAL_IN_PROGRESS remains OPEN.**
 
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
