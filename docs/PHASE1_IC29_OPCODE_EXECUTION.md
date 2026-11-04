@@ -81,7 +81,7 @@ Files:
 
 **Exactness boundary:** MAME's JUNO-106 skeleton driver currently uses UPD7810 devices, not UPD7811, although the relevant machine instructions are shared. Our separate *full MAME CPU execution of these windows* therefore constitutes independent opcode / register-state evidence, but not an 8-KiB original full-firmware run on correctly configured uPD7811 silicon. Nor does it independently prove ADC conversion clocks, UART ISR races, exact CPU-cycle latency or analogue sample-and-hold timing.
 
-### New global VCF MAME probe (test added; confirmation pending)
+### Global VCF MAME probe — verified
 
 `run_mame_vcf_global_probe.py` executes 43 original disassembly bytes
 `0x04CB..0x04F5`, entering at `0x04D5` and stopping before the
@@ -97,8 +97,8 @@ exercise all polarity combinations, near-zero crossings and boundaries.
 
 The probe does not validate source-side LFO/bend construction,
 original CPU interrupts, uPD7811 internal ROM, full 8 KiB code, or
-whole scheduler continuity. At documentation commit time, the
-new MAME CI result has **not yet been certified as passing**.
+whole scheduler continuity. **MAME CPU probe #18 SUCCESS:**
+64/64 compiled-production comparisons passed.
 
 **uPD7811 mapping hazard:** MAME's UPD7811 device maps 4 KiB
 internal program ROM while its JUNO-106 skeleton driver explicitly uses
@@ -106,7 +106,7 @@ UPD7810 and an 8 KiB external module ROM image. An UPD7811 test
 requires a validated chip/ROM provenance and correct memory mapping,
 not just a device-name swap.
 
-### Global-to-voice linked execution (new, CI unverified at initial commit)
+### Global-to-voice linked execution — MAME CI #19 VERIFIED
 
 `run_mame_vcf_linked_probe.py` uses 64 deterministic initial states and
 launches each in one actual MAME UPD7810 process. The synthetic setup
@@ -136,10 +136,15 @@ interrupts. The comparison reuses existing `vcf_global_reference_cli`
 and `vcf_chain_reference_cli` C executables rather than adding a
 Python clone of production signal arithmetic.
 
-The first CI result must be checked before calling this a PASS.
-The separate earlier global-only **64/64 MAME probe #18 did pass**,
-raising the previously independently verified running tally to
-186/186 process scenarios.
+**Verified GitHub Actions MAME CPU probe #19** on commit `3d28692`:
+all **64/64 linked CPU scenarios PASS**; terminal CI result **SUCCESS**.
+Real MAME EA, FF6A, FF6B, SP and HL checks completed. The four
+preceding stages also succeeded (28 ADC + 52 clamp + 42 voice + 64 global),
+so **250/250 selected independent MAME CPU process scenarios** passed.
+This tally is a sum of distinct synthetic test invocations, not an assertion
+of complete instruction or full original firmware coverage. Host-tests
+#321 also passed 18/18 on the same code commit. The new test's synthetic
+bridge still prevents any claim of uninterrupted original ROM/ENV/IRQ timing.
 
 ### Limitations / open strict gate
 
