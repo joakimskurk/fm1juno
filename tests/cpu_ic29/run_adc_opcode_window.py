@@ -205,7 +205,7 @@ class CPU:
             raise AssertionError("unexpected stack balance")
 
 
-def expected_from_production(native_cli: Path) -> list[tuple[int, int]]:
+def expected_from_production(native_cli: Path) -> list[tuple[int, ...]]:
     # The helper is an independently compiled binary linked to fm1juno_core.
     # No Python replacement of production arithmetic is accepted as the
     # comparison target.
@@ -234,21 +234,16 @@ def verify(source: Path, native_cli: Path) -> None:
             cpu = CPU(original_window, old=old, fresh=fresh,
                       extras=case_number % 2)
             cpu.run()
-            result = (cpu.ram[0xFF80], cpu.ram[0xFF88])
+            # Four channels, two output RAM byte banks per channel.
+            # This tests loop/DE/HL increments and DAC+8 addressing as
+            # well as the actual ADC integer transfer function.
+            result = tuple(value for i in range(4) for value in
+                           (cpu.ram[0xFF80+i], cpu.ram[0xFF88+i]))
             if result != references[case_number]:
                 raise AssertionError(
                     "ORIGINAL IC29 opcode mismatch old=%d fresh=%d: "
                     "CPU=%r native=%r" %
                     (old, fresh, result, references[case_number]))
-            # The other three ADC channels really executed too; test their
-            # memory layout rather than masking a bad instruction branch.
-            for i in range(1, 4):
-                raw = cpu.ram[0xFF5D + i]
-                held = cpu.ram[0xFF80 + i]
-                conditioned = cpu.ram[0xFF88 + i]
-                if not (0 <= raw <= 255 and 0 <= held <= 255 and
-                        0 <= conditioned <= 255):
-                    raise AssertionError("invalid channel output")
             all_executed.update(cpu.visited)
             all_skipped.update(cpu.skipped)
             steps += cpu.steps
@@ -265,7 +260,7 @@ def verify(source: Path, native_cli: Path) -> None:
     print("IC29_ADC_OPCODE_EXECUTION: PASS")
     print("source: public ic29.txt disassembly, original bytes loaded at runtime")
     print("window: 0x0800..0x0824 sha256=" + WINDOW_SHA256)
-    print("production comparisons: 65536/65536 (held byte, conditioned byte)")
+    print("production comparisons: 65536/65536 input histories x 4 physical channels")
     print("executed+skipped instruction sites: %d" %
           len(all_executed | all_skipped))
     print("interpreted CPU instruction steps: %d" % steps)
