@@ -1,0 +1,42 @@
+name: MAME six-voice ADC handoff gate
+
+on:
+  pull_request:
+    paths:
+      - "tests/cpu_ic29/run_mame_six_voice_adc_handoff.py"
+      - "tests/cpu_ic29/run_mame_six_voice_original_loop.py"
+      - "tests/cpu_ic29/run_mame_cpu_probe.py"
+      - "src/control106/**"
+      - ".github/workflows/mame-six-adc-handoff.yml"
+  workflow_dispatch:
+
+jobs:
+  adc-handoff-cpu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install independent MAME CPU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends mame
+      - name: Build compiled native control and ADC references
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel --target fm1juno_envelope_attack_reference fm1juno_envelope_decay_release_reference fm1juno_vcf_global_reference fm1juno_vcf_chain_reference fm1juno_native_adc_reference
+      - name: Download unofficial public IC29 source (no original binary vendored)
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/ErroneousBosh/j106roms/master/ic29.txt \
+            --output build/ic29_public_disassembly.txt
+      - name: Execute six original voices and both ADC-bank service branches under MAME
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_six_voice_adc_handoff.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_native_adc_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
