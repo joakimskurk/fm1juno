@@ -307,9 +307,9 @@ obtaining separately authenticated original firmware cannot close the strict
 UPD7811/full-ROM fidelity gate. Source: MAME `upd7810.cpp` and
 `juno106.cpp`.
 
-## 15. Original global-to-voice VCF transfer — new integration probe
+## 15. Original global-to-voice VCF transfer — externally verified
 
-**Code committed; new independent MAME CI not yet certified as passing.**
+**Verified: MAME independent CPU probe #19 SUCCESS on commit `3d28692`; 64/64 new linked VCF scenarios passed.** Together with the earlier 186 independently verified isolated runs, **250/250 selected MAME process runs passed**. GitHub host-tests #321 passed 18/18 on the same test-code commit.
 
 The `tests/cpu_ic29/run_mame_vcf_linked_probe.py` test starts the stock
 MAME JUNO-106 `UPD7810` module CPU at `0x04D5` with synthetic working
@@ -333,9 +333,9 @@ ENV polarity/scaling, Key Follow and final VCF clamp.
   **production C** from `fm1juno_vcf_global_reference` and
   `fm1juno_vcf_chain_reference`; also validates stack pointer and
   pitch pointer at exit. The original ROM is not distributed.
-- Stage runs in `.github/workflows/mame-independent-cpu-probe.yml`.
+- Stage runs in `.github/workflows/mame-independent-cpu-probe.yml`. All 64 linked CPU cases match compiled production output; original global FF6A sign, SP and pitch pointer checks also passed.
 
-**Scope:** This is a linked original-byte VCF control arithmetic *probe*,
+**Scope:** This is a **verified** linked original-byte VCF control arithmetic *probe*,
 not uninterrupted original whole-ROM execution. It does **not** cover
 original ENV evolution, 6-voice looping, ADC scan timing, IRQ interleaving,
 UPD7811 internal ROM, 8253 clocks or audio. Keep P1.1 strict gate OPEN
