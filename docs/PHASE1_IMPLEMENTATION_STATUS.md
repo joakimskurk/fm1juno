@@ -113,7 +113,8 @@ Still open before **P1.1 exact digital/control exit**:
 - [ ] Certify a ROM-equivalent divisor base or explicitly label/configure the accepted non-exact tier.
 - [x] Independent test-only uPD7811 ALU semantics oracle passes exhaustive 256×256 ADC raw/held grid, 2,016 structured VCF cases and 90,000 seeded VCF carry/borrow permutations.
 - [x] Execute the original published IC29 opcode bytes in separate bounded uPD7811 instruction-window runners for ADC (0x0800..0x0824) and VCF final saturation (0x0609..0x0618); compare with compiled production C.
-- [ ] Execute the windows under a separately maintained full uPD7811 CPU core (e.g. MAME) and prove original chip/ROM provenance. The bounded runners are not equivalent to a full-chip cycle-accurate CPU.
+- [x] Execute representative ADC and VCF opcode windows under the **independently maintained MAME UPD7810 CPU device** with generated test bootstrap and compare actual CPU RAM/EA to compiled C; 28 ADC + 52 VCF PASS.
+- [ ] Run under an actual UPD7811-configured CPU and independently sourced full original Roland ROM with cycle/interrupt semantics; the MAME UPD7810 + synthetic bootstrap window probes do **not** close this strict gate.
 - [x] Independent Mode-3 vectors now exercise normal even/odd counts, N=0→65536, high/low pending writes, repeated pending overwrites, fractional-sample reset and range-specific reset timings.
 - [ ] Original 8253 count=1/3 corner behavior, GATE/CLK alignment, live-range phase switching and actual MSB-write-to-first-edge timing still need independent hardware-level validation.
 - [x] `LFO_DELAY_AND_MOD_SCALE`, `PITCH_AND_PORTAMENTO`, `VCF_GLOBAL_BASE`, `ENV_VCA_VCF_VOICE`, `ADC_PERFORMANCE` and `LFO_ADVANCE` now update persistent digital control state when raw-parameter mode is active.
@@ -243,9 +244,22 @@ Files: tests/cpu_ic29/, two additional test-only C executables in CMake, new CI 
 
 **Still open:** original full ROM binary under a separately validated complete uPD7811 engine such as MAME, ADC automatic acquisition/interrupt phase and CPU overlays, complete VCF arithmetic PC path, actual live 8253 phase and ROM-exact divisor/curve proof. Do not mark P1.1 exact completed on the strength of isolated windows.
 
-## 12. Next implementation slice
+## 12. Independent MAME CPU core — implemented, externally green
 
-1. Build a **proper external MAME CPU-core harness** using verified original ROM provenance and injected CPU RAM/PC states. Compare its output against these exact short opcode-window traces; never just reimplement the decoder a third time.
+This is the first **separately maintained full CPU interpreter** executing original *published IC29 opcode bytes*, distinct from our locally authored bounded instruction-window runner.
+
+- MAME **v0.285** installed in a separate GitHub Actions job; the existing MAME JUNO-106 skeleton currently attaches **UPD7810** for the module controller, not UPD7811. An isolated, generated synthetic boot ROM seeds registers/RAM and invokes the original SHA-256-pinned ADC/VCF instruction windows. A real MAME debugger breakpoint reads CPU memory/EA.
+- **28/28 ADC scenarios passed**, comparing four physical channels (held + conditioned codes) against the compiled fm1juno C production code at the same input state. Key ±1 deadband and correction boundaries were included.
+- **52/52 VCF saturation scenarios passed**, covering 13 16-bit EA boundary values × four FF6B flag states. The executed MAME EA result matches compiled VCF code and independent window oracle.
+- CI: **MAME independent CPU probe #4 SUCCESS**; regular **host-tests #286 SUCCESS, 18/18 CTests**. The MAME job runs only for PR changes touching CPU probe paths or by manual dispatch, not on every normal host-test change.
+- The original Roland binary is neither present nor reconstructed as a claimed complete image. MAME emits the expected **wrong checksum** warning for synthetic, clearly labeled fixture ROMs. Nothing in these runs certifies original full-ROM / real chip / cycle-accurate interrupts.
+- Source and provenance: tests/cpu_ic29/run_mame_cpu_probe.py, tests/cpu_ic29/run_mame_vcf_probe.py, .github/workflows/mame-independent-cpu-probe.yml, and **docs/PHASE1_IC29_OPCODE_EXECUTION.md**.
+
+**Strict state remains P1.1_DIGITAL_IN_PROGRESS**. This is genuine independent CPU execution of two short routines, not full JUNO-106 firmware execution; no audio engine/WAV or FM-1 deploy is claimed.
+
+## 13. Next implementation slice
+
+1. **MAME UPD7810 CPU integration now exists and passes** for selected ADC and VCF opcode windows. Next: configure an explicit **UPD7811 device**, validate original ROM chip provenance and build reproducible PC/PSW/IRQ trace fixtures. Do not equate MAME's current JUNO-106 UPD7810 skeleton with an original powered-up JUNO-106.
 2. Extend original-byte execution from the final VCF saturation window backwards through its complete ENV + Key Follow 16-bit arithmetic. Include original overflow flag transitions and interrupt-safe resumption.
 3. Independently validate actual ADC bank scan/ISR timing, rather than only injected bank snapshots.
 4. Verify original 8253 GATE/prescaler range phase. Keep unknown clock phase as MEASURE_PENDING.
