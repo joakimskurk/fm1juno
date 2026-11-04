@@ -333,6 +333,60 @@ interrupt timing. The original post-service bend
 remain unexecuted. MAME's existing JUNO-106 CPU is
 UPD7810, *not* proven original UPD7811 silicon/full ROM.
 
+### Original 0020 ADC interrupt vector + 0070 ISR: direct and peripheral paths VERIFIED
+
+**Focused MAME original ADC ISR direct-opcode gate #4 SUCCESS**
+(code commit `5f27ee4`, GitHub Actions `41933092493`).
+The published source checksums are validated on every run:
+- `0x0020..0x0021` two-byte interrupt vector JRE,
+  SHA-256 `15c841dff8407a197a8be456d43283d973c0ba690724b24da5e5d0d6dbc70423`;
+- `0x0070..0x008D` 30-byte original ADC ISR, SHA-256
+  `d4578a044eed77c142a2bb1c9f252643e4a95e15a22833a7879b7ea63551ae61`.
+
+Two independent probes now guard a **critical distinction**:
+
+1. `tests/cpu_ic29/run_mame_adc_isr_direct_probe.py`:
+   **20/20 CPU case PASS**. A synthetic `JMP 0020`
+   follows the original source vector and ISR opcodes with MAME
+   debugger-controlled, nonzero ANM/CR0/CR1/CR2/CR3 inputs.
+   Checks primary A/BC/DE/HL/SP restoration by `EXA/EXX`,
+   FF5C **pre-toggle** ANM, original ANM XOR 08, FF5D..FF60
+   raw ADC register copy and MKH=05. Stops at `008D` *before
+   RETI*; there was no hardware event and no claim of interrupt
+   latency. MAME debugger integer values require explicit
+   hexadecimal `0xNN` to avoid radix-induced fixture drift.
+2. `tests/cpu_ic29/run_mame_adc_isr_peripheral_probe.py`:
+   **4/4 independently generated MAME internal-ADC IRQ/RETI
+   cases PASS**. Startup enables MAME UPD7810's
+   actual ANM scan, MKH=04 and global interrupt enable, then
+   executes an idle self-JMP `0x0010`. It never jumps to
+   original vector directly. MAME ADC conversion timers
+   generate INTFAD, then the CPU accepts vector `0020`
+   with SP `FFF0→FFED` and runs original ISR, including
+   `RETI` back to idle loop at SP=`FFF0`.
+   All four original scan modes 00/08/10/18 pass; the ISR
+   records FF5C=old ANM, toggles bit3 and masks MKH=05.
+
+The stock MAME JUNO-106 machine driver has **no analogue
+AN0..AN7 callback wiring**; the built-in CPU callback defaults
+to reading zero. Consequently the four peripheral IRQ tests
+capture CR0..CR3 all zero. This independently proves the
+**emulated CPU's IRQ/stack/RETI integration with the original
+ISR opcodes**, not the original JUNO-106 hardware's
+analogue conversion voltages/timing or UPD7811 memory map.
+The 20 direct-entry tests cover distinct nonzero ADC values
+but do not fire a real interrupt.
+
+Selected MAME CPU process repertoire: **760 scenarios**
+(736 prior, plus 20 direct original ISR and four genuine
+MAME-internal ADC interrupt round trips). The integrated
+full-matrix workflow now includes these two stages.
+Next phase requires deterministic test-only nonzero analogue
+AN0..AN7 callbacks, true IRQ-produced FF5C/CR inputs
+followed by original main-loop conditioning in one continuous
+CPU pass, CPU-variant/ROM provenance and real timing evidence.
+`docs/PHASE1_ADC_ISR_FIDELITY_GATE.md` is the living handoff.
+
 ### Limitations / open strict gate
 
 The **earlier bounded test interpreter** is not MAME's CPU core. The new MAME harness above now executes both windows using independently maintained MAME CPU code. However neither harness currently models/validates:
