@@ -29,7 +29,7 @@ The GitHub Actions workflow downloads the public IC29 annotated disassembly to a
 | 0x05C1..0x063B inclusive | Per-voice VCF ENV scaling, polarity, Key Follow and final clamp (MAME only) | `3b77378007f1fb96c884d707263af7a5cf9984dbe6df00b86d6cdf62c979be04` |
 | 0x04CB..0x04F5 inclusive | Global VCF cutoff + precomputed LFO + bend signed selection and FF6A carry/borrow (MAME only, new probe) | `08a0491367f316ed72992cfe3ecb2cef241efcdeb38b292c0b8eaa58b721ffc2` |
 
-These are checksums of three bounded *instruction windows* (the third overlaps the second), not evidence of a verified SHA-256/CRC for the complete original ROM. **No original Roland ROM binary or full disassembly is committed in fm1juno.**
+These are checksums of four bounded *instruction ranges* (the VCF voice path overlaps the clamp), not evidence of a verified SHA-256/CRC for the complete original ROM. **No original Roland ROM binary or full disassembly is committed in fm1juno.**
 
 ### Tests and actual execution
 
