@@ -91,3 +91,14 @@ jobs:
             --voice-cli build/fm1juno_vcf_chain_reference \
             --mame /usr/games/mame \
             --case-timeout 14
+      - name: Verify native original six-voice to ADC bank servicing continuity in MAME
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_six_voice_adc_handoff.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_native_adc_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
