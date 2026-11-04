@@ -21,7 +21,7 @@ jobs:
       - name: Compile real production ADC baseline
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --parallel --target fm1juno_native_adc_reference fm1juno_vcf_clamp_reference fm1juno_vcf_chain_reference fm1juno_vcf_global_reference fm1juno_envelope_attack_reference
+          cmake --build build --parallel --target fm1juno_native_adc_reference fm1juno_vcf_clamp_reference fm1juno_vcf_chain_reference fm1juno_vcf_global_reference fm1juno_envelope_attack_reference fm1juno_envelope_decay_release_reference
       - name: Fetch public disassembly (not vendored)
         run: |
           curl --fail --location --silent --show-error --retry 3 --max-time 30 \
@@ -68,6 +68,15 @@ jobs:
           python3 -u tests/cpu_ic29/run_mame_vcf_original_attack_probe.py \
             --ic29-disasm build/ic29_public_disassembly.txt \
             --envelope-cli build/fm1juno_envelope_attack_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Execute original first-voice DECAY and RELEASE paths with native 083D multiplier in MAME
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_vcf_original_decay_release_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --envelope-cli build/fm1juno_envelope_decay_release_reference \
             --global-cli build/fm1juno_vcf_global_reference \
             --voice-cli build/fm1juno_vcf_chain_reference \
             --mame /usr/games/mame \
