@@ -341,10 +341,12 @@ original ENV evolution, 6-voice looping, ADC scan timing, IRQ interleaving,
 UPD7811 internal ROM, 8253 clocks or audio. Keep P1.1 strict gate OPEN
 irrespective of this probe's outcome.
 
-## 16. Next bounded P1.1 engineering slice after linked VCF #19
+## 16. Former next slice — first-voice original ATTACK path now completed
 
-**Target: remove or reduce the explicitly synthetic envelope bridge in the
-linked MAME VCF test, one original code branch at a time.**
+**Achieved for the first voice's ATTACK branch only.** The previous
+linked VCF test keeps its independently verified synthetic-seam fixture;
+the new independent original-ATTACK test executes the real published
+0x0503..0x05BF branch and its original lookup/DAC dependencies.
 
 1. Extract and SHA-256 pin the published `0x0503..0x05BF` envelope-update
    byte range. First model an easily controlled original path (e.g. inactive
@@ -368,5 +370,75 @@ linked MAME VCF test, one original code branch at a time.**
 
 **Done so far: 250/250 MAME process scenarios at code commit `3d28692`.
 This does not change the strict P1.1 exit criteria.**
+
+## 17. First-voice original IC29 ATTACK → VCF — MAME #25 verified
+
+**MAME independent CPU probe #25 SUCCESS (code commit `1553a03`): 144/144
+original ATTACK cases passed.** Existing 250/250 prior CPU scenarios
+passed in the same workflow, giving **394/394 selected independent MAME
+CPU process scenarios**. Native host-tests #339 and #340 also passed
+on the subsequent unit-regression commit `362d537`; #26 reruns the
+full MAME set on that commit.
+
+The new `tests/cpu_ic29/run_mame_vcf_original_attack_probe.py` installs
+the original published IC29 instructions **continuously** from
+`0x04CB..0x063B` (369 bytes), the original `0x082F..0x083C` DAC
+output helper (14 bytes), and all 128 published original attack
+lookup words `0x0B60..0x0C5F` (256 bytes). It enters at `0x04D5`
+and follows the original first-voice **ATTACK** branch, including
+envelope addition, exact 0x3FFF clamp, phase bits, PWM DAC, global stack
+handoff, ENV modulation, Key Follow and VCF final saturation.
+**There is no synthetic instruction bridge within this ATTACK path.**
+The harness still injects source-side cutoff/LFO/bend, initial envelope,
+pitch, flags, and RAM; there is no full original firmware cold start.
+
+Published source byte SHA-256 checkpoints:
+- `0x04CB..0x063B` original 369 code bytes:
+  `e3550dc3c7731630b737ede97a47d6029d33929d5b480540d876ce99c42ac365`.
+- `0x082F..0x083C` original DAC helper:
+  `3357c20d1baeed42f251020e287554626d94b061da5e8bd2f59e7db41c0f8310`.
+- `0x0B60..0x0C5F` original 128 16-bit attack coefficients:
+  `faef5ad5666a501bfe373f0af4cb345cae8ec6c569821873bb15f69f71ec3eea`.
+
+All 128 table indices plus 16 boundary vectors run as separate MAME
+processes and compare against separately compiled production
+`envelope106_attack_increment`, `envelope106_attack_tick`,
+`vcf106_global_raw` and `vcf106_voice_code14`. The tests also
+inspect original FF27/28 envelope RAM, FF33 and FF08 phase masks, FF6A
+global sign, EA, SP, HL and voice registers.
+
+### Real discrepancy detected and fixed
+
+**MAME #24 failed only at case 139 (zero-based 138)**, after 138
+preceding matches. Exact landing `0x3F80 + 0x007F = 0x3FFF`
+produced envelope level `0x3FFF` but left original IC29's FF33/FF08
+phase bits **unset**. Our C `envelope106_tick` incorrectly switched
+ATTACK→DECAY when level was merely equal to the limit. The original
+branch sets these bits only on strict **sum > 0x3FFF**. We corrected
+production `src/control106/envelope106.c`, fixed the compiled CLI to
+report *phase transition* rather than merely level maximum, and added
+a native regression checking equality and the next tick. In MAME #25,
+that same index64 exact-boundary vector passed with ENV=0x3FFF and
+SAT=0, as did all remaining boundary vectors. The correction is
+evidence-led, not an unverified acoustic approximation.
+
+### Next work; strict gate STILL OPEN
+
+1. Exercise the original DECAY and RELEASE branches at `0x0503..0x05BF`
+   with the published `0x083D` envelope multiplier helper and
+   coefficient RAM, comparing per-phase level and flag evolution with
+   native production C.
+2. Extend from the first voice to a bounded original six-voice
+   control pass, including the original per-voice pointer/stack and
+   DAC path, while clearly labeling any unavailable peripheral state.
+3. Validate ADC bank/IRQ entry timing, original 8253 phase and real
+   module CPU variant/ROM provenance. MAME's JUNO-106 driver still
+   instantiates UPD7810 rather than a proven authentic UPD7811 setup.
+4. Keep `DERIVED_APPROXIMATE` pitch and DCO CV fidelity tiers until
+   real independently calibrated evidence exists.
+
+**P1.1_DIGITAL_IN_PROGRESS remains OPEN. No real original ROM image,
+cycle-accurate original machine, physical FM-1 deployment or waveform
+engine/audio result has been certified.**
 
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
