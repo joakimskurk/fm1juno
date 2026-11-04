@@ -112,7 +112,8 @@ Still open before **P1.1 exact digital/control exit**:
 - [ ] Extend raw producer to complete Roland protocol/ADC scan semantics and verify macro and cycle-level timing against executable CPU traces.
 - [ ] Certify a ROM-equivalent divisor base or explicitly label/configure the accepted non-exact tier.
 - [x] Independent test-only uPD7811 ALU semantics oracle passes exhaustive 256×256 ADC raw/held grid, 2,016 structured VCF cases and 90,000 seeded VCF carry/borrow permutations.
-- [ ] Execute original IC29 instruction windows in a separately validated original-compatible uPD7811 core; the oracle above independently models selected operations but does **not** execute original ROM.
+- [x] Execute the original published IC29 opcode bytes in separate bounded uPD7811 instruction-window runners for ADC (0x0800..0x0824) and VCF final saturation (0x0609..0x0618); compare with compiled production C.
+- [ ] Execute the windows under a separately maintained full uPD7811 CPU core (e.g. MAME) and prove original chip/ROM provenance. The bounded runners are not equivalent to a full-chip cycle-accurate CPU.
 - [x] Independent Mode-3 vectors now exercise normal even/odd counts, N=0→65536, high/low pending writes, repeated pending overwrites, fractional-sample reset and range-specific reset timings.
 - [ ] Original 8253 count=1/3 corner behavior, GATE/CLK alignment, live-range phase switching and actual MSB-write-to-first-edge timing still need independent hardware-level validation.
 - [x] `LFO_DELAY_AND_MOD_SCALE`, `PITCH_AND_PORTAMENTO`, `VCF_GLOBAL_BASE`, `ENV_VCA_VCF_VOICE`, `ADC_PERFORMANCE` and `LFO_ADVANCE` now update persistent digital control state when raw-parameter mode is active.
@@ -227,12 +228,27 @@ New isolated regression source: tests/unit/test_upd7811_flag_oracle.c, with **no
 
 **Important:** Independent arithmetic-model comparisons support these local integer laws, but do not prove cycle-accurate uPD7811 full-program execution, asynchronous interrupts, ADC clock phase or derived note tables. See docs/PHASE1_UPD7811_FLAG_VALIDATION.md for explicit bounds.
 
-## 11. Next implementation slice
+## 11. Original IC29 machine-opcode windows — implemented, tested
 
-1. Execute **original IC29 ROM instruction windows** under a separately validated uPD7811 emulator/cycle harness (MAME's existing CPU core is one independent candidate). Start with ADC address 0x0800–0x0824, then VCF address 0x04D5–0x0640 as feasible.
-2. Independently validate automatic ADC bank alternation and scan/interrupt timing rather than just injected bank snapshots.
-3. Verify physical clock/prescaler and 8253 gate/range transitions; keep unknown phase as **MEASURE_PENDING**.
-4. Distinguish the generated DERIVED_APPROXIMATE 8253 divisor and DCO-CV laws from genuinely ROM-exact data with a machine-readable fidelity gate.
-5. Review strict P1.1 exit before MC5534/80017A audio implementation.
+**This is actual opcode execution from the independently published IC29 disassembly bytes, not just mathematical oracle calculations.** The two bounded uPD7811 window decoders are project test-only implementations whose instruction semantics are cross-checked against MAME, **not a full MAME/uPD7811 CPU port**.
 
-fm1juno_render is still trace-only, not a WAV renderer or verified FM-1 runtime.
+- ADC original code **0x0800..0x0824**: real PC/stack, 8-bit A/B/C, HL/DE RAM pointers, SUBNBX/SUINB/GTI/ADDNC conditional skip, JRE/JR, original four-channel loop, processed RAM writes at DE+8. Tested against the **compiled actual production ADC code** for all **65,536 old/new channel-0 pairs × all four physical channels**, including other-channel crossover/threshold vectors.
+- VCF final saturation original code **0x0609..0x0618**: original LXI EA, MOV A,EAH, ONI, ONIW, JRE and FF6B overflow flag. All **262,144 16-bit EA / flag combinations** executed. **229,376** reachable signed input states independently compared with the compiled production VCF control function.
+- The original bytes are **not vendored**. Actions downloads public ErroneousBosh/j106roms/ic29.txt into a build-temp file at runtime, extracts those exact PC ranges, and rejects any changed/missing source with **SHA-256 pinned window digests**.
+- Strict PC exit and instruction allowlists catch unknown opcodes, unexpected jump/RET, source changes and arithmetic mismatches. The public annotated disassembly is explicitly described as partial/inaccurate/incomplete by its author; the hash authenticates **that transcription**, not the original silicon.
+
+**Verified:** CI **#256** passed the first 65,536 ADC comparisons and 5,054,976 interpreted CPU steps; CI **#264** passed the VCF opcode window; CI **#268** passed with ADC extended to all four channels. All 18 existing CTests remained green.
+
+Files: tests/cpu_ic29/, two additional test-only C executables in CMake, new CI steps in .github/workflows/host-tests.yml, and methodology/limitations in docs/PHASE1_IC29_OPCODE_EXECUTION.md.
+
+**Still open:** original full ROM binary under a separately validated complete uPD7811 engine such as MAME, ADC automatic acquisition/interrupt phase and CPU overlays, complete VCF arithmetic PC path, actual live 8253 phase and ROM-exact divisor/curve proof. Do not mark P1.1 exact completed on the strength of isolated windows.
+
+## 12. Next implementation slice
+
+1. Build a **proper external MAME CPU-core harness** using verified original ROM provenance and injected CPU RAM/PC states. Compare its output against these exact short opcode-window traces; never just reimplement the decoder a third time.
+2. Extend original-byte execution from the final VCF saturation window backwards through its complete ENV + Key Follow 16-bit arithmetic. Include original overflow flag transitions and interrupt-safe resumption.
+3. Independently validate actual ADC bank scan/ISR timing, rather than only injected bank snapshots.
+4. Verify original 8253 GATE/prescaler range phase. Keep unknown clock phase as MEASURE_PENDING.
+5. Preserve the DERIVED_APPROXIMATE pitch divisor/DCO CV fidelity tier until independently calibrated/ROM-exact.
+
+fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
