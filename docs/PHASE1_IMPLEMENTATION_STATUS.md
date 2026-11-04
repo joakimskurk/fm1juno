@@ -670,4 +670,60 @@ DCO-CV/divisor curve and hardware timing as OPEN.
 
 **Current phase: P1.1_DIGITAL_IN_PROGRESS; PR #3 remains draft/unmerged.**
 
+## 22. Original ADC ISR vector and internal ADC-triggered interrupt — verified
+
+**Focused MAME original ADC ISR gate #4 SUCCESS** at code commit
+`5f27ee4` (run `41933092493`) in two independently observed parts:
+
+- **20/20 direct-entry CPU cases PASS:** synthetic boot `JMP
+  0x0020` executes the original published interrupt vector and
+  `0x0070..0x008C` ISR under MAME UPD7810, then stops before
+  RETI at `0x008D`. Real MAME `ANM` and `CR0..CR3` register
+  values are injected by explicit debugger expressions. Bank-mode
+  XOR, pre-toggle FF5C RAM, four FF5D..FF60 bytes, MKH=05 and
+  primary A/BC/DE/HL/SP preservation all match the source semantics.
+  **Do not call a synthetic jump an actual interrupt.**
+- **4/4 MAME internal-ADC-triggered IRQ/RETI round trips PASS:**
+  synthetic boot sets CPU ANM/MKH/interrupt enable and waits in an
+  idle loop, never jumps to the interrupt vector. MAME's *internal*
+  ADC scan timer generates INTFAD; MAME accepts the IRQ at
+  `0x0020`, stacks PSW/PC (`FFF0→FFED`), executes original
+  published `0x0070..0x008D`, and returns through the actual
+  original `RETI` to the previously interrupted main loop
+  (`SP=FFF0`). ANM toggles 00↔08 and 10↔18; FF5C holds the
+  pre-toggle mode, MKH=05.
+
+Original ISR source windows pinned:
+`0x0020..0x0021` checksum
+`15c841dff8407a197a8be456d43283d973c0ba690724b24da5e5d0d6dbc70423`
+and `0x0070..0x008D` checksum
+`d4578a044eed77c142a2bb1c9f252643e4a95e15a22833a7879b7ea63551ae61`.
+The source is an unofficial 4-KiB IC29 transcription, not an
+authenticated complete original Roland firmware ROM. These probes
+use the **MAME UPD7810** core, not verified actual UPD7811 silicon.
+
+**New cumulative test repertoire: 760 selected independent MAME
+CPU process scenarios** = 736 previously verified + 20 direct ISR
++ 4 internal-ADC-peripheral IRQ tests. The new full integrated
+MAME workflow runs these last two as separate additional stages.
+Native host-test status remains independent.
+
+**Important new verified boundary:** The MAME JUNO-106 driver
+does not wire AN0..AN7 to analogue input callbacks; stock MAME
+returns **zero** on those open callbacks. The four actually
+interrupt-driven cases verify *peripheral timer/IRQ acceptance,
+CPU stack/RETI and original ISR bank/control flow* with
+zero conversion input. They do **not** verify any nonzero
+JUNO-106 physical knob/bender voltage, true original ADC
+clock or channel sampling phase. Nor do they execute the
+original post-six-voice ADC service **in the same process as
+an interrupt-originated sample**. These are the next bounded
+requirements; do not silently conflate separate CPU proofs.
+
+For full source-level controls and the next test-only analogue
+input fixture plan see `docs/PHASE1_ADC_ISR_FIDELITY_GATE.md`.
+Preserve all existing original-ENV/VCF/ADC CPU stages.
+
+**Gate: P1.1_DIGITAL_IN_PROGRESS remains OPEN. PR #3 remains draft.**
+
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
