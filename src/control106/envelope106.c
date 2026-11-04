@@ -126,11 +126,19 @@ void envelope106_note_off(Envelope106 *env)
 uint16_t envelope106_tick(Envelope106 *env, const EnvelopeParams106 *p)
 {
     switch (env->phase) {
-    case ENVELOPE106_ATTACK:
+    case ENVELOPE106_ATTACK: {
+        /* Original IC29 0x0579..0x058E changes decay/release phase bits
+         * only when the 16-bit attack sum exceeds 0x3FFF. Landing
+         * exactly on 0x3FFF leaves the voice in ATTACK for one more
+         * control tick; the next positive increment crosses the bound.
+         * MAME original-byte test case 138 found this strict boundary. */
+        const uint32_t raw_sum = (uint32_t)env->level
+            + (uint32_t)p->attack_increment;
         env->level = envelope106_attack_tick(env->level, p->attack_increment);
-        if (env->level >= ENVELOPE106_MAX)
+        if (raw_sum > ENVELOPE106_MAX)
             env->phase = ENVELOPE106_DECAY;
         break;
+    }
     case ENVELOPE106_DECAY:
         env->level = envelope106_decay_tick(env->level,
                                              p->sustain_level,
