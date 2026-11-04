@@ -44,9 +44,40 @@ Both opcode interpreters enforce a narrow instruction allowlist: unknown branch 
 - **#264:** original VCF clamp opcode-runner passed 262,144 EA/flag combinations, including 229,376 comparisons against compiled production C. All 18 existing CTests passed.
 - Following #264, ADC comparison was extended to **all four channels**, still running all 65,536 combinations of old/new channel-0 history; count now represents 65,536 × 4 channel output comparisons. **CI #268 passed** with the new four-channel comparison and both opcode windows. Existing CTest: 18/18; ADC: 65,536 × 4 channel pairs; VCF: 262,144 opcode cases / 229,376 compiled-production comparisons.
 
+### Independent MAME CPU core execution — verified 2026-11-04
+
+**This is a different layer from our local bounded interpreter.** GitHub Actions installs the real **MAME v0.285** Ubuntu package, starts its existing JUNO-106 driver with the standalone **uPD7810 CPU device** for the module controller, and runs both original published machine-opcode windows in that independently maintained CPU implementation.
+
+Test-only harness, with **no genuine Roland ROM distributed or claimed**:
+
+- Tests create 8192-byte synthetic assigner and module ROM files in an isolated temporary directory. A deliberately small synthetic uPD7810 bootstrap sets the CPU V page, stack, HL/DE or EA, relevant RAM operands and then calls/jumps into the original disassembly-extracted, SHA-256-verified IC29 instruction bytes.
+- MAME correctly reports ROM **checksum mismatches** because these fixtures are synthetic. That warning is expected, never suppressed or treated as validation of original full-chip firmware.
+- A debugger breakpoint after the original instruction window logs actual MAME CPU memory/register values via debugger logerror. MAME's supported Qt debugger runs with QT_QPA_PLATFORM=offscreen. The subprocess must exit successfully **and** produce the tagged breakpoint result; a missing trace is a test failure.
+- The MAME debugger's JAM? No: these are ordinary supported CPU device breakpoint and memory/register commands. No original software audio or patches are run.
+- The output is independently compared against the **compiled project production C** (not a Python copy of its formulas). Original public opcodes are separately hashed and checked by the earlier window runner.
+
+**Actual executed samples:**
+
+| MAME module CPU | Inputs actually executed | Compare target | Outcome |
+|---|---:|---|---|
+| IC29 ADC $0800..$0824 | 28 selected previous/current ADC combinations, **all four channels** | compiled native_adc106 held + conditioned RAM (8 values per run) | **28/28 PASS** |
+| IC29 VCF clamp $0609..$0618 | 13 EA boundary words × all 4 combinations of FF6B low flag bits = **52 runs** | independently compiled vcf106_voice_code14 plus existing instruction-window oracle | **52/52 PASS** |
+
+**Verified runs:**
+- **MAME CPU probe #2:** the first 28 ADC scenarios passed, after fixing an initial unsupported console-debugger option.
+- **MAME CPU probe #4:** full two-stage gate passed **28 ADC + 52 VCF cases**, with all 4 ADC-channel bytes checked per case. MAME package: **v0.285**.
+- In parallel **host-tests #286** passed **18/18 CTests** plus the existing exhaustive original-byte tests (65,536 old/new ADC pairs x four channels and 262,144 wrapped VCF clamp flag-state cases).
+
+Files:
+- tests/cpu_ic29/run_mame_cpu_probe.py — actual MAME ADC core subprocess + synthetic fixtures and PC/RAM capture;
+- tests/cpu_ic29/run_mame_vcf_probe.py — actual MAME VCF EA/FF6B capture;
+- .github/workflows/mame-independent-cpu-probe.yml — separate, path-gated PR/dispatch workflow; ordinary host-tests stay lightweight.
+
+**Exactness boundary:** MAME's JUNO-106 skeleton driver currently uses UPD7810 devices, not UPD7811, although the relevant machine instructions are shared. Our separate *full MAME CPU execution of these windows* therefore constitutes independent opcode / register-state evidence, but not an 8-KiB original full-firmware run on correctly configured uPD7811 silicon. Nor does it independently prove ADC conversion clocks, UART ISR races, exact CPU-cycle latency or analogue sample-and-hold timing.
+
 ### Limitations / open strict gate
 
-The instruction-window interpreter is **not MAME's CPU core**. It does not currently model:
+The **earlier bounded test interpreter** is not MAME's CPU core. The new MAME harness above now executes both windows using independently maintained MAME CPU code. However neither harness currently models/validates:
 
 - original full-ROM cold start, interrupts and interrupt acceptance windows;
 - CPU cycle timing, interrupt flags, peripherals, ADC clock conversion and autonomous scan bank switching;
@@ -55,17 +86,19 @@ The instruction-window interpreter is **not MAME's CPU core**. It does not curre
 - instruction-level execution of DCO pitch/divisor construction, 8253 GPIO phase, live range changes or S/H aperture offsets;
 - measured original-unit behavior; hardware and MAME source are secondary evidence, **not** a bit-identical chip-fidelity certification.
 
-The next high-priority job is to **execute these same tests against a genuine separately maintained full uPD7811 core** (MAME CPU device or an independently validated equivalent) with RAM/PC injected at the routine entry, then expand from the local ADC/VCF windows to full serial/VCF execution. That step needs an appropriate host adapter and ROM provenance policy; do not imply this bounded runner already satisfies it.
+The next high-priority job is to run more original-byte control flow under an **explicit UPD7811-configured CPU device** with a separately validated original ROM provenance, then extend beyond the local ADC/VCF-clamp windows to the full serial/VCF path and timing/IRQ cases. The current independent MAME CPU probes are valuable verified partial evidence; do not reclassify them as full Roland CPU or full original ROM fidelity.
 
 ## CI invocation
 
-The standard host CMake/CTest gate remains unchanged. GitHub Actions adds, after the CTests, a byte-source download and two separate differential commands.
+The standard host CMake/CTest gate remains unchanged. GitHub Actions adds, after the CTests, a byte-source download and two bounded differential commands; the independent MAME CPU checks live in a separate path-gated workflow.
 
 Given a locally provided `ic29.txt` with bytes matching the pinned checksums:
 
 `python3 tests/cpu_ic29/run_adc_opcode_window.py --ic29-disasm PATH --native-cli build/fm1juno_native_adc_reference`
 
 `python3 tests/cpu_ic29/run_vcf_opcode_window.py --ic29-disasm PATH --native-cli build/fm1juno_vcf_clamp_reference`
+
+Independent MAME invocation (Ubuntu package version 0.285) is reproduced by the same dedicated workflow, after building fm1juno_native_adc_reference and fm1juno_vcf_clamp_reference. The synthetic ROM generator refuses unpinned source bytes and validates a debugger checkpoint before allowing PASS.
 
 The download is an explicit CI dependency, not a hidden fallback to guessed ROM contents. The public disassembly's author explicitly describes it as partial/inaccurate/incomplete; therefore even a verified checksum only authenticates that *published transcription*, not an original Roland chip dump. A changed/unavailable source fails this extra gate. When working offline, run the unchanged CTest suite and pass a separately obtained verified original disassembly file for the opcode gate.
 
