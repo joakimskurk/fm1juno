@@ -176,6 +176,34 @@ static int test_lfo_delay_and_performance_path(void)
     return 0;
 }
 
+static int test_envelope_attack_exact_boundary_phase(void)
+{
+    /* The original MAME-executed IC29 0x0579..0x058E path sets
+     * decay/release phase bits on STRICT overflow, not on equality. */
+    Envelope106 env = {0};
+    EnvelopeParams106 p = {0};
+    p.attack_increment = UINT16_C(0x007f);
+    env.level = UINT16_C(0x3f80);
+    env.phase = ENVELOPE106_ATTACK;
+    CHECK(envelope106_tick(&env, &p) == ENVELOPE106_MAX);
+    CHECK(env.phase == ENVELOPE106_ATTACK);
+    CHECK(envelope106_tick(&env, &p) == ENVELOPE106_MAX);
+    CHECK(env.phase == ENVELOPE106_DECAY);
+
+    env.level = UINT16_C(0x3f7f);
+    env.phase = ENVELOPE106_ATTACK;
+    CHECK(envelope106_tick(&env, &p) == UINT16_C(0x3ffe));
+    CHECK(env.phase == ENVELOPE106_ATTACK);
+    CHECK(envelope106_tick(&env, &p) == ENVELOPE106_MAX);
+    CHECK(env.phase == ENVELOPE106_DECAY);
+
+    env.level = ENVELOPE106_MAX;
+    env.phase = ENVELOPE106_ATTACK;
+    CHECK(envelope106_tick(&env, &p) == ENVELOPE106_MAX);
+    CHECK(env.phase == ENVELOPE106_DECAY);
+    return 0;
+}
+
 static int test_envelope_primitives(void)
 {
     CHECK(envelope106_attack_tick(0u, 0x4000u) == ENVELOPE106_MAX);
@@ -383,6 +411,7 @@ int main(void)
     if (test_stateful_envelope()) return EXIT_FAILURE;
     if (test_lfo_delay_and_performance_path()) return EXIT_FAILURE;
     if (test_envelope_primitives()) return EXIT_FAILURE;
+    if (test_envelope_attack_exact_boundary_phase()) return EXIT_FAILURE;
     if (test_lfo_rate_law()) return EXIT_FAILURE;
     if (test_lfo_phase_sequence()) return EXIT_FAILURE;
     if (test_portamento()) return EXIT_FAILURE;
