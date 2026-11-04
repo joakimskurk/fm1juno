@@ -479,10 +479,14 @@ nor a real UPD7811 chip. MAME #31 confirms the **original first-voice
 ATTACK, DECAY and RELEASE arithmetic paths** (on their separately seeded
 entry states), not natural phase transitions through an entire note life.
 
-## 19. Next original ROM slice: bounded six-voice control pass
+## 19. Six-voice original control loop — independently verified
 
-**Goal: verify the natural 6-voice envelope/VCF loop while retaining
-the original program-flow and DAC instruction bytes.**
+**Achieved in a bounded input-state test.** The original published
+IC29 CPU executes one uninterrupted six-voice envelope/VCF pass with
+18 seeded phase-pattern scenarios (108 compared voice calculations).
+The continuation below at section 20 supersedes the earlier plan.
+**Focused MAME six-voice gate #2 SUCCESS** on commit `a35e621`,
+and host-tests #366/#367 passed at the same code commit.
 
 The public IC29 listing shows a natural loop after the currently
 checked per-voice VCF checkpoint:
@@ -509,5 +513,82 @@ Prove branch-local behavior first; do not claim full original schedule,
 six-voice audio, original UPD7811 silicon or IRQ timing.
 
 **Current gate: P1.1_DIGITAL_IN_PROGRESS remains OPEN.**
+
+## 20. MAME original six-voice ENV/VCF loop — verified
+
+**Focused GitHub Actions `MAME original six-voice loop gate` #2 SUCCESS
+on commit `a35e621`: 18/18 complete six-voice CPU loop scenarios,
+108 individual voice ENV+VCF comparisons, six VCF-DAC pre-call and
+return checkpoints per loop.** No new production-engine discrepancy
+was detected in these inputs. The original 682 earlier CPU processes
+were independently verified by MAME #35. The combined tested repertoire
+is **700 selected CPU process scenarios** (682 prior + 18 six-voice);
+the full seven-stage MAME matrix plus the new eighth stage is also
+being exercised under workflow #39.
+
+The new `tests/cpu_ic29/run_mame_six_voice_original_loop.py` starts
+at original `0x04D5`, executes the published original bytes through
+the complete **`0x04CB..0x0651`** global VCF + six repeated
+`0x0503..0x0650` envelope/VCF/DAC loop passes, and stops at
+`0x0652` *after* the sixth voice's original `POP EA`.
+No synthetic instruction bridge exists inside the validated control
+region. There is an explicitly synthetic register/RAM/ROM bootstrap
+and synthetic unexecuted stop loop at `0x0652`.
+
+The original newly executed loop-tail bytes are **0x063C..0x0651**
+(22 bytes), SHA-256
+`839530afc63bf2e980c9f9d4a51df5a0527a092504ad228117f76724ce8fcf25`.
+Earlier original hash checks remain in force for 0x04CB..0x063B,
+0x082F..0x083C original DAC helper, 0x083D..0x0850 multiplication
+helper and 0x0B60..0x0C5F attack lookup. The published disassembly is
+unofficial, not independently authenticated original firmware.
+
+There are 18 reproducible cases: all ATTACK, all DECAY, all RELEASE,
+and 15 mixed six-voice phase-mask combinations, with varied pitch,
+sustain, envelope levels, global cutoff/LFO/bend, ENV depth,
+polarity and Key Follow. The case-level coefficient and panel values
+are shared among all six voices (as they must be in the original
+architecture). A synthetic boot initializes each voice's FF27..FF32
+envelope words, FF71..FF7C 8.8 pitch words and FF07/08/11/33
+voice masks. Expected updated envelope/VCF values come solely from
+separately compiled production C (ATTACK, DECAY/RELEASE, global VCF,
+per-voice VCF).
+
+A real MAME debugger records **six** original `0x063C` VCF outputs
+and **six** post-`CALF 0x082F` `0x0640` returns. It checks
+individual VCF values before and after every original DAC helper,
+all six resulting envelope words, phase masks, FF6A global sign,
+FF0F voice index `06`, FF34 next voice mask `40`,
+SP `FFF0`, HL `FF7D`, and DE `FF31` after original `0x0651`
+POP EA. These are **CPU checkpoint and helper-return checks**;
+they do not yet measure electrical DAC pin values or timing.
+
+### Test-harness discrepancy fixed
+
+The first focused MAME run #1 reached all six VCF and DAC
+checkpoints with correct final pointers but marked failure because
+the Python harness concatenated **the same debugger log messages**
+from both stdout/stderr and MAME's `error.log`, falsely counting
+12 events instead of six. Commit `a35e621` selects the authoritative
+log file when it contains those markers. Focused #2 immediately passed
+all 18 six-voice cases, including all 108 compiled C comparisons.
+This was a harness correction, **not** a production audio/control
+math rewrite.
+
+### Next P1.1 verification work
+
+1. Prove timing/ordering across the original loop exit
+   `0x0652..` ADC processing and ISR bank changes using verified
+   CPU peripheral/interrupt setup, separately from synthetic fixed
+   RAM snapshots.
+2. Resolve IC29 UPD7810/UPD7811 hardware variant and the real
+   external/internal firmware ROM mapping. Do not call the MAME
+   JUNO-106 skeleton full original Roland firmware.
+3. Validate 8253 GATE/prescaler update timing, pitch/divider/DCO
+   curve exactness and calibrated DAC/S&H slot measurements.
+4. Keep phase #P1.1 gate open and the analogue/audio engine out
+   of scope until reviewed evidence allows the next milestone.
+
+**Current phase remains P1.1_DIGITAL_IN_PROGRESS.**
 
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
