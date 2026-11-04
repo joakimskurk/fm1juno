@@ -266,7 +266,7 @@ This is the first **separately maintained full CPU interpreter** executing origi
 4. Verify original 8253 GATE/prescaler range phase. Keep unknown clock phase as MEASURE_PENDING.
 5. Preserve the DERIVED_APPROXIMATE pitch divisor/DCO CV fidelity tier until independently calibrated/ROM-exact.
 
-## 14. Original IC29 global VCF opcode slice — CI verification pending
+## 14. Original IC29 global VCF opcode slice — verified against MAME
 
 The newly added MAME probe now starts at `0x04D5` and executes the pinned
 original bytes covering `0x04CB..0x04F5` (43 bytes). The original control
@@ -286,8 +286,10 @@ base in EA before voice processing.
   `08a0491367f316ed72992cfe3ecb2cef241efcdeb38b292c0b8eaa58b721ffc2`
   and fetched from the existing public IC29 listing at test time.
 - New CMake target `fm1juno_vcf_global_reference` is wired to the separate
-  MAME GitHub Actions workflow. **Do not claim passing cases until that
-  workflow finishes green on the actual new test commit.**
+  MAME GitHub Actions workflow. **MAME CPU probe #18 SUCCESS** on commit `84c853e`:
+  **64/64 global VCF** cases matched production C, alongside 28 ADC,
+  52 VCF clamp and 42 ENV/Key Follow cases (186/186 selected runs).
+  Host-tests #318 also passed.
 
 This does **not** execute preceding LFO generation, calibration tables or
 physical ADC acquisition. The test injects their already-computed integer
@@ -304,5 +306,39 @@ type without resolving the chip's actual internal/external ROM mapping and
 obtaining separately authenticated original firmware cannot close the strict
 UPD7811/full-ROM fidelity gate. Source: MAME `upd7810.cpp` and
 `juno106.cpp`.
+
+## 15. Original global-to-voice VCF transfer — new integration probe
+
+**Code committed; new independent MAME CI not yet certified as passing.**
+
+The `tests/cpu_ic29/run_mame_vcf_linked_probe.py` test starts the stock
+MAME JUNO-106 `UPD7810` module CPU at `0x04D5` with synthetic working
+RAM; executes the published, hash-checked original bytes
+`0x04CB..0x0502`, including the global sign selection, 16-bit arithmetic,
+`FF6A` flag and original global `PUSH EA` and voice setup; then uses an
+**explicitly synthetic seven-byte seam at 0x0503** to bypass the
+unverified original envelope update `0x0503..0x05BF`. The bridge pushes
+HL (preserving the expected original stack), points DE to the already
+computed envelope at FF27, and jumps to the original `POP HL` at
+`0x05C0`. Published opcodes then execute `0x05C0..0x063B` through
+ENV polarity/scaling, Key Follow and final VCF clamp.
+
+- 180 actual disassembly bytes across the two original regions, pinned
+  together by SHA-256:
+  `545631d0b7a24a39babc7e1b95dbf29be2c2a042b77e1d1a0fad382d6df89ce5`.
+  The bridge is never represented as original code.
+- Reuses 64 stable global VCF boundary/polarity cases, with varied
+  14-bit ENV, pitch, ENV depth/polarity and Key Follow inputs.
+- Compares resulting real MAME EA and FF6A with separately compiled
+  **production C** from `fm1juno_vcf_global_reference` and
+  `fm1juno_vcf_chain_reference`; also validates stack pointer and
+  pitch pointer at exit. The original ROM is not distributed.
+- Stage runs in `.github/workflows/mame-independent-cpu-probe.yml`.
+
+**Scope:** This is a linked original-byte VCF control arithmetic *probe*,
+not uninterrupted original whole-ROM execution. It does **not** cover
+original ENV evolution, 6-voice looping, ADC scan timing, IRQ interleaving,
+UPD7811 internal ROM, 8253 clocks or audio. Keep P1.1 strict gate OPEN
+irrespective of this probe's outcome.
 
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
