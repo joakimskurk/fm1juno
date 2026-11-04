@@ -274,6 +274,65 @@ this constitutes **700 selected MAME process scenarios**, not a
 claim of 700 unique opcode instructions, full original hardware
 timing, genuine UPD7811 memory layout or DAC electrical proof.
 
+### Six-voice exit into original bank-selected ADC helper — verified
+
+**Focused GitHub Actions MAME six-voice ADC handoff gate #1 SUCCESS**
+on commit `4ab7af7`: **36/36 bounded complete CPU paths PASS**.
+All 36 also re-compare all six prior original ENV/VCF calculations
+(216 individual voice comparisons), six corresponding VCF DAC
+helper returns per process, original voice-mask/stack exit, and
+four native ADC conditioner outputs per process
+(144 accepted/conditioned ADC-channel comparisons).
+
+The source-pinned **original** path is:
+
+- Six-voice code from `0x04D5` through `0x0651`, including
+  six natural repeats of the original `0x0503..0x0650`
+  envelope/VCF loop;
+- `0x0652..0x065E` (13 bytes, SHA-256
+  `6ae873b5cc79f06f63dbcad6da2515d0a7ee9f20b01e588c3cdea9494a989400`):
+  original `PUSH DE`, `HL=FF5D`,
+  `BIT 3,FF5C` and branch to the selected channel bank,
+  with the bank-1 `CALF 0x0800`;
+- `0x06E2..0x06E6` (5 bytes, SHA-256
+  `381f5e495486c447526db3d58e6e8884bcabec0a48e2631290e264a809423105`):
+  alternate bank-0 cursor and original `CALF 0x0800`;
+- shared `0x0800..0x0824` original ADC compare/hysteresis
+  and output conditioning helper (37 bytes, SHA-256
+  `2647a3e3fc0a17a43707a1edc608c25325aab61417abf45d42606dddcf2242c5`).
+
+The MAME CPU follows each original bank-selection branch once
+per fixture, entering exactly one CALF and returning naturally
+to `0x06E7` for bank 0 or `0x065F` for bank 1.
+A breakpoint immediately after the call observes correct
+FF5C bank-selection, SP=`FFEE`, HL=`FF61`,
+DE=`FF84` (bank 0) or `FF88` (bank 1),
+voice pointer `FF0F=06`, and preserved saved envelope pointer
+`FF31` on the original CPU stack. Both banks' accepted
+FF80..FF87 and conditioned FF88..FF8F bytes are inspected.
+Only the selected bank's four held and four conditioned
+bytes change; the unselected bank's sentinels survive.
+
+The *expected* values are obtained from an externally compiled
+`fm1juno_native_adc_reference` program calling actual
+production `native_adc106_receive_bank` and
+`native_adc106_process_latest`. No custom Python clone
+of the production ADC transfer law determines PASS/FAIL.
+The 36 processes exercise both original bank paths for all
+18 six-voice phase patterns. Combined with the prior
+700 selected independent MAME scenarios, **736/736**
+bounded CPU process scenarios have now passed across
+the two distinct verified test stages.
+
+**Scope boundary:** The bank-selector FF5C and all raw ADC
+channels are synthetic input registers. This does *not*
+execute a real ADC ISR, generate automatic bank alternation,
+validate `DI/SKIT FAD/MKH/EI` hardware state or original
+interrupt timing. The original post-service bend
+(`0x065F..`) and portamento/LFO (`0x06E7..`) paths
+remain unexecuted. MAME's existing JUNO-106 CPU is
+UPD7810, *not* proven original UPD7811 silicon/full ROM.
+
 ### Limitations / open strict gate
 
 The **earlier bounded test interpreter** is not MAME's CPU core. The new MAME harness above now executes both windows using independently maintained MAME CPU code. However neither harness currently models/validates:
