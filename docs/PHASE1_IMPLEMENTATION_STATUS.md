@@ -647,6 +647,12 @@ unexecuted within this new gate.
 
 ### Next P1.1 bounded task
 
+**Read `docs/PHASE1_ADC_ISR_FIDELITY_GATE.md` first.** That file pins
+original ADC ISR entry/body and DI/SKIT/MKH/EI byte windows, records the
+current MAME JUNO-106 analogue-input/CPU-variant gaps, and specifies
+separate evidence gates for direct original opcode execution versus
+true peripheral IRQ acceptance and timer fidelity.
+
 Trace the original **interrupt-peripheral control boundary**
 before asserting precise scheduling. The public listing has
 `0x06B3 DI`, `0x06B4 SKIT FAD`,
