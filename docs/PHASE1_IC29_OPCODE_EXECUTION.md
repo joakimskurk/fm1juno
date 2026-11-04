@@ -27,6 +27,7 @@ The GitHub Actions workflow downloads the public IC29 annotated disassembly to a
 | 0x0800..0x0824 inclusive | Four-channel ADC filter and correction | `2647a3e3fc0a17a43707a1edc608c25325aab61417abf45d42606dddcf2242c5` |
 | 0x0609..0x0618 inclusive | VCF final 16-bit over-/underflow saturation | `998e3790863ac4f1aca79f78c7bec54de371fdd14ab11aafa24c3ae480fd86a8` |
 | 0x05C1..0x063B inclusive | Per-voice VCF ENV scaling, polarity, Key Follow and final clamp (MAME only) | `3b77378007f1fb96c884d707263af7a5cf9984dbe6df00b86d6cdf62c979be04` |
+| 0x04CB..0x04F5 inclusive | Global VCF cutoff + precomputed LFO + bend signed selection and FF6A carry/borrow (MAME only, new probe) | `08a0491367f316ed72992cfe3ecb2cef241efcdeb38b292c0b8eaa58b721ffc2` |
 
 These are checksums of three bounded *instruction windows* (the third overlaps the second), not evidence of a verified SHA-256/CRC for the complete original ROM. **No original Roland ROM binary or full disassembly is committed in fm1juno.**
 
@@ -78,6 +79,31 @@ Files:
 - .github/workflows/mame-independent-cpu-probe.yml — separate, path-gated PR/dispatch workflow; ordinary host-tests stay lightweight.
 
 **Exactness boundary:** MAME's JUNO-106 skeleton driver currently uses UPD7810 devices, not UPD7811, although the relevant machine instructions are shared. Our separate *full MAME CPU execution of these windows* therefore constitutes independent opcode / register-state evidence, but not an 8-KiB original full-firmware run on correctly configured uPD7811 silicon. Nor does it independently prove ADC conversion clocks, UART ISR races, exact CPU-cycle latency or analogue sample-and-hold timing.
+
+### New global VCF MAME probe (test added; confirmation pending)
+
+`run_mame_vcf_global_probe.py` executes 43 original disassembly bytes
+`0x04CB..0x04F5`, entering at `0x04D5` and stopping before the
+`0x04F6` stack-push. Original relative branch destinations within
+this window are not reinterpreted by a project CPU: MAME's maintained
+UPD7810 core executes the bytes. Synthetic RAM supplies the original
+cutoff, precomputed LFO contribution, precomputed bend and sign flags;
+the original code must produce the expected wrapped EA and FF6A sign
+selector. A compiled `vcf_global_reference_cli.c` calls
+`vcf106_global_raw` in production C to obtain expected full signed
+results and isolated positive input components. The 64 stable cases
+exercise all polarity combinations, near-zero crossings and boundaries.
+
+The probe does not validate source-side LFO/bend construction,
+original CPU interrupts, uPD7811 internal ROM, full 8 KiB code, or
+whole scheduler continuity. At documentation commit time, the
+new MAME CI result has **not yet been certified as passing**.
+
+**uPD7811 mapping hazard:** MAME's UPD7811 device maps 4 KiB
+internal program ROM while its JUNO-106 skeleton driver explicitly uses
+UPD7810 and an 8 KiB external module ROM image. An UPD7811 test
+requires a validated chip/ROM provenance and correct memory mapping,
+not just a device-name swap.
 
 ### Limitations / open strict gate
 
