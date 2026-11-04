@@ -1,0 +1,31 @@
+name: MAME original ADC ISR direct-opcode gate
+
+on:
+  pull_request:
+    paths:
+      - "tests/cpu_ic29/run_mame_adc_isr_direct_probe.py"
+      - ".github/workflows/mame-adc-isr-direct.yml"
+  workflow_dispatch:
+
+jobs:
+  adc-isr-direct:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MAME CPU core
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends mame
+      - name: Fetch public disassembly (no original Roland ROM bundled)
+        run: |
+          mkdir -p build
+          curl --fail --location --silent --show-error --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/ErroneousBosh/j106roms/master/ic29.txt \
+            --output build/ic29_public_disassembly.txt
+      - name: Execute bounded original ADC ISR vector and instruction window
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_adc_isr_direct_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --mame /usr/games/mame \
+            --case-timeout 14
