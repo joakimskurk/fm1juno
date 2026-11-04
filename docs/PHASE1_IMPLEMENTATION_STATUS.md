@@ -591,4 +591,77 @@ math rewrite.
 
 **Current phase remains P1.1_DIGITAL_IN_PROGRESS.**
 
+## 21. Original six-voice → selected ADC-bank service: verified in MAME
+
+**Focused MAME six-voice ADC handoff gate #1 SUCCESS** on test-code commit
+`4ab7af7` (GitHub Actions run `41931105705`): **36/36 complete
+six-voice-to-ADC paths matched compiled production C**, including
+**216 per-voice envelope+VCF comparisons** and **144 ADC channel
+comparisons**. The older **700/700** CPU cases also passed in the
+prior verified MAME suite, so the combined selected scenario repertoire
+now totals **736/736 independent MAME process tests** (700 + 36).
+Host-tests #376 and #377 passed on the new code commit. Full-matrix
+MAME #44 was still running when this focused result was recorded.
+
+The new `tests/cpu_ic29/run_mame_six_voice_adc_handoff.py` runs
+18 original six-voice phase-mix fixtures **twice**, once per ADC
+bank. Each run retains all original 0x04CB..0x0651 global/ENV/VCF
+loop instructions plus the original DAC and envelope multiplier
+helpers. It continues beyond the original six-voice exit into:
+
+- Original `0x0652..0x065E` (13 bytes, SHA-256
+  `6ae873b5cc79f06f63dbcad6da2515d0a7ee9f20b01e588c3cdea9494a989400`):
+  `PUSH DE`, ADC raw-source pointer setup, bank bit-3
+  selection from FF5C, and the bank-1 `CALF 0x0800`.
+- Original `0x06E2..0x06E6` (5 bytes, SHA-256
+  `381f5e495486c447526db3d58e6e8884bcabec0a48e2631290e264a809423105`):
+  bank-0 held-value cursor setup and the same `CALF 0x0800`.
+- The already independent checksum-validated original ADC helper
+  `0x0800..0x0824` (37 bytes, SHA-256
+  `2647a3e3fc0a17a43707a1edc608c25325aab61417abf45d42606dddcf2242c5`).
+
+MAME confirms exactly **one** original ADC CALF and matching return
+address per selected bank: `0x06E7` for bank 0 and `0x065F`
+for bank 1. The actual CPU exits with HL=`FF61`,
+DE=`FF84` or `FF88`, SP=`FFEE`, saved
+envelope cursor `FF31` on the stack, and FF0F voice pointer
+`06`. The six-voice intermediate VCF/DAC return checks and
+phase-mask/end-pointer checks remain active; they cannot be skipped.
+
+Each selected bank's four accepted ADC bytes (FF80..FF87) and four
+conditioned bytes (FF88..FF8F) match the **separately compiled
+production** `native_adc106_receive_bank` +
+`native_adc106_process_latest` behavior. The unselected bank's
+eight sentinel bytes remain unchanged. The original bank-select
+FF5C bit 3 is set in synthetic input RAM; the test does **not**
+show that a real ISR toggled it.
+
+**Strict distinction:** This is a verified **main-loop data-path
+handoff and pointer/stack continuity test**, NOT a measured latency,
+automatic ADC conversion bank cadence, fired ADC ISR, full original
+peripheral sequence, complete original UPD7811 ROM, or physical
+DAC/audio certification. The CPU stops immediately after the original
+ADC helper returns; original downstream `0x065F..` bend
+calculation and `0x06E7..` portamento/LFO processing remain
+unexecuted within this new gate.
+
+### Next P1.1 bounded task
+
+Trace the original **interrupt-peripheral control boundary**
+before asserting precise scheduling. The public listing has
+`0x06B3 DI`, `0x06B4 SKIT FAD`,
+`0x06B7 MVI MKH,04` and `0x06BA EI`, with the
+`0x0737` envelope-cursor restore and the 0x0800 service helper.
+A new independent test must explicitly establish the actual
+MAME UPD7810 IRQ mask/pending flags, ADC scan bank toggle and
+entry/return semantics, distinguish injected FF5C state from
+hardware interrupts, and avoid guessing cycle timing from
+branch order. If the stock MAME JUNO-106 skeleton lacks the
+required peripheral input wiring, record a hardware/ROM
+provenance **BLOCKER** instead of claiming IRQ fidelity.
+Continue to treat original UPD7811 memory mapping, 8253 phase,
+DCO-CV/divisor curve and hardware timing as OPEN.
+
+**Current phase: P1.1_DIGITAL_IN_PROGRESS; PR #3 remains draft/unmerged.**
+
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
