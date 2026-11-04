@@ -21,7 +21,7 @@ jobs:
       - name: Compile real production ADC baseline
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --parallel --target fm1juno_native_adc_reference
+          cmake --build build --parallel --target fm1juno_native_adc_reference fm1juno_vcf_clamp_reference
       - name: Fetch public disassembly (not vendored)
         run: |
           curl --fail --location --silent --show-error --retry 3 --max-time 30 \
@@ -32,5 +32,12 @@ jobs:
           python3 -u tests/cpu_ic29/run_mame_cpu_probe.py \
             --ic29-disasm build/ic29_public_disassembly.txt \
             --native-cli build/fm1juno_native_adc_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Execute original IC29 VCF clamp opcodes in independently maintained MAME CPU
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_vcf_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --native-cli build/fm1juno_vcf_clamp_reference \
             --mame /usr/games/mame \
             --case-timeout 14
