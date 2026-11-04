@@ -165,6 +165,14 @@ def compiled_results(native_cli: Path) -> list[int]:
 
 
 def run(source: Path, native_cli: Path, mame: str, timeout: int) -> None:
+    if len(CASES) != 42 or len(set(CASES)) != len(CASES):
+        raise AssertionError("VCF chain coverage cases accidentally changed")
+    if ({False, True} != {case[4] for case in CASES} or
+            not any(case[0] < 0 for case in CASES) or
+            not any(case[0] >= 0x4000 for case in CASES) or
+            not any(case[2] < (60 << 8) for case in CASES) or
+            not any(case[2] > (60 << 8) for case in CASES)):
+        raise AssertionError("VCF chain polarity / overflow coverage incomplete")
     window = original_window(source)
     expected = compiled_results(native_cli)
     cpu = mame_binary(mame)
