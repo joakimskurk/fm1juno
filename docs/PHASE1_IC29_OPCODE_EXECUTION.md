@@ -192,7 +192,7 @@ The original DECAY and RELEASE branches, natural six-voice loop, full
 module ROM cold boot, original UPD7811 device, interrupt scheduling,
 ADC conversion phase and analogue audio remain **unverified**.
 
-### DECAY/RELEASE execution via original 083D multiplier — new MAME gate, pending
+### DECAY/RELEASE execution via original 083D multiplier — verified in MAME #31
 
 New `run_mame_vcf_original_decay_release_probe.py` executes both
 first-voice DECAY and RELEASE opcode branches without bypassing the
@@ -213,11 +213,17 @@ reads FF27/28 envelope, FF07/08/33 phase bytes, EA, FF6A and
 stack/pitch/voice registers. The 288 deterministic MAME cases cover
 128 original coefficient indices for each path plus 32 boundary cases.
 
-**At creation, CI is pending, not a confirmed PASS.** The test does not
-model the original parameter calculation, serial/ADC IRQ schedule,
-six-voice natural loop, authentic UPD7811 ROM or analogue audio.
-If MAME differs from production C, the failing fixture must be
-preserved and investigated, not normalized away.
+**MAME CPU #31 SUCCESS on commit `11634dc`: 288/288 DECAY/RELEASE
+process scenarios passed.** Each coefficient index (0..127) was verified
+on both branch types, plus 32 explicitly selected edge conditions;
+all 250 earlier ADC/VCF and 144 original ATTACK CPU tests also passed
+in the same workflow. **682/682** selected original-byte CPU executions
+passed in total, not 682 independent original instructions or full ROM.
+
+The test does not model original parameter generation, serial/ADC IRQ
+schedule, six-voice natural loop, authentic UPD7811 ROM or analogue
+audio. The original 083D multiplier is now directly verified under
+the MAME UPD7810 driver for these input states.
 
 ### Limitations / open strict gate
 
