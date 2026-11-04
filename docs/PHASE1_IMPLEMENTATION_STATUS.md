@@ -1,6 +1,6 @@
 # FM1JUNO Phase-1 implementation status
 
-Updated: 2026-11-03
+Updated: 2026-11-04
 Active branch: `phase1/reference-engine`
 Authority: `docs/PHASE1_START_CONTRACT.md` -> `docs/PHASE1_REFERENCE_ENGINE_PLAN.md` -> relevant Phase-0 block-specific models.
 
@@ -113,7 +113,7 @@ Still open before **P1.1 exact digital/control exit**:
 - [ ] Certify a ROM-equivalent divisor base or explicitly label/configure the accepted non-exact tier.
 - [x] Independent test-only uPD7811 ALU semantics oracle passes exhaustive 256×256 ADC raw/held grid, 2,016 structured VCF cases and 90,000 seeded VCF carry/borrow permutations.
 - [x] Execute the original published IC29 opcode bytes in separate bounded uPD7811 instruction-window runners for ADC (0x0800..0x0824) and VCF final saturation (0x0609..0x0618); compare with compiled production C.
-- [x] Execute representative ADC and VCF opcode windows under the **independently maintained MAME UPD7810 CPU device** with generated test bootstrap and compare actual CPU RAM/EA to compiled C; 28 ADC + 52 VCF PASS.
+- [x] Execute representative ADC and VCF opcode windows under the **independently maintained MAME UPD7810 CPU device** with generated test bootstrap and compare actual CPU RAM/EA to compiled C; 28 ADC + 52 VCF final-clamp + 42 VCF per-voice ENV/Key Follow cases PASS. The last 42 cover 0x05C1..0x063B but not upstream global cutoff/LFO/bend or live original IRQ state.
 - [ ] Run under an actual UPD7811-configured CPU and independently sourced full original Roland ROM with cycle/interrupt semantics; the MAME UPD7810 + synthetic bootstrap window probes do **not** close this strict gate.
 - [x] Independent Mode-3 vectors now exercise normal even/odd counts, N=0→65536, high/low pending writes, repeated pending overwrites, fractional-sample reset and range-specific reset timings.
 - [ ] Original 8253 count=1/3 corner behavior, GATE/CLK alignment, live-range phase switching and actual MSB-write-to-first-edge timing still need independent hardware-level validation.
@@ -248,19 +248,20 @@ Files: tests/cpu_ic29/, two additional test-only C executables in CMake, new CI 
 
 This is the first **separately maintained full CPU interpreter** executing original *published IC29 opcode bytes*, distinct from our locally authored bounded instruction-window runner.
 
-- MAME **v0.285** installed in a separate GitHub Actions job; the existing MAME JUNO-106 skeleton currently attaches **UPD7810** for the module controller, not UPD7811. An isolated, generated synthetic boot ROM seeds registers/RAM and invokes the original SHA-256-pinned ADC/VCF instruction windows. A real MAME debugger breakpoint reads CPU memory/EA.
+- MAME **v0.285** installed in a separate GitHub Actions job; the existing MAME JUNO-106 skeleton currently attaches **UPD7810** for the module controller, not UPD7811. An isolated, generated synthetic boot ROM seeds registers/RAM and invokes the original SHA-256-pinned ADC/VCF instruction windows. A real MAME debugger breakpoint reads CPU memory/EA. Three separate bounded probes now cover ADC, the VCF clamp, and the original per-voice VCF ENV/Key Follow arithmetic slice.
 - **28/28 ADC scenarios passed**, comparing four physical channels (held + conditioned codes) against the compiled fm1juno C production code at the same input state. Key ±1 deadband and correction boundaries were included.
 - **52/52 VCF saturation scenarios passed**, covering 13 16-bit EA boundary values × four FF6B flag states. The executed MAME EA result matches compiled VCF code and independent window oracle.
-- CI: **MAME independent CPU probe #4 SUCCESS**; regular **host-tests #286 SUCCESS, 18/18 CTests**. The MAME job runs only for PR changes touching CPU probe paths or by manual dispatch, not on every normal host-test change.
+- **42/42 VCF per-voice control scenarios passed** across the original byte window 0x05C1..0x063B: 123 consecutive pinned bytes execute ENV depth/polarity, Portamento-pitch Key Follow, carry/borrow and final saturation. MAME EA agrees with separately compiled production `vcf106_voice_code14`. Initial envelope/pitch/global base/stack are synthetic, and the preceding original global VCF and envelope evolution are **not** executed.
+- CI: **MAME independent CPU probe #11 SUCCESS**, 28 + 52 + 42 = **122/122 selected MAME process executions**; **host-tests #302 SUCCESS, 18/18 CTests**. The MAME job runs only for PR changes touching CPU probe paths or by manual dispatch, not on every normal host-test change.
 - The original Roland binary is neither present nor reconstructed as a claimed complete image. MAME emits the expected **wrong checksum** warning for synthetic, clearly labeled fixture ROMs. Nothing in these runs certifies original full-ROM / real chip / cycle-accurate interrupts.
-- Source and provenance: tests/cpu_ic29/run_mame_cpu_probe.py, tests/cpu_ic29/run_mame_vcf_probe.py, .github/workflows/mame-independent-cpu-probe.yml, and **docs/PHASE1_IC29_OPCODE_EXECUTION.md**.
+- Source and provenance: tests/cpu_ic29/run_mame_cpu_probe.py, tests/cpu_ic29/run_mame_vcf_probe.py, tests/cpu_ic29/run_mame_vcf_chain_probe.py, tests/cpu_ic29/vcf_chain_reference_cli.c, .github/workflows/mame-independent-cpu-probe.yml, and **docs/PHASE1_IC29_OPCODE_EXECUTION.md**.
 
-**Strict state remains P1.1_DIGITAL_IN_PROGRESS**. This is genuine independent CPU execution of two short routines, not full JUNO-106 firmware execution; no audio engine/WAV or FM-1 deploy is claimed.
+**Strict state remains P1.1_DIGITAL_IN_PROGRESS**. This is genuine independent CPU execution of three bounded original-byte windows (one overlapping the clamp), not full JUNO-106 firmware execution; no audio engine/WAV or FM-1 deploy is claimed.
 
 ## 13. Next implementation slice
 
-1. **MAME UPD7810 CPU integration now exists and passes** for selected ADC and VCF opcode windows. Next: configure an explicit **UPD7811 device**, validate original ROM chip provenance and build reproducible PC/PSW/IRQ trace fixtures. Do not equate MAME's current JUNO-106 UPD7810 skeleton with an original powered-up JUNO-106.
-2. Extend original-byte execution from the final VCF saturation window backwards through its complete ENV + Key Follow 16-bit arithmetic. Include original overflow flag transitions and interrupt-safe resumption.
+1. **MAME UPD7810 CPU integration now exists and passes** for bounded ADC, VCF clamp and per-voice ENV/Key Follow instruction windows. Next: investigate an explicitly configured **UPD7811 device**, verify original chip/ROM mapping and separately validated ROM provenance, and build reproducible PC/PSW/IRQ trace fixtures. Do not equate MAME's current JUNO-106 UPD7810 skeleton with an original powered-up JUNO-106.
+2. **DONE (bounded scope):** extend MAME original-byte execution from 0x0609..0x0618 to the full *per-voice arithmetic slice* 0x05C1..0x063B, including original ENV scaling and Key Follow with flag-based clamp. **Still open:** preceding original global VCF/LFO/bend path, actual envelope update and interrupt-safe interleaving. Do not claim original full 0x05C0..0x0640 loop execution.
 3. Independently validate actual ADC bank scan/ISR timing, rather than only injected bank snapshots.
 4. Verify original 8253 GATE/prescaler range phase. Keep unknown clock phase as MEASURE_PENDING.
 5. Preserve the DERIVED_APPROXIMATE pitch divisor/DCO CV fidelity tier until independently calibrated/ROM-exact.
