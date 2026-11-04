@@ -441,4 +441,37 @@ evidence-led, not an unverified acoustic approximation.
 cycle-accurate original machine, physical FM-1 deployment or waveform
 engine/audio result has been certified.**
 
+## 18. Original DECAY/RELEASE paths in independent MAME — CI verification pending
+
+The next P1.1 slice is now committed as a **seventh** independent MAME
+CPU probe stage, but must not be counted as PASS until CI finishes green.
+
+- `tests/cpu_ic29/run_mame_vcf_original_decay_release_probe.py`:
+  checks both original first-voice DECAY and RELEASE branches across all
+  128 coefficient indices each, plus 32 boundary cases (**288 selected
+  MAME processes**). The original 0x04CB..0x063B global/ENV/VCF code
+  and 0x082F..0x083C DAC helper are byte-pinned through the prior
+  first-voice ATTACK runner. The published 0x083D..0x0850 envelope
+  multiplication subroutine is newly SHA-256 pinned to
+  `bb924bf1d0d80ad60bc14860a2830dd2ce4cd6b9f42bad25064cb5a097319b6c`.
+- `tests/cpu_ic29/envelope_decay_release_reference_cli.c` is a
+  separate compiled C reference calling the actual production
+  `envelope106_decay_release_coefficient`,
+  `envelope106_decay_tick` or `envelope106_release_tick`.
+- Each run injects the original RAM-domain current envelope, sustain,
+  DECAY/RELEASE phase bits, coefficient and precomputed global CUTOFF/
+  LFO/BEND, follows the **real original instructions without any
+  synthetic in-envelope jump**, then compares the saved FF27/FF28
+  envelope, FF33/FF08/FF07 phase flags, final VCF EA, global sign FF6A,
+  stack and voice-pointer state to compiled reference.
+- New workflow build target:
+  `fm1juno_envelope_decay_release_reference`; new workflow stage
+  follows the existing 394 independently verified scenarios.
+
+**Strict proof boundary:** synthetic boot and initially injected
+coefficient/state are not original whole-ROM execution, autonomous
+coefficient lookup, complete six-voice scheduling, original IRQ phase,
+nor a real UPD7811 chip. Preserve the previous **394/394 certified
+scenarios** until MAME explicitly reports a new verified result.
+
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
