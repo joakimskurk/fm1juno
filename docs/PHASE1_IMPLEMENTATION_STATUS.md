@@ -341,4 +341,32 @@ original ENV evolution, 6-voice looping, ADC scan timing, IRQ interleaving,
 UPD7811 internal ROM, 8253 clocks or audio. Keep P1.1 strict gate OPEN
 irrespective of this probe's outcome.
 
+## 16. Next bounded P1.1 engineering slice after linked VCF #19
+
+**Target: remove or reduce the explicitly synthetic envelope bridge in the
+linked MAME VCF test, one original code branch at a time.**
+
+1. Extract and SHA-256 pin the published `0x0503..0x05BF` envelope-update
+   byte range. First model an easily controlled original path (e.g. inactive
+   voice/gate, or static sustain) whose expected state can be set explicitly.
+2. Map the required RAM, pair registers, flags and stack layout at
+   `0x0503`. Catalogue every in-window `CALF` destination and memory-mapped
+   DAC/peripheral operation before adding any synthetic test-only stub.
+   Only use a stub if it is identified, range-bounded and separately logged.
+3. Extend MAME to execute an *original* envelope path before `0x05C0`,
+   checking resulting envelope hold, stack and pointer against compiled
+   production C. Then expand to Decay/Release branches and seed-set cases.
+4. Keep the standalone global, clamp and voice tests green and independent.
+   If original-byte behavior disagrees with C, retain the failing
+   reproducible fixture; do not patch the production engine speculatively.
+5. Investigate the real JUNO-106 IC29 module CPU variant and ROM mapping
+   before asserting uPD7811-specific fidelity. MAME UPD7811 has a 4 KiB
+   internal ROM map whereas MAME's JUNO-106 skeleton uses an 8 KiB external
+   module ROM under UPD7810. Hardware/ROM provenance is required.
+6. Continue treating ADC acquisition/IRQ timing, original 8253 phase,
+   derived pitch tables and calibrated slot microseconds as OPEN.
+
+**Done so far: 250/250 MAME process scenarios at code commit `3d28692`.
+This does not change the strict P1.1 exit criteria.**
+
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
