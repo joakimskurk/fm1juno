@@ -28,6 +28,7 @@ The GitHub Actions workflow downloads the public IC29 annotated disassembly to a
 | 0x0609..0x0618 inclusive | VCF final 16-bit over-/underflow saturation | `998e3790863ac4f1aca79f78c7bec54de371fdd14ab11aafa24c3ae480fd86a8` |
 | 0x05C1..0x063B inclusive | Per-voice VCF ENV scaling, polarity, Key Follow and final clamp (MAME only) | `3b77378007f1fb96c884d707263af7a5cf9984dbe6df00b86d6cdf62c979be04` |
 | 0x04CB..0x04F5 inclusive | Global VCF cutoff + precomputed LFO + bend signed selection and FF6A carry/borrow (MAME only, new probe) | `08a0491367f316ed72992cfe3ecb2cef241efcdeb38b292c0b8eaa58b721ffc2` |
+| 0x04CB..0x0502 and 0x05C0..0x063B inclusive (concatenated) | Linked global-to-one-voice VCF, synthetic bridge at 0x0503; original segments only | `545631d0b7a24a39babc7e1b95dbf29be2c2a042b77e1d1a0fad382d6df89ce5` |
 
 These are checksums of four bounded *instruction ranges* (the VCF voice path overlaps the clamp), not evidence of a verified SHA-256/CRC for the complete original ROM. **No original Roland ROM binary or full disassembly is committed in fm1juno.**
 
@@ -104,6 +105,41 @@ internal program ROM while its JUNO-106 skeleton driver explicitly uses
 UPD7810 and an 8 KiB external module ROM image. An UPD7811 test
 requires a validated chip/ROM provenance and correct memory mapping,
 not just a device-name swap.
+
+### Global-to-voice linked execution (new, CI unverified at initial commit)
+
+`run_mame_vcf_linked_probe.py` uses 64 deterministic initial states and
+launches each in one actual MAME UPD7810 process. The synthetic setup
+loads the already computed cutoff, LFO contribution, bend contribution,
+precomputed 14-bit envelope and pitch into CPU RAM, then enters the
+published IC29 path at `0x04D5`. MAME executes original bytes covering:
+
+1. `0x04CB..0x0502` (56 contiguous source bytes), including sign-based
+   global VCF add/sub, original FF6A overflow state and the global EA
+   stack save + setup for the first voice.
+2. `0x05C0..0x063B` (124 contiguous source bytes), including original
+   `POP HL`, transfer FF6A→FF6B, envelope and Key Follow scaling,
+   polarity selection, final clamp and 16-bit original-CPU arithmetic.
+
+**The two regions are *not* unmodified contiguous firmware execution.**
+At `0x0503` a deliberate, synthetic seven-byte bridge executes
+`PUSH HL; LXI DE,FF27; JMP 05C0` and bypasses the original
+`0x0503..0x05BF` envelope evolution. This retains the stack protocol
+and correct post-envelope DE cursor but injects the already computed
+envelope instead of calculating it from the original program. The bridge
+is kept distinct from the 180 pinned original source bytes.
+A MAME debugger breakpoint at `0x063C` captures EA, FF6A/FF6B, SP
+and HL, checks against compiled production C and demands successful
+process termination. This independently exercises global→voice state
+handoff without claiming the full Roland program or autonomous
+interrupts. The comparison reuses existing `vcf_global_reference_cli`
+and `vcf_chain_reference_cli` C executables rather than adding a
+Python clone of production signal arithmetic.
+
+The first CI result must be checked before calling this a PASS.
+The separate earlier global-only **64/64 MAME probe #18 did pass**,
+raising the previously independently verified running tally to
+186/186 process scenarios.
 
 ### Limitations / open strict gate
 
