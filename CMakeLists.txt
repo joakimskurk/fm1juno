@@ -84,8 +84,12 @@ target_link_libraries(fm1juno_native_adc_reference PRIVATE fm1juno_core)
 add_executable(fm1juno_vcf_clamp_reference tests/cpu_ic29/vcf_clamp_reference_cli.c)
 target_link_libraries(fm1juno_vcf_clamp_reference PRIVATE fm1juno_core)
 
+add_executable(fm1juno_vcf_chain_reference tests/cpu_ic29/vcf_chain_reference_cli.c)
+target_link_libraries(fm1juno_vcf_chain_reference PRIVATE fm1juno_core)
+
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(fm1juno_vcf_clamp_reference PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    target_compile_options(fm1juno_vcf_chain_reference PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_native_adc_reference PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_upd7811_flag_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_native_panel_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
