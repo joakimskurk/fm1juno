@@ -192,6 +192,33 @@ The original DECAY and RELEASE branches, natural six-voice loop, full
 module ROM cold boot, original UPD7811 device, interrupt scheduling,
 ADC conversion phase and analogue audio remain **unverified**.
 
+### DECAY/RELEASE execution via original 083D multiplier — new MAME gate, pending
+
+New `run_mame_vcf_original_decay_release_probe.py` executes both
+first-voice DECAY and RELEASE opcode branches without bypassing the
+original envelope section at `0x0503..0x05BF`. In addition to the
+already source-pinned continuous `0x04CB..0x063B` firmware slice
+and original DAC helper `0x082F..0x083C`, it now executes the
+unmodified 20-byte original `CALF 0x083D` multiply routine
+(`0x083D..0x0850`), pinned by SHA-256
+`bb924bf1d0d80ad60bc14860a2830dd2ce4cd6b9f42bad25064cb5a097319b6c`.
+
+The compiled `envelope_decay_release_reference_cli.c` calls
+production C decay/release coefficient and tick functions; injected
+initial-state RAM supplies the 16-bit coefficient and sustain state.
+MAME performs the original branching, intermediate integer
+multiplication, phase-mask updates, RAM save, original DAC call
+and global-to-per-voice VCF arithmetic. A real debugger checkpoint
+reads FF27/28 envelope, FF07/08/33 phase bytes, EA, FF6A and
+stack/pitch/voice registers. The 288 deterministic MAME cases cover
+128 original coefficient indices for each path plus 32 boundary cases.
+
+**At creation, CI is pending, not a confirmed PASS.** The test does not
+model the original parameter calculation, serial/ADC IRQ schedule,
+six-voice natural loop, authentic UPD7811 ROM or analogue audio.
+If MAME differs from production C, the failing fixture must be
+preserved and investigated, not normalized away.
+
 ### Limitations / open strict gate
 
 The **earlier bounded test interpreter** is not MAME's CPU core. The new MAME harness above now executes both windows using independently maintained MAME CPU code. However neither harness currently models/validates:
