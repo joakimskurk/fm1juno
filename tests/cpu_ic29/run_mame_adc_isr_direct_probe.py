@@ -92,8 +92,12 @@ def debugger_script(mode: int, values: tuple[int, ...]) -> str:
     # MAME's UPD7810 state_add exposes ANM, CR0..CR3 as CPU registers.
     # These are independent controlled inputs, not handwritten register
     # emulation. The original opcode routine reads/toggles them.
-    setup = ["focus :modulecpu", "do anm=%d" % mode]
-    setup.extend("do cr%d=%d" % (i, n) for i, n in enumerate(values))
+    # MAME debugger expressions interpret unprefixed integers as HEX,
+    # unlike Python decimal. Always write explicit 0xNN fixture values:
+    # e.g. decimal 127 as 0x7f, never bare 127 (0x127 truncated).
+    setup = ["focus :modulecpu", "do anm=0x%02x" % mode]
+    setup.extend("do cr%d=0x%02x" % (i, n)
+                 for i, n in enumerate(values))
     fields = [
         ("anm", "%02X"), ("mkh", "%02X"),
         ("b@ff5c", "%02X"), ("b@ff5d", "%02X"),
