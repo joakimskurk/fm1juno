@@ -18,7 +18,12 @@ int main(void)
         const uint16_t increment = envelope106_attack_increment((uint8_t)index);
         const uint16_t after =
             envelope106_attack_tick((uint16_t)before, increment);
-        const unsigned saturated = (after == ENVELOPE106_MAX) ? 1u : 0u;
+        /* This is the *phase transition* bit, not merely level==MAX.
+         * Original IC29 attack sets decay/release flags only on strict
+         * 0x3FFF overflow; exact equality stays in ATTACK this tick. */
+        const unsigned saturated = (
+            (uint32_t)before + (uint32_t)increment > ENVELOPE106_MAX)
+            ? 1u : 0u;
         if (printf("%u,%u,%u\n", (unsigned)increment, (unsigned)after,
                    saturated) < 0)
             return 3;
