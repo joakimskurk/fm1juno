@@ -162,7 +162,7 @@ These remain useful for project history but are not current authority where newe
 
 **Independent uPD7811 ADC/VCF ALU flag oracle:** [`PHASE1_UPD7811_FLAG_VALIDATION.md`](PHASE1_UPD7811_FLAG_VALIDATION.md). Exhaustive 8-bit ADC history-pair checks and VCF carry/borrow integer tests, with strict full-ROM execution gate still open.
 
-**Original IC29 opcode execution:** [`PHASE1_IC29_OPCODE_EXECUTION.md`](PHASE1_IC29_OPCODE_EXECUTION.md). Runtime-pinned public IC29 machine bytes (ADC + VCF clamp) executed in independent bounded uPD7811 instruction-window interpreters, directly diffed against compiled production control, with explicit MAME/full-ROM limits.
+**Original IC29 opcode execution and MAME CPU verification:** [`PHASE1_IC29_OPCODE_EXECUTION.md`](PHASE1_IC29_OPCODE_EXECUTION.md). SHA-256-pinned published original IC29 ADC/VCF machine bytes executed both in bounded local decoders and in the independently maintained MAME UPD7810 CPU, with real MAME RAM/EA output compared to compiled production code. Full uPD7811/original-ROM/physical phase gates remain open.
 
 Phase-0 research branch:
 
