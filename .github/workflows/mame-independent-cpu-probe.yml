@@ -55,3 +55,11 @@ jobs:
             --native-cli build/fm1juno_vcf_global_reference \
             --mame /usr/games/mame \
             --case-timeout 14
+      - name: Execute original global-to-voice VCF chain with declared ENV seam in MAME
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_vcf_linked_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
