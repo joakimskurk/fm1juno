@@ -42,7 +42,7 @@ Both opcode interpreters enforce a narrow instruction allowlist: unknown branch 
 
 - **#256:** first ADC opcode-runner; 5,054,976 interpreted instruction steps; all 65,536 channel-0 history comparisons passed. All 18 existing CTests passed.
 - **#264:** original VCF clamp opcode-runner passed 262,144 EA/flag combinations, including 229,376 comparisons against compiled production C. All 18 existing CTests passed.
-- Following #264, ADC comparison was extended to **all four channels**, still running all 65,536 combinations of old/new channel-0 history; count now represents 65,536 × 4 channel output comparisons. Track the final branch-head CI for this final revision.
+- Following #264, ADC comparison was extended to **all four channels**, still running all 65,536 combinations of old/new channel-0 history; count now represents 65,536 × 4 channel output comparisons. **CI #268 passed** with the new four-channel comparison and both opcode windows. Existing CTest: 18/18; ADC: 65,536 × 4 channel pairs; VCF: 262,144 opcode cases / 229,376 compiled-production comparisons.
 
 ### Limitations / open strict gate
 
@@ -67,6 +67,6 @@ Given a locally provided `ic29.txt` with bytes matching the pinned checksums:
 
 `python3 tests/cpu_ic29/run_vcf_opcode_window.py --ic29-disasm PATH --native-cli build/fm1juno_vcf_clamp_reference`
 
-The download is an explicit CI dependency, not a hidden fallback to guessed ROM contents. A changed/unavailable source fails this extra gate. When working offline, run the unchanged CTest suite and pass a separately obtained verified original disassembly file for the opcode gate.
+The download is an explicit CI dependency, not a hidden fallback to guessed ROM contents. The public disassembly's author explicitly describes it as partial/inaccurate/incomplete; therefore even a verified checksum only authenticates that *published transcription*, not an original Roland chip dump. A changed/unavailable source fails this extra gate. When working offline, run the unchanged CTest suite and pass a separately obtained verified original disassembly file for the opcode gate.
 
 **P1.1_DIGITAL_IN_PROGRESS remains the only valid phase status. No audio/WAV or original Roland unit calibration claims.**
