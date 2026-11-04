@@ -375,9 +375,17 @@ def run(disasm: Path, attack_cli: Path, dr_cli: Path,
             output = result.stdout + result.stderr
             logfile = root / "error.log"
             if logfile.exists():
-                output += "\n" + logfile.read_text(
+                logfile_content = logfile.read_text(
                     encoding="utf-8", errors="replace")
                 logfile.unlink()
+                # MAME writes debugger logerror() events to BOTH
+                # redirected console output and error.log. Select the
+                # authoritative log stream, never concatenate duplicates:
+                # six genuine breakpoint hits must remain exactly six.
+                if "FM1JUNO_SIX_VCF:" in logfile_content:
+                    output = logfile_content
+                else:
+                    output += "\n" + logfile_content
             check_case(output, expected[i], globals_[i][3], scenario, i)
             if result.returncode != 0:
                 raise AssertionError(
