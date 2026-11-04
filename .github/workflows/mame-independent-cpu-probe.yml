@@ -1,0 +1,36 @@
+name: MAME independent uPD7810 CPU probe
+
+on:
+  pull_request:
+    paths:
+      - "tests/cpu_ic29/**"
+      - ".github/workflows/mame-independent-cpu-probe.yml"
+  workflow_dispatch:
+
+jobs:
+  independent-cpu-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install packaged MAME CPU core
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends mame
+          /usr/games/mame -help | head -n 4
+      - name: Compile real production ADC baseline
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel --target fm1juno_native_adc_reference
+      - name: Fetch public disassembly (not vendored)
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/ErroneousBosh/j106roms/master/ic29.txt \
+            --output build/ic29_public_disassembly.txt
+      - name: Execute original IC29 ADC opcodes in independently maintained MAME CPU
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_cpu_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --native-cli build/fm1juno_native_adc_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
