@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "tests/cpu_ic29/run_mame_adc_isr_direct_probe.py"
+      - "tests/cpu_ic29/run_mame_adc_isr_peripheral_probe.py"
       - ".github/workflows/mame-adc-isr-direct.yml"
   workflow_dispatch:
 
@@ -26,6 +27,12 @@ jobs:
       - name: Execute bounded original ADC ISR vector and instruction window
         run: |
           python3 -u tests/cpu_ic29/run_mame_adc_isr_direct_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Execute original ADC ISR through actual internal UPD7810 ADC peripheral IRQ and RETI
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_adc_isr_peripheral_probe.py \
             --ic29-disasm build/ic29_public_disassembly.txt \
             --mame /usr/games/mame \
             --case-timeout 14
