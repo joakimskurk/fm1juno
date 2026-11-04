@@ -90,7 +90,7 @@ def debugger_script() -> str:
     )
     return (
         "focus :modulecpu\n"
-        'bp 0400:modulecpu,1,{printf "FM1JUNO_MAME_ADC:%02X:%02X:%02X:%02X:'
+        'bp 0400:modulecpu,1,{logerror "FM1JUNO_MAME_ADC:%02X:%02X:%02X:%02X:'
         '%02X:%02X:%02X:%02X\\n",' + fields + "; quit}\n"
         "g\n"
     )
@@ -144,7 +144,7 @@ def run_probe(source: Path, native_cli: Path, mame: str, timeout: int) -> None:
             argv = [
                 cpu, "juno106", "-rompath", str(romdir),
                 "-cfg_directory", str(base / "cfg"),
-                "-debug", "-debugger", "console",
+                "-debug", "-debugger", "qt", "-oslog", "-log",
                 "-debugscript", str(cmdfile),
                 "-video", "none", "-sound", "none",
                 "-nothrottle", "-skip_gameinfo",
@@ -152,12 +152,18 @@ def run_probe(source: Path, native_cli: Path, mame: str, timeout: int) -> None:
             try:
                 proc = subprocess.run(
                     argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, timeout=timeout, cwd=base)
+                    text=True, timeout=timeout, cwd=base,
+                    env={**os.environ, "QT_QPA_PLATFORM": "offscreen"})
             except subprocess.TimeoutExpired as exc:
                 raise AssertionError(
                     "MAME probe timed out case %d old=%d fresh=%d" %
                     (index, old, fresh)) from exc
             text = proc.stdout
+            # MAME can route logerror through error.log instead of stderr.
+            logfile = base / "error.log"
+            if logfile.exists():
+                text += "\n" + logfile.read_text(encoding="utf-8", errors="replace")
+                logfile.unlink()
             match = re.search(
                 r"FM1JUNO_MAME_ADC:((?:[0-9a-fA-F]{2}:){7}[0-9a-fA-F]{2})",
                 text)
