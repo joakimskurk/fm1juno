@@ -266,4 +266,43 @@ This is the first **separately maintained full CPU interpreter** executing origi
 4. Verify original 8253 GATE/prescaler range phase. Keep unknown clock phase as MEASURE_PENDING.
 5. Preserve the DERIVED_APPROXIMATE pitch divisor/DCO CV fidelity tier until independently calibrated/ROM-exact.
 
+## 14. Original IC29 global VCF opcode slice — CI verification pending
+
+The newly added MAME probe now starts at `0x04D5` and executes the pinned
+original bytes covering `0x04CB..0x04F5` (43 bytes). The original control
+path loads the cutoff, precomputed LFO and precomputed bend RAM values,
+selects positive/negative ADD/SUB flow via the original flag bytes, updates
+the `FF6A` overflow/underflow selector and leaves the 16-bit unclamped VCF
+base in EA before voice processing.
+
+- `tests/cpu_ic29/run_mame_vcf_global_probe.py`: 64 deterministic curated
+  and seeded cases exercising both LFO and bend polarities, zero/max
+  values, nontrivial contributions and sign crossings.
+- `tests/cpu_ic29/vcf_global_reference_cli.c`: independent compiled CLI
+  calling actual production `vcf106_global_raw`; the unsigned components
+  are derived through the same production entry point with isolated input
+  paths rather than hand-reimplementing its coefficient laws.
+- The original bytes are SHA-256 pinned to
+  `08a0491367f316ed72992cfe3ecb2cef241efcdeb38b292c0b8eaa58b721ffc2`
+  and fetched from the existing public IC29 listing at test time.
+- New CMake target `fm1juno_vcf_global_reference` is wired to the separate
+  MAME GitHub Actions workflow. **Do not claim passing cases until that
+  workflow finishes green on the actual new test commit.**
+
+This does **not** execute preceding LFO generation, calibration tables or
+physical ADC acquisition. The test injects their already-computed integer
+values into synthetic RAM. Nor does it execute the original full uninterrupted
+global-to-per-voice scheduler, original interrupts or native UPD7811 device.
+
+### Explicit UPD7811 configuration caveat
+
+MAME has an `UPD7811` device type, but its own source maps an **internal
+4 KiB ROM** at `0x0000..0x0FFF` and internal RAM at `0xFF00..0xFFFF`.
+The shipped MAME JUNO-106 skeleton instead instantiates `UPD7810` and
+loads a **separate 8 KiB module ROM region**. Merely renaming the driver CPU
+type without resolving the chip's actual internal/external ROM mapping and
+obtaining separately authenticated original firmware cannot close the strict
+UPD7811/full-ROM fidelity gate. Source: MAME `upd7810.cpp` and
+`juno106.cpp`.
+
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
