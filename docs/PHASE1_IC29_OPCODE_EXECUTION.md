@@ -225,6 +225,55 @@ schedule, six-voice natural loop, authentic UPD7811 ROM or analogue
 audio. The original 083D multiplier is now directly verified under
 the MAME UPD7810 driver for these input states.
 
+### Original natural six-voice ENV/VCF loop — focused MAME #2 SUCCESS
+
+`tests/cpu_ic29/run_mame_six_voice_original_loop.py` now performs
+18 original-byte six-voice *loop* runs (108 per-voice arithmetic
+comparisons) with the MAME JUNO-106 UPD7810 core. Source is still
+the independently fetched, checksum-pinned **unofficial published**
+IC29 disassembly; no genuine 8 KiB Roland firmware has been
+distributed or authenticated.
+
+Source windows:
+- Existing SHA-256 checks of original `0x04CB..0x063B` (369 bytes),
+  real `0x082F..0x083C` DAC helper and
+  `0x083D..0x0850` decay/release multiplication helper, plus
+  128 16-bit `0x0B60..0x0C5F` ATTACK table words.
+- **New** original `0x063C..0x0651` (22 bytes) covering final
+  VCF DAC, active bit shift, incrementing FF0F, six-voice
+  compare/jump back to 0x0503 and terminal original POP EA.
+  SHA-256:
+  `839530afc63bf2e980c9f9d4a51df5a0527a092504ad228117f76724ce8fcf25`.
+
+Each case executes the global VCF path at `0x04D5`, followed by
+**six actual original envelope/VCF paths within one CPU run**,
+interleaving ATTACK, DECAY and RELEASE across six voices. Initial
+FF07/FF08/FF11/FF33 bit masks, each FF27..FF32 envelope and
+FF71..FF7C pitch, global coefficient/panel values, LFO/bend
+contributions, stack and boot ROM are explicitly synthetic
+fixture state, not an authentic original power-on event.
+
+The debugger captures 6 original `0x063C` per-voice EA outputs and
+6 original `0x0640` post-DAC helper returns; then it observes at
+`0x0652` the RAM envelope array, phase masks, FF6A flag,
+FF0F=`06`, FF34=`40`, SP=`FFF0`, HL=`FF7D`,
+DE=`FF31`. The expected ENV/VCF output is computed by
+separately compiled *production* ATTACK, DECAY/RELEASE and VCF C
+functions. The test requires exactly six matched outputs and six
+matched helper returns per scenario, preventing a simple six-fold
+repetition of independent first-voice fixtures.
+
+**GitHub Actions focused six-voice gate #2 SUCCESS** at commit
+`a35e621`: **18/18 full CPU scenarios and 108/108 voice
+output comparisons pass**. The first run failed because the harness
+combined duplicated MAME debugger messages from console and
+`error.log`. Fixing the capture to use one authoritative stream
+produced a green run without modifying production DSP/control math.
+Together with the preceding 682 separately verified CPU cases,
+this constitutes **700 selected MAME process scenarios**, not a
+claim of 700 unique opcode instructions, full original hardware
+timing, genuine UPD7811 memory layout or DAC electrical proof.
+
 ### Limitations / open strict gate
 
 The **earlier bounded test interpreter** is not MAME's CPU core. The new MAME harness above now executes both windows using independently maintained MAME CPU code. However neither harness currently models/validates:
