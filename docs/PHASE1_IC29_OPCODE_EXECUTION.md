@@ -26,8 +26,9 @@ The GitHub Actions workflow downloads the public IC29 annotated disassembly to a
 |---|---|---|
 | 0x0800..0x0824 inclusive | Four-channel ADC filter and correction | `2647a3e3fc0a17a43707a1edc608c25325aab61417abf45d42606dddcf2242c5` |
 | 0x0609..0x0618 inclusive | VCF final 16-bit over-/underflow saturation | `998e3790863ac4f1aca79f78c7bec54de371fdd14ab11aafa24c3ae480fd86a8` |
+| 0x05C1..0x063B inclusive | Per-voice VCF ENV scaling, polarity, Key Follow and final clamp (MAME only) | `3b77378007f1fb96c884d707263af7a5cf9984dbe6df00b86d6cdf62c979be04` |
 
-These are checksums of the two short *instruction windows*, not evidence of a verified SHA-256/CRC for the complete original ROM. **No original Roland ROM binary or full disassembly is committed in fm1juno.**
+These are checksums of three bounded *instruction windows* (the third overlaps the second), not evidence of a verified SHA-256/CRC for the complete original ROM. **No original Roland ROM binary or full disassembly is committed in fm1juno.**
 
 ### Tests and actual execution
 
@@ -46,7 +47,7 @@ Both opcode interpreters enforce a narrow instruction allowlist: unknown branch 
 
 ### Independent MAME CPU core execution — verified 2026-11-04
 
-**This is a different layer from our local bounded interpreter.** GitHub Actions installs the real **MAME v0.285** Ubuntu package, starts its existing JUNO-106 driver with the standalone **uPD7810 CPU device** for the module controller, and runs both original published machine-opcode windows in that independently maintained CPU implementation.
+**This is a different layer from our local bounded interpreter.** GitHub Actions installs the real **MAME v0.285** Ubuntu package, starts its existing JUNO-106 driver with the standalone **uPD7810 CPU device** for the module controller, and runs three bounded published machine-opcode probes in that independently maintained CPU implementation.
 
 Test-only harness, with **no genuine Roland ROM distributed or claimed**:
 
@@ -62,15 +63,18 @@ Test-only harness, with **no genuine Roland ROM distributed or claimed**:
 |---|---:|---|---|
 | IC29 ADC $0800..$0824 | 28 selected previous/current ADC combinations, **all four channels** | compiled native_adc106 held + conditioned RAM (8 values per run) | **28/28 PASS** |
 | IC29 VCF clamp $0609..$0618 | 13 EA boundary words × all 4 combinations of FF6B low flag bits = **52 runs** | independently compiled vcf106_voice_code14 plus existing instruction-window oracle | **52/52 PASS** |
+| IC29 VCF voice path $05C1..$063B | 42 signed base/ENV/pitch/depth/polarity/Key Follow cases | independently compiled vcf106_voice_code14 with nonzero ENV and Key Follow | **42/42 PASS** |
 
 **Verified runs:**
 - **MAME CPU probe #2:** the first 28 ADC scenarios passed, after fixing an initial unsupported console-debugger option.
 - **MAME CPU probe #4:** full two-stage gate passed **28 ADC + 52 VCF cases**, with all 4 ADC-channel bytes checked per case. MAME package: **v0.285**.
-- In parallel **host-tests #286** passed **18/18 CTests** plus the existing exhaustive original-byte tests (65,536 old/new ADC pairs x four channels and 262,144 wrapped VCF clamp flag-state cases).
+- **MAME CPU probe #11** (commit `5c6ffc7`): all three stages passed **28 ADC + 52 VCF clamp + 42 VCF voice path = 122/122 independent MAME process cases**. The new voice-path stage verifies 123 pinned published instruction bytes from `$05C1` to `$063B` including ENV and Key Follow, exercising both signs and final clamp. It starts at `$05C1` with synthetic input registers, stack, RAM and global sign; it does **not** execute the original preceding ENV update or global cutoff/LFO/bend generation. The run passed with no production VCF code changes.
+- In parallel **host-tests #286** passed **18/18 CTests** plus the existing exhaustive original-byte tests (65,536 old/new ADC pairs x four channels and 262,144 wrapped VCF clamp flag-state cases). **Host-tests #302** also passed 18/18 on the new chain-test commit.
 
 Files:
 - tests/cpu_ic29/run_mame_cpu_probe.py — actual MAME ADC core subprocess + synthetic fixtures and PC/RAM capture;
 - tests/cpu_ic29/run_mame_vcf_probe.py — actual MAME VCF EA/FF6B capture;
+- tests/cpu_ic29/run_mame_vcf_chain_probe.py and vcf_chain_reference_cli.c — new whole-CPU execution of the per-voice VCF arithmetic slice, with SHA-256 source pin and compiled production C comparison;
 - .github/workflows/mame-independent-cpu-probe.yml — separate, path-gated PR/dispatch workflow; ordinary host-tests stay lightweight.
 
 **Exactness boundary:** MAME's JUNO-106 skeleton driver currently uses UPD7810 devices, not UPD7811, although the relevant machine instructions are shared. Our separate *full MAME CPU execution of these windows* therefore constitutes independent opcode / register-state evidence, but not an 8-KiB original full-firmware run on correctly configured uPD7811 silicon. Nor does it independently prove ADC conversion clocks, UART ISR races, exact CPU-cycle latency or analogue sample-and-hold timing.
@@ -82,11 +86,11 @@ The **earlier bounded test interpreter** is not MAME's CPU core. The new MAME ha
 - original full-ROM cold start, interrupts and interrupt acceptance windows;
 - CPU cycle timing, interrupt flags, peripherals, ADC clock conversion and autonomous scan bank switching;
 - all uPD7811 PSW overlay-register behavior (the bounded ADC entry assumes L1 is clear for MVI A branches);
-- the full VCF 0x05c0..0x0640 dataflow on original ROM bytes; only its final clamp PC window was executed and the remainder is covered by separate independent arithmetic oracle tests;
+- the preceding full VCF global cutoff/LFO/bend assembly, the original upstream envelope evolution, or the surrounding 0x05c0 POP-HL and 0x063c DAC/scheduler path; the per-voice arithmetic slice 0x05c1..0x063b **has** now been executed, but with injected input registers and stack rather than a naturally reached original CPU state;
 - instruction-level execution of DCO pitch/divisor construction, 8253 GPIO phase, live range changes or S/H aperture offsets;
 - measured original-unit behavior; hardware and MAME source are secondary evidence, **not** a bit-identical chip-fidelity certification.
 
-The next high-priority job is to run more original-byte control flow under an **explicit UPD7811-configured CPU device** with a separately validated original ROM provenance, then extend beyond the local ADC/VCF-clamp windows to the full serial/VCF path and timing/IRQ cases. The current independent MAME CPU probes are valuable verified partial evidence; do not reclassify them as full Roland CPU or full original ROM fidelity.
+The next high-priority job is to run more original-byte control flow under an **explicit UPD7811-configured CPU device** with a separately validated original ROM provenance, then extend beyond injected ADC/VCF window entries to original-entry serial/global-VCF flow and timing/IRQ cases. The current independent MAME CPU probes are valuable verified partial evidence; do not reclassify them as full Roland CPU or full original ROM fidelity.
 
 ## CI invocation
 
@@ -98,7 +102,7 @@ Given a locally provided `ic29.txt` with bytes matching the pinned checksums:
 
 `python3 tests/cpu_ic29/run_vcf_opcode_window.py --ic29-disasm PATH --native-cli build/fm1juno_vcf_clamp_reference`
 
-Independent MAME invocation (Ubuntu package version 0.285) is reproduced by the same dedicated workflow, after building fm1juno_native_adc_reference and fm1juno_vcf_clamp_reference. The synthetic ROM generator refuses unpinned source bytes and validates a debugger checkpoint before allowing PASS.
+Independent MAME invocation (Ubuntu package version 0.285) is reproduced by the same dedicated workflow, after building fm1juno_native_adc_reference, fm1juno_vcf_clamp_reference and fm1juno_vcf_chain_reference. The synthetic ROM generator refuses unpinned source bytes and validates a debugger checkpoint before allowing PASS.
 
 The download is an explicit CI dependency, not a hidden fallback to guessed ROM contents. The public disassembly's author explicitly describes it as partial/inaccurate/incomplete; therefore even a verified checksum only authenticates that *published transcription*, not an original Roland chip dump. A changed/unavailable source fails this extra gate. When working offline, run the unchanged CTest suite and pass a separately obtained verified original disassembly file for the opcode gate.
 
