@@ -78,7 +78,11 @@ target_link_libraries(fm1juno_native_panel_tests PRIVATE fm1juno_core)
 add_executable(fm1juno_upd7811_flag_tests tests/unit/test_upd7811_flag_oracle.c)
 target_link_libraries(fm1juno_upd7811_flag_tests PRIVATE fm1juno_core)
 
+add_executable(fm1juno_native_adc_reference tests/cpu_ic29/native_adc_reference_cli.c)
+target_link_libraries(fm1juno_native_adc_reference PRIVATE fm1juno_core)
+
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(fm1juno_native_adc_reference PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_upd7811_flag_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_native_panel_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_compile_options(fm1juno_timer_edge_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
