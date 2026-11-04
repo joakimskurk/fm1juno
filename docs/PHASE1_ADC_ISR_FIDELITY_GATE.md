@@ -1,9 +1,12 @@
 # P1.1 — Original IC29 ADC ISR fidelity gate
 
-**State:** OPEN. The bank-selected **main-loop ADC service** has been
-executed under the independent MAME UPD7810 CPU and verified in 36
-six-voice+ADC scenarios. An *actual ADC conversion interrupt* and its
-peripheral timing have **not** been executed or validated.
+**State:** P1.1 strict gate OPEN. The bank-selected main-loop ADC
+service passed 36 six-voice+ADC scenarios; **20 direct original-ISR
+opcode cases** and **4 genuinely MAME-internal-ADC-triggered ISR/RETI
+round trips** have now independently passed. This proves bounded
+MAME UPD7810 ISR entry and return, **not** authentic JUNO-106 ADC
+electrical input, full scan cadence, firmware provenance or
+cycle-accurate Roland interrupt timing.
 
 This is a reproducible handoff for the next bounded implementation,
 not a claim of original Roland hardware emulation.
@@ -102,7 +105,82 @@ Consequences:
    silicon/cycle claims. The MAME skeleton UPD7810 configuration must
    remain explicit in every test report.
 
-## Next bounded engineering sequence
+## New verified evidence: direct original-ISR opcodes and real internal ADC IRQ
+
+**Focused GitHub Actions `MAME original ADC ISR direct-opcode gate`
+#4 SUCCESS** (test code `5f27ee4`, run `41933092493`) after
+independently executed original opcode byte SHA checks:
+`0x0020..0x0021` and `0x0070..0x008D`.
+
+- `tests/cpu_ic29/run_mame_adc_isr_direct_probe.py`:
+  **20/20 direct-vector CPU scenarios PASS**, covering ANM
+  00/08/10/18 and five CR0..CR3 combinations each. Synthetic boot
+  sets primary A, BC, DE and HL sentinels and JMPs to original vector
+  0020; debugger explicitly sets ANM and CR0..CR3 to controlled
+  nonzero values. MAME executes original EXA/EXX, copies the
+  **pre-XOR ANM** to FF5C, changes ANM bit3, stores CR registers
+  in FF5D..FF60 and restores primary registers. The breakpoint
+  at 008D is deliberately *before RETI*: a direct vector JMP is
+  not a hardware interrupt. The initial failure was only a
+  debugger-fixture radix error (unprefixed decimal numbers were
+  interpreted as hexadecimal); fixed with explicit `0xNN`
+  literals in commit `e02e6fe`.
+- `tests/cpu_ic29/run_mame_adc_isr_peripheral_probe.py`:
+  **4/4 real MAME internal-ADC-triggered CPU interrupt round trips
+  PASS.** The synthetic boot has **no jump to vector**. It sets
+  ANM, MKH=04, enables interrupts and idles until the MAME
+  UPD7810's own ADC conversion engine raises INTFAD. MAME's
+  real IRQ logic pushes PSW/PC (SP FFF0→FFED), vectors at
+  **0020**, executes original 0070..008D, and executes **RETI**
+  back into the interrupted idle loop (SP returns to FFF0).
+  Original A/D ISR toggles ANM 00→08, 08→00, 10→18, 18→10,
+  records the prior bank mode in FF5C, writes four CR values
+  to FF5D..FF60, changes MKH to 05, and restores registers.
+  No CPU register/stack initialization was performed by the
+  debugger after boot; the IRQ event is from the MAME CPU
+  peripheral, **not** a debugger-controlled vector jump.
+
+MAME `upd7810.cpp` implements ADC timer-driven scan conversion,
+raises `INTFAD` at the four-channel cycle boundary and accepts
+that IRQ at vector 0020 if MKH bit 0 is unmasked and IFF is set.
+The Juno-specific driver does **not** bind AN0..AN7 callbacks;
+MAME's default read8 callback returns **zero**. This means the
+4/4 hardware-triggered tests certify the emulator's internal
+IRQ/RETI control flow with all conversion samples zero, NOT
+the JUNO-106's actual analogue source voltages or any
+**original/physical** clock timing. Original `0x06B3`
+DI/SKIT FAD/MKH/EI control section remains outside these tests.
+
+The previously verified **736** bounded MAME CPU process scenarios
+plus 20 direct ISR + 4 peripheral IRQ scenarios yield **760
+selected process scenarios** with independently verified green
+focused runs. The full combined workflow adds both new gates as
+separate final stages; this does not by itself claim the newest
+full-matrix run completed until CI confirms it.
+
+## Updated next engineering sequence
+
+1. Inspect/test the MAME UPD7810 AN0..AN7 callback API and
+   create a **test-only deterministic analogue input fixture**
+   supplying nonzero, distinct channel values. Avoid altering
+   production envelope/VCF/ADC algorithms or the user's actual
+   emulation configuration.
+2. Run original 0020/0070 ISR through the same *real* MAME
+   peripheral acceptance/RETI for both bank groups, verify
+   **nonzero** four-register conversions and FF5C changes,
+   then integrate original 0652/06E2 main-loop ADC
+   conditioning in one continuous **interrupt → main-loop**
+   execution path.
+3. Investigate the original 06B3..06BC interrupt flag/mask
+   path and explicit 8253/CPU timer interleaving separately.
+4. Match an independently authenticated original uPD7811
+   variant, ROM map, conversion/cycle clock and physical
+   input voltage characteristics before making exact
+   Roland timing claims.
+
+## Previously planned engineering sequence (partially completed)
+
+
 
 1. Inspect the precise upstream MAME uPD7810 ADC register, input-callback,
    IRQ-vector and alternate-register semantics; document the needed
@@ -127,7 +205,7 @@ Consequences:
 6. Preserve the stable 736 bounded CPU process scenarios and
    independently run the original 682+18+36 regression suites.
 
-**Exit is not achieved merely by this document or by a green direct
-opcode window.** The strict P1.1 digital gate remains OPEN until
+**Exit is not achieved merely by this document, 20 direct opcode cases
+or four zero-input MAME peripheral IRQ round trips.** The strict P1.1 digital gate remains OPEN until
 the actual scheduler/IRQ, CPU mapping, peripheral and timing evidence
 has been gathered or explicitly granted a bounded-fidelity exception.
