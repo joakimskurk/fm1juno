@@ -146,6 +146,52 @@ of complete instruction or full original firmware coverage. Host-tests
 #321 also passed 18/18 on the same code commit. The new test's synthetic
 bridge still prevents any claim of uninterrupted original ROM/ENV/IRQ timing.
 
+### Original first-voice ATTACK → VCF: 144/144 MAME #25 SUCCESS
+
+The **new** `run_mame_vcf_original_attack_probe.py` is deliberately
+distinct from the prior 64-case *synthetic bridge* test: it installs
+the original contiguous published IC29 opcode bytes from
+`0x04CB..0x063B` and executes the **actual** original first-voice
+ATTACK path through `0x0503..0x05BF` before naturally reaching
+`0x05C0..0x063B`. No synthetic jump bypasses the envelope for this
+ATTACK path. The test also installs the original `CALF 0x082F`
+DAC-output helper and all 128 original ATTACK lookup coefficients.
+
+Byte-source SHA-256, pinned and checked at test time:
+- Full original `0x04CB..0x063B` 369-byte window:
+  `e3550dc3c7731630b737ede97a47d6029d33929d5b480540d876ce99c42ac365`.
+- Original `0x082F..0x083C` 14-byte DAC helper:
+  `3357c20d1baeed42f251020e287554626d94b061da5e8bd2f59e7db41c0f8310`.
+- Original `0x0B60..0x0C5F` 256-byte, 128-word ATTACK lookup table:
+  `faef5ad5666a501bfe373f0af4cb345cae8ec6c569821873bb15f69f71ec3eea`.
+
+These are checksums of the **published transcription** only, not
+proof of a recovered full Roland firmware image. The test boot is
+synthetic, initializing the original code's cutoff, precomputed LFO,
+bend, voice active/phase flags, initial 14-bit envelope, pitch, ENV
+depth, Key Follow, PWM value and stack. MAME's real UPD7810 CPU
+executes the original first-voice ATTACK, 0x3FFF ceiling/phase
+conditions, real DAC helper and VCF instructions with no debugger
+register edits. At `0x063C`, the debugger reads EA, envelope RAM
+FF27/FF28, phase masks FF33/FF08, FF6A, SP, HL and voice state.
+It compares output against **separately compiled production C** for
+global VCF, attack increments/tick, and final VCF.
+
+**First attempt found a real fidelity bug:** MAME #24 failed at
+scenario index138 (139th test): `0x3F80+0x007F=0x3FFF` set no decay
+bits in published original IC29 path but C advanced immediately to
+DECAY. The original flag branch is strict `sum > 0x3FFF`, not merely
+`sum >= 0x3FFF`. We changed `envelope106_tick`'s phase transition
+check and its compiled reference CLI, and added a native unit
+regression. **MAME independent CPU #25 SUCCESS:** all 128 ATTACK
+indices plus 16 boundary cases pass (**144/144**), in addition to all
+250 earlier MAME cases (**394/394 selected independent process runs**).
+Native host-tests #339/#340 passed on the unit-regression code commit.
+
+The original DECAY and RELEASE branches, natural six-voice loop, full
+module ROM cold boot, original UPD7811 device, interrupt scheduling,
+ADC conversion phase and analogue audio remain **unverified**.
+
 ### Limitations / open strict gate
 
 The **earlier bounded test interpreter** is not MAME's CPU core. The new MAME harness above now executes both windows using independently maintained MAME CPU code. However neither harness currently models/validates:
@@ -153,7 +199,7 @@ The **earlier bounded test interpreter** is not MAME's CPU core. The new MAME ha
 - original full-ROM cold start, interrupts and interrupt acceptance windows;
 - CPU cycle timing, interrupt flags, peripherals, ADC clock conversion and autonomous scan bank switching;
 - all uPD7811 PSW overlay-register behavior (the bounded ADC entry assumes L1 is clear for MVI A branches);
-- the preceding full VCF global cutoff/LFO/bend assembly, the original upstream envelope evolution, or the surrounding 0x05c0 POP-HL and 0x063c DAC/scheduler path; the per-voice arithmetic slice 0x05c1..0x063b **has** now been executed, but with injected input registers and stack rather than a naturally reached original CPU state;
+- original source-side generation of LFO/bend contributions, unverified DECAY/RELEASE envelope branches, natural six-voice iteration and post-0x063C DAC/scheduler path; the original first-voice ATTACK/global-VCF/ENV/Key Follow path **has** now executed continuously in the independent MAME CPU, albeit with synthetic initial inputs;
 - instruction-level execution of DCO pitch/divisor construction, 8253 GPIO phase, live range changes or S/H aperture offsets;
 - measured original-unit behavior; hardware and MAME source are secondary evidence, **not** a bit-identical chip-fidelity certification.
 
