@@ -140,16 +140,21 @@ def verify_irq_interleaving(log: str, bank: int, case: int,
     p = tuple(int(v, 16) for v in pre[1].group(1).split(":"))
     mode = bank << 3
     raw = raw_for_bank(1-bank, input_profile)
-    if e != (0xFFEB, mode ^ 8, 0x04):
+    # A second ADC interrupt can be accepted at three boundaries:
+    # (1) before 0737; (2) after debugger stops at 0737 but before
+    # POP DE; (3) after POP DE but before debugger stops at 0738.
+    # In case (3), FF31 was already popped and the IRQ frame
+    # starts from FFF0 instead of FFEE.
+    phase = (1 if events[1].start() < beforepop else
+             2 if e[0] == 0xFFEB else 3)
+    irq_sp = 0xFFED if phase == 3 else 0xFFEB
+    if e != (irq_sp, mode ^ 8, 0x04):
         raise AssertionError(
             "second IRQ frame/bank/MKH mismatch: " + repr(e))
-    if p != (0xFFEB, mode, 0x05, mode ^ 8, *raw):
+    if p != (irq_sp, mode, 0x05, mode ^ 8, *raw):
         raise AssertionError(
-            "second actual ADC IRQ did not snapshot alternate bank: " +
-            repr(p))
-    # If the ISR's RETI fails to restore the original FFEE context,
-    # later original 0737 POP DE / FF31 checks catch it.
-    return 1 if events[1].start() < beforepop else 2
+            "second ADC IRQ did not snapshot alternate bank: " + repr(p))
+    return phase
 
 
 def verify_original_fad(log: str, serial: int, bank: int,
