@@ -187,14 +187,37 @@ def verify_tail_irq(log: str, window_end: int, bank: int,
         p = tuple(int(x, 16) for x in snap.group(1).split(":"))
         mode = (bank << 3) ^ 8
         raw = raw_for_bank(1-bank, input_profile)
-        if e != (0xFFED, mode, 0x04) or p != (
-                0xFFED, mode ^ 8, 0x05, mode, *raw):
+        if (e[0] not in (0xFFED, 0xFFEB) or e[1:] != (
+                mode, 0x04) or
+                p != (e[0], mode ^ 8, 0x05, mode, *raw)):
             raise AssertionError(
                 "case %d late true ADC IRQ/RETI register state "
                 "unexpected e=%r p=%r" % (case, e, p))
+        # SP FFEB means the authentic CALF 082F has already pushed
+        # its 2-byte return address (FFF0 -> FFEE) before the ADC
+        # IRQ pushes the 3-byte CPU PSW/PC frame. Prove this
+        # call-stack depth using independent original code breakpoints;
+        # a stray FFEB from corruption outside CALF must NOT pass.
+        inside_dac = False
+        for name in ("VOICE6", "NOISE"):
+            call = log.find("FM1JUNO_ORIG_TAIL_" + name + "_DAC:")
+            done = log.find("FM1JUNO_ORIG_TAIL_" + name + "_RETURN:")
+            if call < 0 or done < 0 or call >= done:
+                raise AssertionError(
+                    "case %d missing original DAC call/return checkpoint"
+                    % case)
+            if call < arrival.start() < done:
+                inside_dac = True
+        if (e[0] == 0xFFEB) != inside_dac:
+            raise AssertionError(
+                "case %d ADC IRQ stack depth does not match actual "
+                "original DAC CALF window: SP=%04X inside=%d" %
+                (case, e[0], inside_dac))
     if arrivals:
         print("MAME_POST_ADC_TAIL_REAL_IRQ case=%02d "
-              "irq_after_0738=1 SP_IRQ=FFED" % case, flush=True)
+              "irq_after_0738=1 SP_IRQ=%04X" %
+              (case, int(arrivals[0].group(1).split(":")[0], 16)),
+              flush=True)
 
 
 def source_table(source: Path) -> bytes:
