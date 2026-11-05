@@ -8,7 +8,7 @@ Authority: `docs/PHASE1_START_CONTRACT.md` -> `docs/PHASE1_REFERENCE_ENGINE_PLAN
 **Do not mark P1.1 as complete, and do not begin claiming analogue/audio 106 fidelity.**
 
 **Latest verified result (read §§24–27 for evidence):**
-**976 selected independent MAME CPU process scenarios passed**
+**1,012 selected independent MAME CPU process scenarios passed**
 across the separately verified gates. This includes the
 original eight-channel nonzero-ADC compiled MAME 0.285 fixture,
 the real original ADC ISR/RETI, six-voice ENV/VCF, original
@@ -19,10 +19,13 @@ The latter also verified four asynchronous original-ISR
 MAME CPU interrupts with actual saved return PCs
 `02F2/02EE/02F4/02F4`.
 
-The stock original-frame focused gate #5 is green;
-the complete-matrix re-run and the *additional*, distinct
-compiled nonzero-ADC frame/tail extensions must be
-independently checked before increasing the count again.
+The stock original-frame focused gate #5 is green.
+The separately compiled **nonzero-input original 0x0738 tail
+gate #33 is also SUCCESS** with 36/36 distinct eight-channel
+source-callback cases (GitHub Actions 42131473570).
+The full-matrix re-run and the *additional compiled nonzero
+0x02EC frame* extension must be checked independently
+before increasing the count beyond 1,012.
 **Actual original full Roland scheduler, UPD7811/ROM
 identity, hardware analogue/electrical timing, PIT/DCO and
 audio remain OPEN. P1.1 is NOT complete.**
@@ -1106,17 +1109,27 @@ after original `0x07B5 JMP`; this does not add new
 process cases beyond the previously counted stock
 36 original-tail runs.
 
-**Historically verified count: 976 selected MAME
+**Historically verified count: 1,012 selected MAME
 process scenarios** = 940 prior + 36 newly verified
-original-frame stock-MAME cases. The new
+original-frame stock-MAME cases +
+**36 compiled nonzero ADC original-tail cases**
+that independently passed
+[compiled MAME #33](https://github.com/joakimskurk/fm1juno/actions/runs/42131473570).
+That compiled run retained actual eight-channel nonzero
+ADC converter callbacks and passed 36/36 source-pinned
+0x0738..0x07B7 original-tail paths, 216 voice and
+144 ADC channel parity comparisons. The new
 `tests/cpu_ic29/run_mame_original_frame_scheduler_entry.py`
 is included as an appended stage in full
 `.github/workflows/mame-independent-cpu-probe.yml`
 and is also invoked from the separately compiled
 eight-channel nonzero ADC source fixture in
 `.github/workflows/mame-compiled-nonzero-adc.yml`.
-Do **not** add either compiled frame or prior compiled-tail
-new cases until those complete CI runs pass.
+Do **not** add the pending **compiled 0x02EC frame**
+new cases until a distinct full test job actually passes.
+The older compiled-tail gate is now independently proven,
+but full-matrix CI on the documentation head is
+a separate status check.
 
 **Strict blockers unchanged:** This verifies only the
 published `0x02EC..0x03A0` frame slice following the real
