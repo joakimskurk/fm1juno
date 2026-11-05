@@ -319,7 +319,7 @@ def debugger() -> str:
     base = base.replace(
         match,
         'sp,anm,mkh; logerror '
-        '"FM1JUNO_TAIL_IRQ_SAVED_PC:%04X:%04X:%04X\\\\n",'
+        '"FM1JUNO_TAIL_IRQ_SAVED_PC:%04X:%04X:%04X\\n",'
         'sp,w@ffed,w@ffeb; g}',
         1)
     # Existing checkpoints at 0652, 065F and 06E7 MUST continue,
