@@ -79,6 +79,26 @@ def tail_seed(rom: bytearray, case: int) -> bool:
         raise AssertionError("six-voice VCA switch bit unexpectedly set")
     if mode_env:
         rom[at+2] |= 4
+    # Independent PWM source selection: FF37 bit 0 high allows
+    # modulated LFO PWM; low replaces BC with manual 3FFF.
+    if case & 8:
+        rom[at+2] |= 1
+    # Oscillator enabled/disabled source branch at published 0783:
+    # FF1E bit6 set skips "LXI EA,0000" so computed PW survives.
+    flag1 = bytes((0x71, 0x1e))
+    flag_at = rom.find(flag1, 0x0200, start)
+    if flag_at < 0 or rom.find(flag1, flag_at+1, start) >= 0:
+        raise AssertionError("original oscillator flag RAM fixture missing")
+    if case & 2:
+        rom[flag_at+2] |= 0x40
+    # FF4A bit0: rising/descending LFO; preserve original polarity
+    # bit1 so this exercises both signs without changing VCF setup.
+    lfo_flag = bytes((0x71, 0x4a))
+    lfo_at = rom.find(lfo_flag, 0x0200, start)
+    if lfo_at < 0 or rom.find(lfo_flag, lfo_at+1, start) >= 0:
+        raise AssertionError("original LFO flag RAM fixture missing")
+    if case & 4:
+        rom[lfo_at+2] |= 1
     values = (
         (0x39, NOISE_LEVEL & 0xff),
         (0x3a, NOISE_LEVEL >> 8),
@@ -132,16 +152,22 @@ def verify_tail(log: str, case: int, scenario: dict,
         raise AssertionError(
             "case %d voice6 VCA native DAC helper call/return mismatch %r/%r"
             % (case, vca_call, vca_return))
-    # LFO level at 0738 seed is 0100, coefficient 0020. Original
-    # 078B->075F ascending branch stores 0120; bit0 on FF4A was
-    # cleared by prior synthetic six-voice fixture (0 or 2).
+    # Original 078B->075F rising branch stores 0100+0020=0120;
+    # the 075B descending DSUBNB branch stores 0100-0020=00E0.
+    # In both cases it preserves the original FF4A polarity bit1.
     lfo_value, coefficient, pwm, flags, depth, switch, sp_lfo = lfo
-    if (lfo_value != 0x0120 or coefficient != 0x0020 or
+    expected_lfo = 0x00e0 if case & 4 else 0x0120
+    square_enabled = bool(case & 2)
+    if (lfo_value != expected_lfo or coefficient != 0x0020 or
             depth != PWM_DEPTH or not 0 <= pwm <= 0x3FFF or
-            pwm == 0x1234 or flags & 1 or sp_lfo != 0xFFF0):
+            pwm == 0x1234 or bool(flags & 1) != bool(case & 4) or
+            bool(switch & 1) != bool(case & 8) or
+            (pwm != 0) != square_enabled or sp_lfo != 0xFFF0):
         raise AssertionError(
-            "case %d original 0738 LFO/PWM state invalid %r" %
-            (case, lfo))
+            "case %d original 0738 LFO/PWM flags/direction/output "
+            "invalid %r expected LFO=%04X square=%d source=%s" %
+            (case, lfo, expected_lfo, square_enabled,
+             "LFO" if case & 8 else "MANUAL"))
     if noise != (7, NOISE_LEVEL) or noise_return[1] != NOISE_LEVEL:
         raise AssertionError(
             "case %d original noise VCA DAC call/return %r/%r" %
@@ -153,11 +179,14 @@ def verify_tail(log: str, case: int, scenario: dict,
             "SP/DE/voice mismatch %r %r" %
             (case, jump, restart))
     print("MAME_POST_ADC_TAIL %02d/%02d PASS pattern=%s "
-          "VCA=%s:%04X LFO=%04X PWM=%04X NOISE=%04X "
-          "JMP=07B5->02EC" %
+          "VCA=%s:%04X LFO=%s:%04X PWM=%s:%s:%04X "
+          "NOISE=%04X JMP=07B5->02EC" %
           (case + 1, TOTAL, scenario["pattern"],
            "ENV" if mode_env else "GATE", ea,
-           lfo_value, pwm, NOISE_LEVEL), flush=True)
+           "DOWN" if case & 4 else "UP", lfo_value,
+           "ON" if square_enabled else "OFF",
+           "LFO" if case & 8 else "MANUAL", pwm,
+           NOISE_LEVEL), flush=True)
 
 
 def verify_tail_irq(log: str, window_end: int, bank: int,
