@@ -39,6 +39,23 @@ jobs:
             --source build/juno106_upstream_0285.cpp \
             --output build/juno106_analog_fixture_NOT_COMPILED.cpp
           test "$(grep -c 'an[0-7]_func().set' build/juno106_analog_fixture_NOT_COMPILED.cpp)" -eq 8
+      - name: Negative control - fixed-eight MUST reject unpatched zero-input MAME
+        run: |
+          if python3 -u tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame /usr/games/mame --input-profile fixed-eight \
+            --case-timeout 14 > build/negative_adc_fixture.log 2>&1; then
+            echo "ERROR: unpatched MAME unexpectedly satisfied nonzero ADC callback fixture"
+            cat build/negative_adc_fixture.log
+            exit 1
+          fi
+          grep -q "original ISR/ANM/CR snapshot wrong" build/negative_adc_fixture.log
+          echo "PASS: nonzero callback gate fails closed on stock zero-input MAME"
       - name: Verify real internal ADC IRQ to original six voices and ADC bank conditioning
         run: |
           python3 -u tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py \
