@@ -726,4 +726,77 @@ Preserve all existing original-ENV/VCF/ADC CPU stages.
 
 **Gate: P1.1_DIGITAL_IN_PROGRESS remains OPEN. PR #3 remains draft.**
 
+## 23. One CPU run: actual MAME ADC IRQ → original ISR → six-voice control → ADC bank — focused CI VERIFIED
+
+**Focused GitHub Actions `MAME ADC IRQ to six-voice bank service` #2
+SUCCESS** at code commit `592807a` (run `41976855747`).
+**36/36 complete CPU paths** passed, including **216 per-voice
+envelope/VCF** comparisons, six real DAC subroutine entry/returns
+per process and **144 ADC-channel** comparisons against a separately
+compiled C oracle. In combination with the earlier confirmed
+**760/760** independent original-byte MAME CPU scenarios, the
+selected scenario repertoire is **796/796** (760 + 36). The
+full combined MAME matrix now also includes the new stage;
+do not claim that specific run is green until verified separately.
+
+New files:
+- `tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py`
+- `tests/cpu_ic29/adc_full_bank_reference_cli.c` and CMake target
+  `fm1juno_adc_full_bank_reference`
+- `.github/workflows/mame-adc-irq-to-six-voice.yml` (focused CI);
+  appended complete-matrix CI stage.
+
+Every new case starts with a **real emulated internal ADC conversion
+interrupt** (MAME UPD7810 raises INTFAD without debugger patching
+or jumping to an interrupt vector), executes original 0x0020→0x0070
+interrupt instructions and real original RETI, returns with
+SP `FFF0`, and then proceeds to six **original consecutive**
+0x0503 envelope/VCF calculations, six actual original DAC helper
+returns, and original 0x0652/0x06E2 ADC bank-selection and 0x0800
+hysteresis/conditioning instructions.
+
+**Precisely scoped synthetic part:** This is NOT full original
+interrupt-to-main-loop firmware scheduling. A short test-only polling
+routine at `0x0400` waits for the ISR to write FF5C, then jumps to
+published `0x04D5`. The original source instruction blocks
+themselves are never modified or bridged internally, and the
+published ISR is entered by genuine *MAME peripheral* interrupt
+acknowledgment. All analog AN0..AN7 callbacks are still **unbound
+and yield zero** in the stock MAME JUNO-106 skeleton; the new
+test never modifies CR0..CR3 through the debugger. FF5D..FF60
+zeros are therefore genuinely MAME converter-sourced, not
+artificially placed in ISR RAM.
+
+We validate both FF5C bank 0/1 choices for all 18 natural
+six-voice ATTACK/DECAY/RELEASE patterns. The selected bank's
+four original accepted/conditioned ADC bytes match production
+`native_adc106_receive_bank` and
+`native_adc106_process_latest` for real converter-source zeros;
+the unselected bank retains independent RAM sentinels.
+This extends prior proof by linking **event generation,
+IRQ/RETI, CPU loop, bank selection and ADC consumption in
+one MAME process** rather than separate original instruction
+probes.
+
+**Harness defect detected and corrected:** First focused CI #1
+timed out because the earlier synthetic six-voice bootstrap
+occupied the original 0x0020 and 0x0070 interrupt regions,
+which the new probe necessarily replaces with authentic bytes.
+Commit `592807a` relocated the *test-only* startup to
+`0x0200`, placed a reset JMP there, and reserved the real
+interrupt vector/ISR windows without overlap. Focused #2
+passed 36/36 with this corrected address map. No production
+control algorithm changed.
+
+**Strict gate remains OPEN:** The current MAME driver has no
+wired analog AN0..AN7 callbacks, and its machine definition
+is UPD7810, not a validated Roland UPD7811/full original ROM.
+Original post-interrupt scheduler cycles, ISR collision window,
+ADC analogue voltage transfer and physical timer/8253 phase
+remain unverified. A **test-only** MAME custom driver with
+deterministic **nonzero analogue channel callbacks** and/or
+hardware calibration is required before claiming input
+peripheral fidelity. No time or PWM/DAC voltage measurement
+is inferred from a successful program-path checkpoint.
+
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
