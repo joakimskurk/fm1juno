@@ -110,13 +110,24 @@ def build_rom(original: bytes, continuation: bytes, dac: bytes,
     if old_end < 0 or rom.find(initial_jump, old_end+1, 0x04CB) >= 0:
         raise AssertionError("original six-voice fixture JMP not unique")
     synthetic_prefix = bytes(rom[:old_end])
+    if synthetic_prefix[:5] != bytes((0x68, 0xFF, 0x04, 0xF0, 0xFF)):
+        raise AssertionError("six-voice startup register prelude changed")
+    # MAME starts scanning AN0-AN3 at reset, even before the fixture
+    # enables global interrupts. A slow six-voice RAM bootstrap can
+    # leave a stale INTFAD pending from the *old* scan group. If mode
+    # is changed only immediately before EI, the first interrupt may
+    # capture the OLD CR0..CR3 bank despite FF5C showing the new ANM.
+    # Set ANM immediately after V/SP initialization, early enough for
+    # a complete bank-specific conversion during fixture RAM setup.
+    mode = bank << 3
+    early_scan = bytes((0x69, mode, 0x4D, 0xC8))
+    relocated = synthetic_prefix[:5] + early_scan + synthetic_prefix[5:]
     bootstrap_address = 0x0200
-    if bootstrap_address + len(synthetic_prefix) + 96 >= POLL_PC:
+    if bootstrap_address + len(relocated) + 96 >= POLL_PC:
         raise AssertionError("relocated bootstrap overlaps synthetic poll")
     rom[:POLL_PC] = bytes(POLL_PC)
     rom[:3] = bytes((0x54, 0x00, 0x02))
-    rom[bootstrap_address:bootstrap_address+len(synthetic_prefix)] = (
-        synthetic_prefix)
+    rom[bootstrap_address:bootstrap_address+len(relocated)] = relocated
     # Overwrite only the *old synthetic STOP* at 0652; never alter
     # any original published envelope/VCF, ISR or ADC instruction.
     rom[POST_START:POST_END] = post
@@ -127,7 +138,7 @@ def build_rom(original: bytes, continuation: bytes, dac: bytes,
 
     # Add a deterministic 8-channel initially accepted/conditioned state
     # to synthetic boot. FF5C AA is a handshake sentinel, not a bank.
-    offset = bootstrap_address + len(synthetic_prefix)
+    offset = bootstrap_address + len(relocated)
     setup = [(0x5C, 0xAA)]
     for k in range(4):
         setup.extend((
@@ -139,11 +150,15 @@ def build_rom(original: bytes, continuation: bytes, dac: bytes,
     bootstrap = bytearray()
     for addr, value in setup:
         bootstrap.extend((0x71, addr, value))
-    mode = bank << 3
-    # MVI MKH,04 -> MVI A,mode -> MOV ANM,A -> EI -> JMP 0400.
-    # No direct jump to the original 0020 interrupt vector.
-    bootstrap.extend((0x64, 0x06, 0x04, 0x69, mode,
-                      0x4D, 0xC8, 0xAA, 0x54, 0x00, 0x04))
+    # Published original 06B4 uses SKIT FAD; NOP clears an
+    # already-pending INTFAD without skipping MKH. Masking/interrupts
+    # remain disabled until all synthetic RAM state is configured.
+    # After clearing any stale pre-ANM pending request, unmask FAD,
+    # enable interrupts and wait for a NEW conversion interrupt.
+    # No direct jump to the original 0020 vector is permitted.
+    bootstrap.extend((0x48, 0x48, 0x00,
+                      0x64, 0x06, 0x04,
+                      0xAA, 0x54, 0x00, 0x04))
     if offset + len(bootstrap) >= POLL_PC:
         raise AssertionError("ADC synthetic bootstrap overlaps poll region")
     rom[offset:offset+len(bootstrap)] = bootstrap
