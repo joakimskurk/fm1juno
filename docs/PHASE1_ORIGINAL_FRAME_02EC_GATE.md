@@ -1,10 +1,15 @@
 # P1.1 — Original IC29 next-frame scheduler at 0x02EC
 
-**State:** Source-bounded implementation and focused CI **in progress**.
-The **previous original 0x0738..0x07B7 tail and 0x07B5 JMP to
-0x02EC are verified**. The new **0x02EC..0x03A0** CPU execution
-must not be counted in the green total until its own 36-case test passes.
-P1.1 strict gate is OPEN; no original-chip cycle or audio claims.
+**State:** The bounded original **0x02EC..0x03A0** source-byte
+scheduler slice is now **FOCUSED STOCK-MAME VERIFIED**:
+[GitHub Actions original frame #5](https://github.com/joakimskurk/fm1juno/actions/runs/42132712384)
+**SUCCESS, 36/36 CPU processes**. This extends the prior
+940 selected independent MAME CPU process fixtures to **976
+historically verified cases** (stock-MAME 02EC extension adds
+36; compiled nonzero follow-ons remain separately pending).
+The overall P1.1 strict gate remains OPEN; this is
+**not** an authenticated Roland ROM, original UPD7811 silicon,
+physical CPU clock/ADC voltage, complete frame scheduler or audio.
 
 ## Confirmed prerequisite
 
@@ -62,6 +67,65 @@ Published unofficial IC29 transcription:
 **New test:** `tests/cpu_ic29/run_mame_original_frame_scheduler_entry.py`.
 **Focused workflow:** `.github/workflows/mame-original-frame-scheduler.yml`.
 
+## Verified source-byte original frame and interrupt audit
+
+Focused original-frame #4 first passed all 36
+[original 02EC..03A0 CPU fixtures](https://github.com/joakimskurk/fm1juno/actions/runs/42132354390),
+then focused #5 repeated 36/36 after **tightening
+source provenance and IRQ checks**:
+
+- **18 original six-voice phase patterns × both ADC banks**,
+  actual internal ADC interrupt and original ISR/RETI,
+  all previously verified six original ENV/VCF/DAC
+  calculations, original post-ADC FAD boundary, VCA/LFO/PWM/noise
+  and real `0x07B5 JMP 0x02EC`.
+- **216 per-voice ENV/VCF and 144 ADC selected-bank**
+  comparisons continue to match separately compiled
+  production C. No original published CPU opcode or
+  production algorithm is changed.
+- The **181-byte** original frame `0x02EC..0x03A0`
+  implements voice-run from gate/sustain,
+  a full original `0x082F` resonance DAC call and
+  return with `EA=0x1234`,
+  then holdoff, attack and full-LFO modulation source branches.
+  Both ADC banks successfully execute all three branches.
+- Synthetic relocation area `0x0863..0x09E9`
+  is now itself source-pinned: **391 published NOP bytes**,
+  SHA-256
+  `db6f6097124dc8eaba5c36f64fdc1e3e44201b6c0f3fd6a11fbab4b38657ad6b`.
+  The test fails if this source region changes or is not all zeros.
+- A **separate real MAME CPU IRQ audit** reads the saved return-PC
+  from the original ADC interrupt stack. In these 36 chosen
+  cases, **four further genuine ADC interrupts** occurred
+  after the original frame restart and before the stop
+  `0x03A1`, at saved PCs
+  `0x02F2`, `0x02EE`, `0x02F4`, `0x02F4`.
+  They all had MAME CPU SP=`FFED`, consistent original
+  bank/mask state, alternate-bank ADC ISR snapshot
+  and original RETI. The test also validates the
+  `SP=FFEB` nested DAC-helper case if it occurs, but
+  does **not** claim it was observed in this 36-case set.
+  These are emulator fixture observations, not physical
+  interrupt timing statistics.
+- Both the **focused CI** and a new appended stage in
+  `.github/workflows/mame-independent-cpu-probe.yml`
+  now execute this test. The combined full CI result
+  must be checked separately before claiming it passed
+  on the latest commit.
+- `.github/workflows/mame-compiled-nonzero-adc.yml`
+  additionally runs this scheduler test using the
+  independently compiled `mame0285` Juno-106 binary
+  with eight distinct nonzero analogue callbacks,
+  `--input-profile fixed-eight`. This is an
+  **additional 36-case test pending its own green result**
+  and must not be added to historical selected counts yet.
+
+No standalone full original scheduler LFO/PWM or resonance
+native host parity oracle exists for this whole 181-byte
+segment; the branch and source-state invariants are
+currently checked against independent MAME CPU execution
+and source-derived expectations only.
+
 ## Synthetic ROM relocation and limitations
 
 The earlier CPU fixture initializes synthetic RAM at `0x0200`
@@ -85,19 +149,25 @@ or UPD7811 provenance blocker**.
 
 ## Handoff / exit conditions for the new slice
 
-1. Focused source-pinned MAME 36-case job PASS (all six
-   original ENV/VCF and four ADC comparisons preserved per case).
-2. Three distinct LFO delay/holdoff/active branch outcomes
-   traced at original breakpoints, resonance original DAC
-   call/return stack and values correct, no hidden
-   original opcode substitution.
-3. Independent genuine IRQ events **after the 0x02EC frame
-   entry** separately checked if present. Do not count a
-   debugger marker or guessed cycle duration as evidence.
-4. Then append the isolated source slice to the complete
-   independent CPU matrix, update documented totals and
-   only subsequently extend to `0x03A1..0x04D4`.
-5. Original 8253 phase, calibrated analogue voltage/real
-   controller clock and authenticated full original ROM
-   remain OPEN, even when this synthetic-input CPU slice
-   becomes green.
+1. **COMPLETE:** source-pinned stock-MAME 36-case
+   original frame entry job PASS, including all prior
+   original ENV/VCF/ADC parity checkpoints.
+2. **COMPLETE:** three LFO delay/holdoff/active branches,
+   resonance DAC `EA=1234`, source NOP-hole pinning
+   and source-authentic original frame `03A1` stop.
+3. **COMPLETE:** four genuine further frame IRQs observed;
+   checked CPU-stacked return PC, ANM bank, masked FAD
+   status and original alternate-bank ISR/RETI.
+4. **NEXT:** confirm *complete combined matrix*
+   containing the new stock gate is green, and separately
+   confirm the compiled eight-channel `fixed-eight`
+   version before adding its distinct 36 scenarios.
+5. **NEXT original-byte slice:** extend `0x03A1..0x04D4`
+   (tune/LFO/bender, portamento and six PIT/DCO
+   timer/CV updates) with original source bytes
+   and deterministic analogue/PIT fixture state.
+   The synthetic IRQ→`04D5` bridge remains until
+   original scheduler-to-voice entry is verified.
+6. Original 8253 phase, calibrated analogue voltage/real
+   controller clock, real uPD7811 silicon and
+   authenticated full original ROM remain OPEN.
