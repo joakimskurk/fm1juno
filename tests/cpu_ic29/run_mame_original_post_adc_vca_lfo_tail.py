@@ -207,11 +207,22 @@ def verify_tail_irq(log: str, window_end: int, bank: int,
         m for m in re.finditer(
             r"FM1JUNO_REAL_ISR_PRE_RETI:([0-9a-fA-F:]+)", log)
         if m.start() >= window_end]
-    if len(arrivals) != len(snapshots) or len(arrivals) > 1:
+    # Independently capture interrupted PC from original MAME IRQ stack.
+    # The saved return PC is at [FFED] when the main loop was
+    # interrupted (SP FFED), or [FFEB] inside the original DAC helper
+    # (CALL return already pushed two bytes, SP FFEB).
+    saved_pc = [
+        m for m in re.finditer(
+            r"FM1JUNO_TAIL_IRQ_SAVED_PC:([0-9a-fA-F:]+)", log)
+        if m.start() >= window_end]
+    if (len(arrivals) != len(snapshots)
+            or len(arrivals) != len(saved_pc)
+            or len(arrivals) > 1):
         raise AssertionError(
-            "case %d late VCA/LFO ADC IRQ count unsupported %d/%d"
-            % (case, len(arrivals), len(snapshots)))
-    for arrival, snap in zip(arrivals, snapshots):
+            "case %d late VCA/LFO ADC IRQ trace count "
+            "entry/pre-RETI/saved-PC unsupported %d/%d/%d"
+            % (case, len(arrivals), len(snapshots), len(saved_pc)))
+    for arrival, snap, saved in zip(arrivals, snapshots, saved_pc):
         e = tuple(int(x, 16) for x in arrival.group(1).split(":"))
         p = tuple(int(x, 16) for x in snap.group(1).split(":"))
         mode = (bank << 3) ^ 8
@@ -222,31 +233,44 @@ def verify_tail_irq(log: str, window_end: int, bank: int,
             raise AssertionError(
                 "case %d late true ADC IRQ/RETI register state "
                 "unexpected e=%r p=%r" % (case, e, p))
-        # SP FFEB means the authentic CALF 082F has already pushed
-        # its 2-byte return address (FFF0 -> FFEE) before the ADC
-        # IRQ pushes the 3-byte CPU PSW/PC frame. Prove this
-        # call-stack depth using independent original code breakpoints;
-        # a stray FFEB from corruption outside CALF must NOT pass.
-        inside_dac = False
-        for name in ("VOICE6", "NOISE"):
-            call = log.find("FM1JUNO_ORIG_TAIL_" + name + "_DAC:")
-            done = log.find("FM1JUNO_ORIG_TAIL_" + name + "_RETURN:")
-            if call < 0 or done < 0 or call >= done:
-                raise AssertionError(
-                    "case %d missing original DAC call/return checkpoint"
-                    % case)
-            if call < arrival.start() < done:
-                inside_dac = True
-        if (e[0] == 0xFFEB) != inside_dac:
+        # MAME's IRQ code pushes PSW, PCH, PCL. The saved PC at
+        # SP=FFED or FFEB is the *interrupted instruction address*,
+        # independent of the timing of a debugger breakpoint.
+        words = tuple(int(x, 16) for x in saved.group(1).split(":"))
+        if len(words) != 3 or words[0] != e[0]:
             raise AssertionError(
-                "case %d ADC IRQ stack depth does not match actual "
-                "original DAC CALF window: SP=%04X inside=%d" %
-                (case, e[0], inside_dac))
+                "case %d IRQ saved PC marker mismatched SP %r %r" %
+                (case, e, words))
+        interrupted_pc = words[1] if e[0] == 0xFFED else words[2]
+        # A transient IRQ at the original CALF call site (0749/07B0)
+        # or its return site (074B/07B2) is SP=FFED even though its
+        # debugger log appears *between* CALL and RETURN checkpoints.
+        # Therefore testing only checkpoint order incorrectly rejects
+        # a genuine IRQ, as observed in compiled nonzero case 17.
+        if e[0] == 0xFFEB:
+            if not 0x082F <= interrupted_pc <= 0x083C:
+                raise AssertionError(
+                    "case %d nested DAC IRQ from unknown ROM PC %04X" %
+                    (case, interrupted_pc))
+            if not any(
+                (log.find("FM1JUNO_ORIG_TAIL_" + name + "_DAC:")
+                 < arrival.start() <
+                 log.find("FM1JUNO_ORIG_TAIL_" + name + "_RETURN:"))
+                for name in ("VOICE6", "NOISE")
+            ):
+                raise AssertionError(
+                    "case %d nested DAC helper IRQ missing enclosing "
+                    "original CALL/RETURN checkpoint" % case)
+        elif not 0x0738 <= interrupted_pc <= 0x07B7:
+            raise AssertionError(
+                "case %d main-loop IRQ saved PC outside original "
+                "published tail: %04X" % (case, interrupted_pc))
     if arrivals:
+        words = tuple(int(x, 16) for x in saved_pc[0].group(1).split(":"))
+        interrupted_pc = words[1] if words[0] == 0xFFED else words[2]
         print("MAME_POST_ADC_TAIL_REAL_IRQ case=%02d "
-              "irq_after_0738=1 SP_IRQ=%04X" %
-              (case, int(arrivals[0].group(1).split(":")[0], 16)),
-              flush=True)
+              "irq_after_0738=1 SP_IRQ=%04X SAVED_PC=%04X" %
+              (case, words[0], interrupted_pc), flush=True)
 
 
 def source_table(source: Path) -> bytes:
@@ -283,6 +307,21 @@ def debugger() -> str:
     base = source_debugger()
     if not base.endswith("g\n"):
         raise AssertionError("downstream ADC debugger contract changed")
+    # MAME UPD7810 pushes interrupted PC LOW then HIGH to the IRQ
+    # stack immediately before dispatching to vector 0020. Capture
+    # both potential stack slots. This resolves genuine IRQ acceptance
+    # at 0749 *before* its CALF opcode versus during the DAC helper:
+    # both appear between the debugger CALL and RETURN checkpoints,
+    # but they have different SP and interrupted PCs.
+    match = 'sp,anm,mkh; g}'
+    if base.count(match) != 1:
+        raise AssertionError("original IRQ entry debugger contract changed")
+    base = base.replace(
+        match,
+        'sp,anm,mkh; logerror '
+        '"FM1JUNO_TAIL_IRQ_SAVED_PC:%04X:%04X:%04X\\\\n",'
+        'sp,w@ffed,w@ffeb; g}',
+        1)
     # Existing checkpoints at 0652, 065F and 06E7 MUST continue,
     # not quit, so all prior differential voice and ADC assertions
     # remain meaningful.
