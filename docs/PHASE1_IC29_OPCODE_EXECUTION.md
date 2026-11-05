@@ -423,30 +423,95 @@ continuous/unmodified. To avoid overwriting original
 test-only bootstrap was relocated to `0x0200`;
 this fixed an initial test-harness timeout.
 
-**The ADC input samples remain zero** because stock
-MAME's Juno-106 UPD7810 driver leaves all eight
-`an0_func()..an7_func()` callbacks unbound.
-The current test deliberately does *not* patch CR0..CR3,
-so this is a causal proof of MAME's zero-input IRQ/data
-flow, **not** any real Roland analog-input calibration.
-Nonzero deterministic test-only analogue callbacks,
-actual original firmware scheduling, CPU variant/ROM
-provenance and physical IRQ/DAC timing remain OPEN.
+**At the time of this earlier stock-MAME run, ADC
+samples were zero** because upstream Juno-106 leaves
+`an0_func()..an7_func()` unbound. The subsequent
+separately compiled test-only machine verified the
+full original ISR/bank data path with eight distinct
+nonzero callback-sourced values (details below).
+Neither test proves original Roland input-voltage
+calibration or exact physical timing.
 No audio or wave engine functionality follows from
 this check. See `docs/PHASE1_ADC_ISR_FIDELITY_GATE.md`.
 
-### Limitations / open strict gate
+### Verified compiled nonzero MAME ADC callback source through authentic ISR and original downstream control
 
-The **earlier bounded test interpreter** is not MAME's CPU core. The new MAME harness above now executes both windows using independently maintained MAME CPU code. However neither harness currently models/validates:
+**Compiled test-only MAME 0.285 `juno106` #3 SUCCESS** (GitHub
+Actions run `41981525577`, test-code commit `78e1d510`):
+36/36 complete CPU process fixtures pass; **216 ENV/VCF voice
+and 144 ADC channel comparisons** match separately compiled
+production C. Actual MAME-build SHA-256:
+`d025443aa7e3fb5275fc6f07c94b0438d51d4e4d43158d54c1f9564f08830b67`;
+pinned MAME source commit
+`f379cd060ac3b2bd567ebbd0957aed059d6895ff`.
 
-- original full-ROM cold start, interrupts and interrupt acceptance windows;
-- CPU cycle timing, interrupt flags, peripherals, ADC clock conversion and autonomous scan bank switching;
-- all uPD7811 PSW overlay-register behavior (the bounded ADC entry assumes L1 is clear for MVI A branches);
-- original source-side generation of LFO/bend contributions, unverified DECAY/RELEASE envelope branches, natural six-voice iteration and post-0x063C DAC/scheduler path; the original first-voice ATTACK/global-VCF/ENV/Key Follow path **has** now executed continuously in the independent MAME CPU, albeit with synthetic initial inputs;
-- instruction-level execution of DCO pitch/divisor construction, 8253 GPIO phase, live range changes or S/H aperture offsets;
-- measured original-unit behavior; hardware and MAME source are secondary evidence, **not** a bit-identical chip-fidelity certification.
+Unlike stock JUNO-106 MAME, this *test-only* machine has eight
+`an0_func()..an7_func()` callbacks with distinct fixed **nonzero**
+ADC samples: `11 2D 49 65` (bank 0), `81 9D B9 D5`
+(bank 1). The real emulated ADC converter reads them into CR0..CR3
+and raises INTFAD; published original CPU bytes execute the
+`0x0020→0x0070` ISR/RETI and publish the pre-toggle ANM
+to FF5C and raw four bytes to FF5D..FF60. Synthetic fixture
+code at `0x0400` then dispatches to source-pinned
+original `0x04D5` six-voice control, original DAC helper,
+and selected original `0x0652/0x06E2→0x0800` conditioner.
+MAME matches **six original ENV/VCF and four ADC channels**
+per process, and the unselected bank remains unchanged.
 
-The next high-priority job is to run more original-byte control flow under an **explicit UPD7811-configured CPU device** with a separately validated original ROM provenance, then extend beyond injected ADC/VCF window entries to original-entry serial/global-VCF flow and timing/IRQ cases. The current independent MAME CPU probes are valuable verified partial evidence; do not reclassify them as full Roland CPU or full original ROM fidelity.
+The first compiled run revealed an **initialization/interrupt
+race** in the test harness: bank 1 initially processed CR
+values captured while the ADC still scanned bank 0.
+Setting ANM before the longer synthetic startup and clearing
+stale pending FAD before enabling interrupts corrected
+the fixture; no published IC29 or production-engine
+algorithm was changed. The stock-MAME `fixed-eight`
+fail-closed negative control is separately verified by
+the focused source/stock gate #11.
+
+This adds **36 input-distinct compiled-MAME process scenarios**
+to the already verified 796 selected original-byte
+MAME processes: **832/832 selected tests PASS** across
+the respective green CI runs. This is **not**
+832 unique opcodes, an original full ROM, calibrated
+hardware analog voltages or a source-reconstructed
+JUNO scheduler. See `docs/PHASE1_ADC_ISR_FIDELITY_GATE.md`.
+
+### Limitations / strict P1.1 gate still OPEN
+
+The following are now **covered for bounded MAME UPD7810
+fixtures**: original source-pinned first-voice
+ATTACK/DECAY/RELEASE arithmetic, six naturally looped
+envelopes/VCF/DAC helper calls, both ADC service banks,
+genuine MAME ADC peripheral-generated IRQ entry/RETI,
+and eight distinct fixed callback-sourced ADC channel
+values passing through the original ISR and conditioner.
+The separately compiled C control engine agrees on all
+selected test vectors. This is stronger than a synthetic
+ADC register or hand-entered instruction math oracle.
+
+Still OPEN before exact Roland/JUNO-106 firmware/hardware
+fidelity can be asserted:
+
+- Authentication of actual original full IC29 firmware
+  (the published disassembly is unofficial and may contain
+  inaccuracies) and the original UPD7810/UPD7811 CPU
+  variant plus memory mapping;
+- Full original interrupt-to-main-loop scheduling: the
+  linked test uses a declared **synthetic** poll/JMP
+  immediately after real RETI. The original
+  `0x06B3 DI/SKIT FAD/MKH/EI` scheduler boundary
+  and collision windows are not yet verified in the same
+  end-to-end path;
+- Hardware CPU/ADC clock and interrupt-service cycle timing,
+  actual panel-input voltage/ADC curves, physical 8253/PIT,
+  DCO pitch/divider, GPIO/clock phase and DAC/S&H aperture;
+- Exact output electrical calibration, physical
+  resonance/MC5534/80017A analogue audio and a genuinely
+  comparable Roland original-audio WAV recording.
+
+Do not begin an MCU waveform/audio engine on the strength of
+this CPU gate alone, and do not merge PR #3 until the strictly
+defined P1.1 exit evidence is reviewed.
 
 ## CI invocation
 
