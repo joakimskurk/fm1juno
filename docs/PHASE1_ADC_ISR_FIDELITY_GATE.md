@@ -1,12 +1,14 @@
 # P1.1 — Original IC29 ADC ISR fidelity gate
 
-**State:** P1.1 strict gate OPEN. The bank-selected main-loop ADC
-service passed 36 six-voice+ADC scenarios; **20 direct original-ISR
-opcode cases** and **4 genuinely MAME-internal-ADC-triggered ISR/RETI
-round trips** have now independently passed. This proves bounded
-MAME UPD7810 ISR entry and return, **not** authentic JUNO-106 ADC
-electrical input, full scan cadence, firmware provenance or
-cycle-accurate Roland interrupt timing.
+**State:** P1.1 strict gate OPEN, but the **bounded, test-only
+nonzero analogue-source ADC gate is VERIFIED**. A separately
+compiled, source-pinned MAME 0.285 UPD7810 JUNO-106 machine with eight
+distinct AN0..AN7 callbacks passed **36/36 full ADC-peripheral IRQ →
+original ISR/RETI → six original ENV/VCF voices → original ADC
+conditioner** process tests. Older original-byte MAME CPU tests
+remain green. This does **not** authenticate the actual Roland analogue
+input voltages, CPU UPD7811/ROM identity, full original scheduler or
+cycle-accurate original hardware timing.
 
 This is a reproducible handoff for the next bounded implementation,
 not a claim of original Roland hardware emulation.
@@ -62,14 +64,20 @@ The annotated IC29 listing indicates:
 
 The note about *pre-toggle* ANM is important: the published code
 reads ANM into A *before* XORing ANM bit 3. It then writes A to FF5C.
-A future test must independently verify this order under a correctly
-configured CPU peripheral, not infer it from the main-loop bank tests.
+The separate direct-source test and the later real internal-ADC
+interrupt tests have now confirmed this **pre-toggle storage order**
+on MAME's UPD7810 CPU core, including nonzero callback-sourced data.
+This remains bounded emulator evidence, not hardware calibration.
 
 Separately, the main-loop code uses FF5C bit 3 at `0656`:
 bank 0 takes the `06E2` branch and returns from `CALF 0800`
 at `06E7`; bank 1 returns at `065F`. This selection and both
 four-channel RAM updates have **already passed** on the independent
-MAME UPD7810 CPU, but FF5C was injected rather than ISR-produced.
+MAME UPD7810 CPU. The newer end-to-end
+IRQ→six-voice→ADC-service test also uses FF5C **written by the
+original interrupt handler**, including eight distinct nonzero
+callback-sourced channel readings. Its intervening scheduler
+remains synthetic and explicitly documented.
 
 Another interrupt-control boundary exists in the published main
 loop at `06B3 DI`, `06B4 SKIT FAD`,
@@ -199,130 +207,129 @@ all **zero**. This new test DOES NOT debugger-inject those
 conversion registers after interrupt, and does not verify
 nonzero physical conversion or original analogue timing.
 
-### Test-only nonzero analogue callback requirement
+### Test-only nonzero analogue callback requirement — VERIFIED in compiled MAME
 
-MAME's `upd7810_device` class supplies actual eight-bit
-read callbacks `an0_func()` through `an7_func()` (see
-upstream `src/devices/cpu/upd7810/upd7810.h`). The CPU's
-`upd7810.cpp` callback-driven ADC scan samples
-`m_an_func[m_adin | m_adrange]()` before completion,
-copies the samples into CR0..CR3, and raises INTFAD
-after four conversions. The stock `juno106.cpp` machine
-config does not bind these callbacks.
-
-To test nonzero conversion causally rather than fake
-CR register values, compile a **test-only** MAME
-configuration/driver binding deterministic, distinct
-eight-bit values to those eight callbacks. Run the
-existing original ISR/RETI and bank-service probe
-unchanged except for its expected raw input oracle and
-machine selector. The test should detect a failure
-if a callback returns zero when a nonzero value was
-expected. Until that independently built MAME fixture
-passes, this is a **hardware-input provenance BLOCKER**.
-Do not silently substitute direct debugger
-`do cr0=...` for a true analogue callback.
-
-### Deterministic nonzero MAME analogue callback fixture — source prepared, NOT CPU-verified
-
-New `tests/cpu_ic29/patch_mame_juno106_analog_fixture.py`
-generates a **test-only** variant of upstream MAME
-`src/mame/roland/juno106.cpp` by binding eight CPU
-`an0_func()..an7_func()` callbacks to the following
-fixed eight-bit values:
+MAME's `upd7810_device` exposes eight ADC read callbacks
+`an0_func()` through `an7_func()`. In the pinned
+MAME `mame0285` implementation, the CPU's internal ADC
+converter reads those callbacks into CR0..CR3 and generates
+INTFAD after a full four-channel scan. The ordinary upstream
+JUNO-106 driver leaves these analogue inputs unbound and reads zero.
+The test variant binds them to the following deterministic **nonzero**
+8-bit values (hex), **not** physical Roland slider/knob voltages:
 
 | MAME ADC input | AN0 | AN1 | AN2 | AN3 | AN4 | AN5 | AN6 | AN7 |
 |---|---|---|---|---|---|---|---|---|
-| Test-only fixed value (hex) | 11 | 2D | 49 | 65 | 81 | 9D | B9 | D5 |
+| Test-only fixed value | 11 | 2D | 49 | 65 | 81 | 9D | B9 | D5 |
 
-These are **test vectors only, not original Roland knob voltages**.
-The source patch targets the tagged upstream MAME `mame0285`
-Juno-106 driver source. The focused GitHub Actions workflow
-fetches that exact source version and verifies that
-eight distinct ADC input callback bindings are inserted.
-**That check does not compile or run the patched binary.**
+**Actual compiled-driver GitHub Actions
+`MAME 0.285 compiled nonzero ADC callback gate` #3 SUCCESS**,
+code commit `78e1d510`,
+[workflow run #41981525577](https://github.com/joakimskurk/fm1juno/actions/runs/41981525577).
 
-**Focused MAME ADC IRQ → six-voice gate #11 SUCCESS**
-at code commit `3db7e51` (run `41978017143`) independently
-confirms all three source/provenance checks:
-1. The tagged upstream MAME C++ source patch inserts **8/8**
-   distinct nonzero AN0..AN7 callbacks.
-2. **Fail-closed negative control:** running `fixed-eight`
-   against *unpatched* stock MAME must fail with an
-   actual original ISR/CR ADC register mismatch. The negative
-   test checks the specific failure string, not merely any
-   command error. This guard passed as an expected rejection.
-3. The stock-MAME `stock-zero` original-IRQ to six-voice
-   and ADC bank-service path still passes **36/36**
-   CPU processes (216 voice + 144 channel comparisons).
+- **Exact MAME upstream git commit:** `f379cd060ac3b2bd567ebbd0957aed059d6895ff`.
+  GitHub Actions checks out this commit independently; it does not
+  install or silently reuse a generic system MAME.
+- `tests/cpu_ic29/patch_mame_juno106_analog_fixture.py`
+  inserts eight callbacks in the **test-only** copy of upstream
+  `src/mame/roland/juno106.cpp`. Modified source SHA-256:
+  `b78fe5a9323281e1fef0531b2f4b6f916d2566860608d4adec02f12211bc6c30`.
+- The focused workflow `.github/workflows/mame-compiled-nonzero-adc.yml`
+  builds a real `juno106` executable with a **limited MAME
+  driver-only build** and MAME 0.285's required **Qt5 debugger**.
+  Actual CI-built binary SHA-256:
+  `d025443aa7e3fb5275fc6f07c94b0438d51d4e4d43158d54c1f9564f08830b67`
+  (hash of the particular CI build, not claimed portable).
+- The compiled binary is invoked with
+  `--input-profile fixed-eight`, and **36/36 full CPU
+  processes PASS**: 18 six-voice ATTACK/DECAY/RELEASE patterns
+  × 2 ADC banks. That is **216 per-voice ENV/VCF and 144 ADC
+  channel comparisons**, using separately compiled C production
+  oracles. All six original DAC subroutine entry/return checks,
+  the original `0x0020` interrupt vector, `0x0070` handler,
+  CPU stack push, original RETI and bank-selected
+  `0x0652/0x06E2/0x0800` service checkpoints pass.
+- **Bank 0 confirmed** at the original ISR/CR checkpoint:
+  `11 2D 49 65`. **Bank 1 confirmed:** `81 9D B9 D5`.
+  The original handler publishes the pre-toggle bank mode
+  to FF5C and the four real MAME-converter output bytes to
+  FF5D..FF60. The original selected-bank conditioner consumes
+  them, while the unselected bank's independent sentinels persist.
+  There are **no debugger writes to CR0..CR3** in this test.
+- Earlier source-only patch/negative-control gate
+  [#11](https://github.com/joakimskurk/fm1juno/actions/runs/41978017143)
+  also passed: unpatched, zero-input stock MAME intentionally
+  **fails** when asked to satisfy the `fixed-eight` values.
+  This independent fail-closed control remains part of the
+  focused stock-MAME regression workflow.
+- The preceding **796 selected MAME CPU process fixtures**
+  remain green in complete independent CPU matrix #75 and
+  other focused workflows on commit `78e1d510`;
+  the 36 newly verified compiled-driver nonzero-input cases
+  extend the cumulative **selected test repertoire to 832/832
+  process scenarios**. Do not conflate count with original ROM
+  instructions or original hardware cycles.
 
-This validates the test fixture's discrimination; it is
-**NOT a successful nonzero MAME analogue callback execution**.
-The custom binary must still be built and run before
-the `fixed-eight` profile's 36 cases can count as proof.
+#### Harness issues found and resolved
 
-The already passing causal CPU test now has two strict,
-explicitly separated modes:
+The first full source-build attempt (#1) failed at build-configuration
+time because MAME 0.285 requires **Qt5** debugger dependencies;
+the workflow initially installed Qt6. Replacing it with Qt5
+resolved compilation. Build attempt #2 **compiled the patched
+binary** and passed bank 0 but failed bank 1:
+its original ISR returned the bank 1 FF5C mode while CR0..CR3
+still contained bank 0 samples from a pending pre-bank-change
+ADC conversion. Commit `78e1d510` changed **synthetic fixture
+startup only**: initialize ANM bank before the long RAM setup;
+clear stale pending FAD requests with the original CPU
+`SKIT FAD` instruction before enabling interrupts.
+The third compiled run passed all 36 cases. The published
+original IC29 source opcode segments and production ADC/ENV/VCF
+arithmetic were **not modified** to make it pass.
 
-- `--input-profile stock-zero` (default, the CI-proven 36/36):
-  expects all physical MAME AN callbacks to return zero.
-- `--input-profile fixed-eight` (prepared, NOT yet CI-proven):
-  expects the bank-selected four **nonzero physical callback
-  samples** at the original ISR checkpoint, through the original
-  `CR0..CR3` registers, FF5D..FF60 RAM snapshot, original six-voice
-  path and original ADC main-loop conditioner. It rejects a
-  stock MAME binary with zero callbacks. No debugger CR writes are used.
+#### Reproduction and strict remaining limits
 
-Reproducible manual test-only MAME build plan:
+The complete reproducible build-and-execute command sequence
+lives in `.github/workflows/mame-compiled-nonzero-adc.yml`.
+The source patch and test runner are respectively
+`tests/cpu_ic29/patch_mame_juno106_analog_fixture.py` and
+`tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py`.
 
-```sh
-git clone --depth 1 --branch mame0285 https://github.com/mamedev/mame.git mame-0285-fixture
-python3 tests/cpu_ic29/patch_mame_juno106_analog_fixture.py \
-  --source mame-0285-fixture/src/mame/roland/juno106.cpp \
-  --output mame-0285-fixture/src/mame/roland/juno106.cpp.patched
-mv mame-0285-fixture/src/mame/roland/juno106.cpp.patched \
-  mame-0285-fixture/src/mame/roland/juno106.cpp
-# Build the test-only MAME source using the version-pinned
-# upstream supported build prerequisites and the selected driver.
-# The resulting test-only executable MUST NOT replace stock MAME.
-# Run the same MAME 6->ADC fixture with:
-python3 tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py \
-  --ic29-disasm build/ic29_public_disassembly.txt \
-  --attack-cli build/fm1juno_envelope_attack_reference \
-  --decay-cli build/fm1juno_envelope_decay_release_reference \
-  --global-cli build/fm1juno_vcf_global_reference \
-  --voice-cli build/fm1juno_vcf_chain_reference \
-  --adc-cli build/fm1juno_adc_full_bank_reference \
-  --mame /path/to/TEST_ONLY_PATCHED_MAME_EXECUTABLE \
-  --input-profile fixed-eight
-```
+The compiled test's actual peripheral interrupt and nonzero
+conversion have been verified **within MAME UPD7810**, but the
+handoff *after* real original RETI back to the original six-voice
+loop is still **synthetic**: a fixture-only `0x0400`
+poll tests FF5C publication and jumps to source-pinned
+`0x04D5`. Hence this verifies component ordering and control
+values in a bounded emulator process, **not** full source
+firmware scheduling or exact original interrupt interleaving.
+In addition, 0x06B3..0x06BC main-loop interrupt boundary,
+authentic hardware UPD7811 identity/ROM mapping, 8253/GATE
+phase and real ADC voltage/clock calibration remain OPEN.
 
-**Nonzero ADC callback proof remains OPEN** until the
-patched *binary* builds and the 36 original-ISR/RETIs,
-per-voice ENV/VCF results and ADC conditioner checks
-all pass. The source-only patch deliberately does
-not increase the confirmed 796 original-byte MAME
-CPU process scenario count.
+**Bounded nonzero ADC callback milestone: CLOSED as verified.
+Strict P1.1 original digital fidelity gate: STILL OPEN.**
 
 ## Updated next engineering sequence
 
-1. Inspect/test the MAME UPD7810 AN0..AN7 callback API and
-   create a **test-only deterministic analogue input fixture**
-   supplying nonzero, distinct channel values. Avoid altering
-   production envelope/VCF/ADC algorithms or the user's actual
-   emulation configuration.
-2. Run original 0020/0070 ISR through the same *real* MAME
-   peripheral acceptance/RETI for both bank groups, verify
-   **nonzero** four-register conversions and FF5C changes,
-   then integrate original 0652/06E2 main-loop ADC
-   conditioning in one continuous **interrupt → main-loop**
-   execution path.
-3. Investigate the original 06B3..06BC interrupt flag/mask
-   path and explicit 8253/CPU timer interleaving separately.
-4. Match an independently authenticated original uPD7811
-   variant, ROM map, conversion/cycle clock and physical
-   input voltage characteristics before making exact
-   Roland timing claims.
+1. **COMPLETE:** deterministic nonzero test-only AN0..AN7
+   callbacks on a source-pinned MAME executable, verified with
+   36 genuine ADC peripheral IRQ → original ISR/RETI →
+   original six-voice and ADC bank service tests.
+2. **NEXT:** replace the fixture-only `0x0400` post-RETI
+   polling/JMP with the applicable **published original
+   main-loop scheduling/IRQ handoff**, separately hash-pinned
+   and protected by explicit interrupt-entry checkpoints.
+   Trace asynchronous collision cases under the emulated
+   CPU; do not infer original time in microseconds.
+3. Execute and inspect the original `0x06B3..0x06BC`
+   DI/SKIT FAD/MKH/EI pending-IRQ masking section
+   and 8253/CPU timer interactions, then evaluate the
+   required timing and external PIT evidence.
+4. Validate actual hardware CPU variant and authenticated
+   original Roland ROM provenance, source clock and physical
+   input voltage/ADC curve before making original-uPD7811
+   or physical timing claims.
 
 ## Previously planned engineering sequence (partially completed)
 
