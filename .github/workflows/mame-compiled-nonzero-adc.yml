@@ -1,0 +1,92 @@
+name: MAME 0.285 compiled nonzero ADC callback gate
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/mame-compiled-nonzero-adc.yml"
+      - "tests/cpu_ic29/patch_mame_juno106_analog_fixture.py"
+      - "tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py"
+      - "tests/cpu_ic29/adc_full_bank_reference_cli.c"
+  workflow_dispatch:
+
+jobs:
+  compiled-nonzero-adc:
+    name: Compile modified MAME and execute 36 real nonzero ADC CPU paths
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - name: Checkout fm1juno test harness
+        uses: actions/checkout@v4
+        with:
+          path: fm1juno
+      - name: Checkout exact original MAME 0.285 source commit
+        uses: actions/checkout@v4
+        with:
+          repository: mamedev/mame
+          ref: f379cd060ac3b2bd567ebbd0957aed059d6895ff
+          fetch-depth: 1
+          path: mame-src
+          persist-credentials: false
+      - name: Install MAME C++ build prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential python3-dev pkg-config ninja-build \
+            libsdl2-dev libsdl2-ttf-dev libfontconfig1-dev \
+            libasound2-dev libpulse-dev libxinerama-dev libxi-dev \
+            libgtk-3-dev qt6-base-dev libqt6svg6-dev
+      - name: Verify exact upstream source revision and patch eight genuine CPU ADC callbacks
+        run: |
+          cd mame-src
+          test "$(git rev-parse HEAD)" = f379cd060ac3b2bd567ebbd0957aed059d6895ff
+          cd ..
+          python3 fm1juno/tests/cpu_ic29/patch_mame_juno106_analog_fixture.py \
+            --source mame-src/src/mame/roland/juno106.cpp \
+            --output mame-src/src/mame/roland/juno106_patched.cpp
+          mv mame-src/src/mame/roland/juno106_patched.cpp \
+            mame-src/src/mame/roland/juno106.cpp
+          test "$(grep -c 'an[0-7]_func().set' mame-src/src/mame/roland/juno106.cpp)" -eq 8
+          echo "Test-only MAME source SHA256:"
+          sha256sum mame-src/src/mame/roland/juno106.cpp
+      - name: Build the actual modified MAME 0.285 JUNO-106 executable
+        working-directory: mame-src
+        run: |
+          make -j2 \
+            SOURCES=src/mame/roland/juno106.cpp \
+            SUBTARGET=juno106 NOWERROR=1 \
+            USE_QTDEBUG=1 OPTIMIZE=1 SYMLEVEL=0
+          test -x ./juno106
+          ./juno106 -help > /tmp/fm1juno_patched_mame_help.txt
+          echo "FM1JUNO_COMPILED_PATCHED_MAME: PASS"
+          sha256sum ./juno106
+      - name: Compile real fm1juno control and native ADC reference oracles
+        working-directory: fm1juno
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel --target \
+            fm1juno_envelope_attack_reference \
+            fm1juno_envelope_decay_release_reference \
+            fm1juno_vcf_global_reference \
+            fm1juno_vcf_chain_reference \
+            fm1juno_adc_full_bank_reference
+      - name: Fetch original public IC29 byte transcription for SHA-pinned CPU paths
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/ErroneousBosh/j106roms/master/ic29.txt \
+            --output fm1juno/build/ic29_public_disassembly.txt
+      - name: Prove REAL nonzero AN0..AN7 conversions survive original IRQ and selected bank conditioner
+        working-directory: fm1juno
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame "$GITHUB_WORKSPACE/mame-src/juno106" \
+            --input-profile fixed-eight \
+            --case-timeout 20
+          echo "FM1JUNO_NONZERO_ADC_MAME_GATE: PASS (36 entire CPU IRQ->ENV->ADC cases)"
