@@ -125,3 +125,14 @@ jobs:
             --adc-cli build/fm1juno_adc_full_bank_reference \
             --mame /usr/games/mame \
             --case-timeout 14
+      - name: Execute original post-ADC bend/portamento and FAD masking through POP DE under real MAME IRQ
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_adc_post_service_fad.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame /usr/games/mame \
+            --input-profile stock-zero --case-timeout 14
