@@ -3,7 +3,7 @@
 
 36 real-internal-ADC IRQ -> original ISR/RETI -> six-voice -> original
 ADC bank-service cases are extended WITHOUT modifying original bytes:
-through 065F..0736 published bend/portamento/LFO path, through original
+through 065F..0737 published bend/portamento/LFO path, through original
 06B3 DI, 06B4 SKIT FAD, 06B7 MVI MKH,04, 06BA EI, 06BB JRE 0737,
 and actual 0737 POP DE. The only synthetic scheduler remains between
 the real ISR RETI and 04D5; this probe does not assert cycle timing,
@@ -31,7 +31,7 @@ from run_mame_six_voice_original_loop import (
 )
 from run_mame_six_voice_adc_handoff import (
     source_slice, POST_START, POST_END, POST_SHA256, BANK0_START,
-    BANK0_END, BANK0_SHA256, debugger_script as downstream_debugger,
+    BANK0_END, BANK0_SHA256,
     verify_adc,
 )
 from run_adc_opcode_window import load_window as load_adc_window
@@ -41,11 +41,12 @@ from run_mame_adc_isr_direct_probe import (
 )
 from run_mame_adc_irq_to_six_voice_service import (
     build_rom, test_cases, native_adc_expected, verify_irq, raw_for_bank,
+    debugger as source_debugger,
     OLD_PATTERN, SCENARIOS, TOTAL,
 )
 
-FOLLOW_START, FOLLOW_END = 0x065F, 0x0737
-FOLLOW_SHA = "d6a9e3aeab02c55ade69d7ff5184f5b8ffe07b869f431b1926d98b9fde5c6320"
+FOLLOW_START, FOLLOW_END = 0x065F, 0x0738
+FOLLOW_SHA = "b9a57a701bb31daeecc064843efc8db94faacfba27c6649b0820eb45dc514bb2"
 PORTA_START, PORTA_END = 0x0A00, 0x0A80
 PORTA_SHA = "06d1c862622b5aaa2b7e42d561dbdf2cd424620a8e46cfa0c2c9deb5c484984e"
 
@@ -78,7 +79,10 @@ def source_table(source: Path) -> bytes:
 
 
 def debugger() -> str:
-    base = downstream_debugger()
+    # Reuse the FULL genuine ADC interrupt + RETI debugger contract,
+    # not only the six-voice/ADC checkpoints. The latter would miss
+    # proof of real IRQ entry and register/stack return.
+    base = source_debugger()
     if not base.endswith("g\n"):
         raise AssertionError("downstream ADC debugger contract changed")
     # Existing checkpoints at 0652, 065F and 06E7 MUST continue,
