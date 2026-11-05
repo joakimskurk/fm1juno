@@ -476,6 +476,52 @@ the respective green CI runs. This is **not**
 hardware analog voltages or a source-reconstructed
 JUNO scheduler. See `docs/PHASE1_ADC_ISR_FIDELITY_GATE.md`.
 
+### Original 065F..0737 ADC follow-on, 06B3 FAD mask, 0737 POP — bounded MAME VERIFIED
+
+The source-pinned [MAME original post-ADC FAD gate #5](https://github.com/joakimskurk/fm1juno/actions/runs/42046688020)
+is **36/36 PASS**, with independent full CPU matrix
+[#87 SUCCESS](https://github.com/joakimskurk/fm1juno/actions/runs/42047063456).
+It extends each original ADC peripheral IRQ→ISR/RETI→
+six-voice→bank conditioner run through **original**
+`065F..0737` and an authentic original 128-byte
+`0A00` portamento coefficient table.
+
+Byte fingerprints: `065F..0737` SHA-256
+`b9a57a701bb31daeecc064843efc8db94faacfba27c6649b0820eb45dc514bb2`;
+`0A00..0A7F` SHA-256
+`06d1c862622b5aaa2b7e42d561dbdf2cd424620a8e46cfa0c2c9deb5c484984e`.
+
+Unmodified original `06B3 DI`, `06B4 SKIT FAD`,
+`06B7 MVI MKH,04`, `06BA EI`,
+`06BB JRE 0737` and `0737 POP DE`
+execute naturally after the original ADC service.
+The MAME debugger checks SP=`FFEE` with the original
+envelope pointer still pushed, and final
+SP=`FFF0`, DE=`FF31`. Across 36 input/phase
+fixtures, 28 show no additional IRQ, six observe a
+second real ADC IRQ while SP is FFEE (IRQ frame FFEB),
+and two observe an IRQ after the POP restored SP to
+FFF0 (IRQ frame FFED). Original alternate-bank
+FF5C mode, MKH and RETI stack invariants are checked.
+
+All six original ENV/VCF/DAC helper outputs and
+four ADC channels match separately compiled
+production control C; **216 voice + 144 ADC channel
+comparisons PASS**. Historical selected MAME CPU
+process count is now **868/868** for
+the verified stock-MAME follow-on. A second
+`fixed-eight` compiled nonzero MAME test is
+configured but separately CI-gated.
+
+The `SKIT FAD` NOP was *executed* in all 36 cases;
+a test for its skipped-NOP pending-FAD condition is
+still needed. The `0400` synthetic post-initial-RETI
+dispatch remains, so no entire original Roland
+`02EC..04D5` scheduler or hardware timing is
+claimed. The next original continuation is
+`0738..07B7` VCA/LFO/PWM/noise and jump back
+to `02EC`.
+
 ### Limitations / strict P1.1 gate still OPEN
 
 The following are now **covered for bounded MAME UPD7810

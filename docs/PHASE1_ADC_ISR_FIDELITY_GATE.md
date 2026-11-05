@@ -310,6 +310,47 @@ phase and real ADC voltage/clock calibration remain OPEN.
 **Bounded nonzero ADC callback milestone: CLOSED as verified.
 Strict P1.1 original digital fidelity gate: STILL OPEN.**
 
+## Original post-ADC control and genuine EI-time ADC interrupt interleaving — VERIFIED
+
+Focused `MAME original post-ADC FAD scheduler boundary`
+[#5 SUCCESS](https://github.com/joakimskurk/fm1juno/actions/runs/42046688020)
+and full independent CPU matrix
+[#87 SUCCESS](https://github.com/joakimskurk/fm1juno/actions/runs/42047063456)
+establish that the source-pinned original post-ADC code can
+run **continuously** through `065F..0737`
+(including FAD `DI/SKIT/MKH/EI` at `06B3..06BA` and
+`0737 POP DE`), with portamento table `0A00..0A7F`
+also pinned. SHA-256 fingerprints:
+`b9a57a701bb31daeecc064843efc8db94faacfba27c6649b0820eb45dc514bb2`
+and `06d1c862622b5aaa2b7e42d561dbdf2cd424620a8e46cfa0c2c9deb5c484984e`.
+
+All **36/36** MAME UPD7810 original-byte process fixtures match
+compiled C on all **216** per-voice ENV/VCF updates and
+**144** ADC channel comparisons; the original saved DE envelope
+cursor is restored at `0737` with final **DE=FF31,
+SP=FFF0**. MAME sometimes accepts a *second real FAD
+interrupt* after the original `EI` and around `POP DE`:
+28 cases no second IRQ; six before POP (IRQ frame SP=FFEB);
+two after POP (IRQ frame SP=FFED). The original ISR/RETI
+and reentry into the interrupted program restore stack state.
+These are MAME fixture observations, **not physical
+Roland interrupt latency measurements**.
+
+The present selected historical CPU suite totals **868/868
+process scenarios** (prior 832 plus 36 new source-pinned
+stock-MAME follow-on executions). The integrated **fixed-eight
+nonzero** test-only MAME variant is wired in and must be
+validated separately before counting another 36 cases.
+`tests/cpu_ic29/run_mame_adc_post_service_fad.py` is the test.
+
+The original `SKIT FAD` instruction was executed, but in all 36
+chosen cases its following `NOP` executed: this does **not**
+prove the opposite pending-flag skip branch. Remaining tasks:
+explicit pending-FAD test vectors, original VCA/LFO/PWM/noise
+tail `0738..07B7` and original full frame scheduler
+`02EC..04D5`. The synthetic `0400` bridge remains.
+No authentic UPD7811 or Roland clock/analog proof is implied.
+
 ## Updated next engineering sequence
 
 1. **COMPLETE:** deterministic nonzero test-only AN0..AN7

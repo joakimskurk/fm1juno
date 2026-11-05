@@ -7,8 +7,8 @@ Authority: `docs/PHASE1_START_CONTRACT.md` -> `docs/PHASE1_REFERENCE_ENGINE_PLAN
 **State: `P1.0_TRACE_SCAFFOLD_RUNNING / P1.1_DIGITAL_IN_PROGRESS`.**
 **Do not mark P1.1 as complete, and do not begin claiming analogue/audio 106 fidelity.**
 
-**Latest verified result (read §24 for full evidence):**
-**832/832 selected MAME CPU process scenarios pass** across the
+**Latest verified result (read §25 for full evidence):**
+**868/868 selected MAME CPU process scenarios pass** across the
 separately verified test gates, including **36/36 executions
 of a genuinely compiled, test-modified MAME 0.285 binary**
 with eight distinct nonzero ADC callback inputs (source-pinned
@@ -17,9 +17,10 @@ The original ADC/ISR, six-voice ENV/VCF and selected ADC
 conditioner checkpoints match compiled production control C.
 **Actual Roland firmware scheduler, CPU variant, hardware
 analogue/electrical/timing and audio still remain OPEN.**
-Sections §1–23 document earlier incremental milestones;
-**§24 supersedes older statements that nonzero analogue
-input callbacks had not yet been tested.**
+Sections §1–24 document earlier incremental milestones;
+**§24 verified nonzero analogue input callbacks. §25 extends genuine
+MAME peripheral IRQ control flow through original post-ADC bend/porta,
+FAD interrupt masking and 0737 envelope-cursor restoration.**
 
 ## 1. Current checked-in code
 
@@ -890,5 +891,76 @@ test slice.
 **Gate remains `P1.1_DIGITAL_IN_PROGRESS`; PR #3 remains draft
 and unmerged. Production DSP/control sources were not changed
 for this milestone.**
+
+## 25. Real MAME ADC IRQ → original six voices → full post-ADC FAD masking and POP DE — VERIFIED
+
+**Focused [MAME original post-ADC FAD gate #5](https://github.com/joakimskurk/fm1juno/actions/runs/42046688020) SUCCESS**
+at commit `8ab45bb`: **36/36 independent MAME UPD7810 process
+scenarios PASS** for both ADC banks across 18 original six-voice
+ATTACK/DECAY/RELEASE phase patterns. The extended
+[complete independent CPU matrix #87](https://github.com/joakimskurk/fm1juno/actions/runs/42047063456)
+also **SUCCESS**, now including this stage.
+
+New `tests/cpu_ic29/run_mame_adc_post_service_fad.py` and focused
+`.github/workflows/mame-post-adc-fad.yml` execute the prior
+actual MAME peripheral ADC-generated IRQ, original vector/ISR/RETI,
+six natural original envelope/VCF/DAC helper passes and original
+four-channel ADC bank conditioner, then continue unmodified
+published IC29 instructions through:
+
+- Original `0x065F..0x0737` bend/porta/LFO/control/FAD sequence,
+  SHA-256 `b9a57a701bb31daeecc064843efc8db94faacfba27c6649b0820eb45dc514bb2`;
+- Original `0x0A00..0x0A7F` portamento lookup bytes,
+  SHA-256 `06d1c862622b5aaa2b7e42d561dbdf2cd424620a8e46cfa0c2c9deb5c484984e`;
+- Original `0x06B3 DI`, `0x06B4 SKIT FAD`,
+  `0x06B7 MVI MKH,04`, `0x06BA EI`,
+  `0x06BB JRE 0737` and `0x0737 POP DE`,
+  with an explicit stop at `0x0738`.
+
+The CPU's **real FAD interrupt acceptance at EI and POP boundaries**
+is not silently assumed to occur at one time. Across the 36
+source-pinned stock-MAME cases, **28** had no further interrupt,
+**6** accepted a second genuine ADC IRQ before the original
+`POP DE`, and **2** accepted one immediately *after*
+`POP DE` (before the `0x0738` debugger checkpoint).
+The test checks the second IRQ entry SP=`FFEB` while the saved
+DE pointer is still on stack versus SP=`FFED` after it was
+popped, proper original ADC ISR alternate-bank register snapshot,
+MKH 04→05, return via original RETI, and final
+SP=`FFF0`, DE=`FF31`, voice pointer FF0F=`06`.
+A third timing class—IRQ after debugger checkpoint at 0737
+but **before** execution of its POP opcode—is handled in the test
+contract, but **not observed** among these 36 chosen fixtures.
+
+**36/36 original CPU paths, 216 voice calculations and 144
+ADC-channel comparisons match compiled native C.** The selected
+historical suite of **832** verified MAME process fixtures plus
+these **36 newly extended stock-MAME tests** now gives
+**868 selected process tests** verified across CI runs.
+A second **36-case** variant is also wired into
+`.github/workflows/mame-compiled-nonzero-adc.yml` to run these
+extended paths in the separately compiled eight-channel
+nonzero MAME binary; **do not add them to the verified total
+before that workflow finishes green**.
+
+**Strict limits:** In this specific 36-case set the original
+SKIT FAD reached the *NOP-executed* branch; actual pending-FAD
+skip of NOP at `0x06B4` needs a future dedicated fixture.
+The test still uses a short synthetic `0x0400` bridge from
+first real ISR RETI to original `0x04D5`; it does NOT
+verify original `0x02EC..0x04D5` full scheduler.
+Interrupt counts and interleaving are **MAME fixture observations**,
+not authenticated original Roland clock rates or a physical
+latency distribution. UPD7811 identity, original ROM provenance,
+8253/GATE timing, physical DAC/S&H and analogue/audio remain open.
+
+**Next smallest original-byte slice:** extend continuous execution
+from `0x0738` through original VCA/LFO/PWM/noise handling to
+`0x07B5 JMP 02EC`, then progressively prove original frame
+entry `0x02EC..0x04D5` (voice-run/resonance/LFO,
+portamento and six PIT/DCO clock/CV updates) before removing
+the synthetic `0x0400` dispatch.
+
+**P1.1_DIGITAL_IN_PROGRESS remains OPEN; PR #3 DRAFT/UNMERGED.**
 
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
