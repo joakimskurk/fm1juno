@@ -7,20 +7,25 @@ Authority: `docs/PHASE1_START_CONTRACT.md` -> `docs/PHASE1_REFERENCE_ENGINE_PLAN
 **State: `P1.0_TRACE_SCAFFOLD_RUNNING / P1.1_DIGITAL_IN_PROGRESS`.**
 **Do not mark P1.1 as complete, and do not begin claiming analogue/audio 106 fidelity.**
 
-**Latest verified result (read §25 for full evidence):**
-**904/904 selected MAME CPU process scenarios pass** across the
-separately verified test gates, including **36/36 executions
-of a genuinely compiled, test-modified MAME 0.285 binary**
-with eight distinct nonzero ADC callback inputs (source-pinned
-MAME commit `f379cd06`, compiled gate #3 SUCCESS).
-The original ADC/ISR, six-voice ENV/VCF and selected ADC
-conditioner checkpoints match compiled production control C.
-**Actual Roland firmware scheduler, CPU variant, hardware
-analogue/electrical/timing and audio still remain OPEN.**
-Sections §1–24 document earlier incremental milestones;
-**§24 verified nonzero analogue input callbacks. §25 extends genuine
-MAME peripheral IRQ control flow through original post-ADC bend/porta,
-FAD interrupt masking and 0737 envelope-cursor restoration.**
+**Latest verified result (read §§24–27 for evidence):**
+**976 selected independent MAME CPU process scenarios passed**
+across the separately verified gates. This includes the
+original eight-channel nonzero-ADC compiled MAME 0.285 fixture,
+the real original ADC ISR/RETI, six-voice ENV/VCF, original
+post-ADC FAD and VCA/LFO/PWM/noise control to
+`0x07B5 JMP 0x02EC`, and now **36 source-pinned original
+`0x02EC..0x03A0` next-frame control-scheduler cases**.
+The latter also verified four asynchronous original-ISR
+MAME CPU interrupts with actual saved return PCs
+`02F2/02EE/02F4/02F4`.
+
+The stock original-frame focused gate #5 is green;
+the complete-matrix re-run and the *additional*, distinct
+compiled nonzero-ADC frame/tail extensions must be
+independently checked before increasing the count again.
+**Actual original full Roland scheduler, UPD7811/ROM
+identity, hardware analogue/electrical timing, PIT/DCO and
+audio remain OPEN. P1.1 is NOT complete.**
 
 ## 1. Current checked-in code
 
@@ -1049,5 +1054,88 @@ branch. UPD7811 CPU/ROM authenticity, physical cycle
 calibration, ADC voltage transfer, PIT/GATE, DAC/S&H and
 actual Roland audio remain unresolved. PR #3 stays
 DRAFT and UNMERGED.
+
+## 27. Original 0x02EC..0x03A0 next-frame voice-run/resonance/LFO control under MAME — VERIFIED
+
+**Focused GitHub Actions [original frame #5](https://github.com/joakimskurk/fm1juno/actions/runs/42132712384)
+SUCCESS** with **36/36 independent MAME CPU process fixtures**.
+Eighteen original six-voice phase scenarios × two ADC banks,
+all previous true ADC peripheral-generated IRQ/ISR/RETI,
+original six-voice ENV/VCF/DAC returns, bank-selected original
+ADC conditioner, source-pinned 0x06B3 FAD and
+0x0738..0x07B7 VCA/LFO/PWM/noise code
+remain executed, with **216 original voice and 144 ADC
+channel comparisons** checked against production C.
+
+New original published IC29 code from `0x02EC..0x03A0`
+(181 bytes; SHA-256
+`3cd0206778e6fa8650fd8d803ff4d7665cd15f9963803d1ff98a9118be70c7df`)
+runs *after* the authentic `0x07B5 JMP 0x02EC` and
+stops at `0x03A1`. It executes original voice-run/sustain,
+resonance DAC (nonzero `EA=0x1234`, original `CALF 0x082F`
+call/return) and the three distinct original LFO
+branches **HOLDOFF**, **ATTACK** and **FULL_MOD**,
+plus source-derived holdoff/attack accumulator checks.
+
+The earlier synthetic `0x0200` RAM initialization and
+`0x0400` first-ISR-to-voice polling code were relocated
+to the **published NOP-only `0x0863..0x09E9`**
+source region, and the public 391-byte source hole
+is independently SHA-pinned to
+`db6f6097124dc8eaba5c36f64fdc1e3e44201b6c0f3fd6a11fbab4b38657ad6b`.
+The tested original `0x02EC..0x03A0` source instructions
+are neither overwritten nor substituted by synthetic code.
+
+**Four additional real internal-ADC IRQs were observed
+during the 36 source-pinned 02EC frame continuations**:
+saved interrupted PCs `02F2`, `02EE`, `02F4`,
+`02F4` on CPU IRQ SP `FFED`, with checked
+ANM bank, MKH mask, CR0..CR3 and RETI context.
+The fixture checks SP `FFEB` inside original resonance
+DAC helper as another valid CPU case, but does not
+claim one was observed during this selected 36-case run.
+
+The improved prior 0738 original-tail test also passed
+[focused MAME #10](https://github.com/joakimskurk/fm1juno/actions/runs/42129860723):
+it reads the **actual interrupted CPU PC** from the
+MAME IRQ stack instead of inferring the call/return
+context from debugger marker order. It distinguishes
+`0x0749` just before original DAC CALF, `0x0834`
+within the DAC helper and `0x02EC` immediately
+after original `0x07B5 JMP`; this does not add new
+process cases beyond the previously counted stock
+36 original-tail runs.
+
+**Historically verified count: 976 selected MAME
+process scenarios** = 940 prior + 36 newly verified
+original-frame stock-MAME cases. The new
+`tests/cpu_ic29/run_mame_original_frame_scheduler_entry.py`
+is included as an appended stage in full
+`.github/workflows/mame-independent-cpu-probe.yml`
+and is also invoked from the separately compiled
+eight-channel nonzero ADC source fixture in
+`.github/workflows/mame-compiled-nonzero-adc.yml`.
+Do **not** add either compiled frame or prior compiled-tail
+new cases until those complete CI runs pass.
+
+**Strict blockers unchanged:** This verifies only the
+published `0x02EC..0x03A0` frame slice following the real
+frame-loop return. The subsequent `0x03A1..0x04D4`
+tuning, bender/LFO pitch, portamento and six physical
+8253/PIT/DCO writes remain unproven in this new path.
+An explicit synthetic FF5C polling/JMP still exists
+from the first genuine ISR RETI to original
+`0x04D5` voice control. This is not the original
+cold-start/full scheduler, authenticated UPD7811,
+physical ADC/8253/DAC timing or audible Roland synthesis.
+
+**Next step:** source-pin and execute `0x03A1..0x04D4`
+with controlled PIT/DAC peripheral observations
+before claiming removal of the synthetic first-ISR
+voice-dispatch seam. Handoff and source limits:
+`docs/PHASE1_ORIGINAL_FRAME_02EC_GATE.md`.
+
+**P1.1_DIGITAL_IN_PROGRESS remains OPEN; PR #3 stays
+DRAFT/UNMERGED. No production audio algorithm changed.**
 
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
