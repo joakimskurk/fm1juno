@@ -223,6 +223,68 @@ passes, this is a **hardware-input provenance BLOCKER**.
 Do not silently substitute direct debugger
 `do cr0=...` for a true analogue callback.
 
+### Deterministic nonzero MAME analogue callback fixture — source prepared, NOT CPU-verified
+
+New `tests/cpu_ic29/patch_mame_juno106_analog_fixture.py`
+generates a **test-only** variant of upstream MAME
+`src/mame/roland/juno106.cpp` by binding eight CPU
+`an0_func()..an7_func()` callbacks to the following
+fixed eight-bit values:
+
+| MAME ADC input | AN0 | AN1 | AN2 | AN3 | AN4 | AN5 | AN6 | AN7 |
+|---|---|---|---|---|---|---|---|---|
+| Test-only fixed value (hex) | 11 | 2D | 49 | 65 | 81 | 9D | B9 | D5 |
+
+These are **test vectors only, not original Roland knob voltages**.
+The source patch targets the tagged upstream MAME `mame0285`
+Juno-106 driver source. The focused GitHub Actions workflow
+now fetches that exact source version and verifies that
+eight distinct ADC input callback bindings are inserted.
+**That check does not compile or run the patched binary.**
+
+The already passing causal CPU test now has two strict,
+explicitly separated modes:
+
+- `--input-profile stock-zero` (default, the CI-proven 36/36):
+  expects all physical MAME AN callbacks to return zero.
+- `--input-profile fixed-eight` (prepared, NOT yet CI-proven):
+  expects the bank-selected four **nonzero physical callback
+  samples** at the original ISR checkpoint, through the original
+  `CR0..CR3` registers, FF5D..FF60 RAM snapshot, original six-voice
+  path and original ADC main-loop conditioner. It rejects a
+  stock MAME binary with zero callbacks. No debugger CR writes are used.
+
+Reproducible manual test-only MAME build plan:
+
+```sh
+git clone --depth 1 --branch mame0285 https://github.com/mamedev/mame.git mame-0285-fixture
+python3 tests/cpu_ic29/patch_mame_juno106_analog_fixture.py \
+  --source mame-0285-fixture/src/mame/roland/juno106.cpp \
+  --output mame-0285-fixture/src/mame/roland/juno106.cpp.patched
+mv mame-0285-fixture/src/mame/roland/juno106.cpp.patched \
+  mame-0285-fixture/src/mame/roland/juno106.cpp
+# Build the test-only MAME source using the version-pinned
+# upstream supported build prerequisites and the selected driver.
+# The resulting test-only executable MUST NOT replace stock MAME.
+# Run the same MAME 6->ADC fixture with:
+python3 tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py \
+  --ic29-disasm build/ic29_public_disassembly.txt \
+  --attack-cli build/fm1juno_envelope_attack_reference \
+  --decay-cli build/fm1juno_envelope_decay_release_reference \
+  --global-cli build/fm1juno_vcf_global_reference \
+  --voice-cli build/fm1juno_vcf_chain_reference \
+  --adc-cli build/fm1juno_adc_full_bank_reference \
+  --mame /path/to/TEST_ONLY_PATCHED_MAME_EXECUTABLE \
+  --input-profile fixed-eight
+```
+
+**Nonzero ADC callback proof remains OPEN** until the
+patched *binary* builds and the 36 original-ISR/RETIs,
+per-voice ENV/VCF results and ADC conditioner checks
+all pass. The source-only patch deliberately does
+not increase the confirmed 796 original-byte MAME
+CPU process scenario count.
+
 ## Updated next engineering sequence
 
 1. Inspect/test the MAME UPD7810 AN0..AN7 callback API and
