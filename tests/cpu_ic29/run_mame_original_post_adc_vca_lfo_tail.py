@@ -225,7 +225,7 @@ def debugger() -> str:
         'bp 07a9:modulecpu,1,{logerror '
         '"FM1JUNO_ORIG_TAIL_LFO_PWM:%04X:%04X:%04X:%02X:%02X:%02X:%04X\\n",'
         'w@ff4d,w@ff4b,w@ff4f,b@ff4a,b@ff47,b@ff37,sp; g}\n'
-        'bp 07ae:modulecpu,1,{logerror '
+        'bp 07b0:modulecpu,1,{logerror '
         '"FM1JUNO_ORIG_TAIL_NOISE_DAC:%02X:%04X\\n",a,ea; g}\n'
         'bp 07b2:modulecpu,1,{logerror '
         '"FM1JUNO_ORIG_TAIL_NOISE_RETURN:%02X:%04X\\n",a,ea; g}\n'
