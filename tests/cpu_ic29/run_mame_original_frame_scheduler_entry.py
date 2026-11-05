@@ -58,6 +58,8 @@ from run_mame_original_post_adc_vca_lfo_tail import (
 
 FRAME_START, FRAME_END = 0x02EC, 0x03A1
 FRAME_SHA = "3cd0206778e6fa8650fd8d803ff4d7665cd15f9963803d1ff98a9118be70c7df"
+NOP_START, NOP_END = 0x0863, 0x09EA
+NOP_SHA = "db6f6097124dc8eaba5c36f64fdc1e3e44201b6c0f3fd6a11fbab4b38657ad6b"
 BOOT_NEW = 0x0863  # published NOP-only 0863..09DF ROM hole
 POLL_NEW = 0x09E0  # published NOP-only 09E0..09E9 ROM hole
 OLD_BOOT = 0x0200
@@ -237,6 +239,71 @@ def check_frame(log: str, case: int, bank: int, run_mask: int) -> None:
           flush=True)
 
 
+def verify_frame_irq(log: str, start: int, case: int, bank: int,
+                     input_profile: str) -> None:
+    """Fail closed on unexpected genuine interrupts inside 02EC..03A1.
+
+    Prior source-pinned original ISR interrupt count determines current
+    ANM bank. There is no published MKH=04 rearming instruction inside
+    this new frame excerpt; consequently no more than one further
+    asynchronous ADC IRQ can be accepted.
+    """
+    original_entries = list(re.finditer(
+        r"FM1JUNO_REAL_ISR_ENTRY:([0-9a-fA-F:]+)", log))
+    original_pres = list(re.finditer(
+        r"FM1JUNO_REAL_ISR_PRE_RETI:([0-9a-fA-F:]+)", log))
+    original_saved = list(re.finditer(
+        r"FM1JUNO_TAIL_IRQ_SAVED_PC:([0-9a-fA-F:]+)", log))
+    if not (len(original_entries) == len(original_pres) ==
+            len(original_saved)):
+        raise AssertionError(
+            "case %d unpaired MAME source ISR entry/return/PC records" %
+            case)
+    before = [x for x in original_entries if x.start() < start]
+    after = [x for x in original_entries if x.start() >= start]
+    if not before or len(after) > 1:
+        raise AssertionError(
+            "case %d unsupported original frame IRQ counts "
+            "before=%d after=%d" %
+            (case,len(before),len(after)))
+    for entry, pre, saved in zip(original_entries,original_pres,
+                                 original_saved):
+        if entry.start() < start:
+            continue
+        if not (entry.start() < pre.start() and
+                entry.start() < saved.start()):
+            raise AssertionError("case %d frame interrupt trace order" %
+                                 case)
+        e=tuple(int(x,16) for x in entry.group(1).split(":"))
+        p=tuple(int(x,16) for x in pre.group(1).split(":"))
+        words=tuple(int(x,16) for x in saved.group(1).split(":"))
+        mode=(bank << 3) ^ (8 if len(before)%2 else 0)
+        if e not in ((0xFFED,mode,4),(0xFFEB,mode,4)):
+            raise AssertionError(
+                "case %d frame IRQ entry SP/ANM/MKH: %r expected %02X" %
+                (case,e,mode))
+        if p != (e[0],mode^8,5,mode,
+                 *raw_for_bank((mode>>3)&1,input_profile)):
+            raise AssertionError(
+                "case %d original frame IRQ ADC channel/ANM "
+                "snapshot unexpected %r" % (case,p))
+        if len(words)!=3 or words[0]!=e[0]:
+            raise AssertionError(
+                "case %d frame IRQ saved PC contract broken %r" %
+                (case,words))
+        pc=words[1] if e[0]==0xFFED else words[2]
+        if (e[0]==0xFFED and not FRAME_START<=pc<=FRAME_END) or (
+                e[0]==0xFFEB and not 0x082F<=pc<=0x083C):
+            raise AssertionError(
+                "case %d MAME original frame IRQ stack depth "
+                "SP=%04X PC=%04X inconsistent with original "
+                "main code vs resonance DAC helper" %
+                (case,e[0],pc))
+        print("MAME_ORIGINAL_FRAME_REAL_IRQ case=%02d "
+              "SP=%04X RETURN_PC=%04X ANM=%02X" %
+              (case,e[0],pc,mode),flush=True)
+
+
 def run(disasm: Path, attack_cli: Path, decay_cli: Path,
         global_cli: Path, voice_cli: Path, adc_cli: Path,
         mame: str, timeout: int, input_profile: str) -> None:
@@ -247,6 +314,13 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path,
     bank0 = source_slice(disasm,BANK0_START,BANK0_END,BANK0_SHA256)
     follow = source_slice(disasm,FOLLOW_START,FOLLOW_END,FOLLOW_SHA)
     frame = source_slice(disasm,FRAME_START,FRAME_END,FRAME_SHA)
+    # This test has to relocate its bootstrap into a source-declared
+    # original 0x0863..0x09E9 NOP region. Fail closed if the public
+    # original transcription ceases to identify this as unused ROM;
+    # otherwise synthetic boot would silently overwrite source opcodes.
+    hole = source_slice(disasm,NOP_START,NOP_END,NOP_SHA)
+    if hole != bytes(NOP_END-NOP_START):
+        raise ValueError("synthetic relocated boot overlaps original ROM")
     porta = source_table(disasm)
     adc = load_adc_window(disasm)
     vector = original_slice(disasm,VECTOR_BEGIN,VECTOR_END,VECTOR_SHA)
@@ -334,6 +408,7 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path,
             verify_original_fad(pre_frame,serial,bank,second_irq)
             verify_tail(pre_frame,i,SCENARIOS[i],voices[i])
             check_frame(log,i,bank,run_mask)
+            verify_frame_irq(log,head+1,serial,bank,input_profile)
             if p.returncode:
                 raise AssertionError("MAME 02EC original frame CPU rc=%d"
                                      "case=%d" %(p.returncode,i))
