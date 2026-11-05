@@ -387,6 +387,54 @@ followed by original main-loop conditioning in one continuous
 CPU pass, CPU-variant/ROM provenance and real timing evidence.
 `docs/PHASE1_ADC_ISR_FIDELITY_GATE.md` is the living handoff.
 
+### Causal MAME ADC timer → original interrupt → natural six-voice → ADC conditioner (focused #2)
+
+**Focused GitHub Actions `MAME ADC IRQ to six-voice bank service`
+#2 SUCCESS** at test-code commit `592807a`, run `41976855747`:
+**36/36 independent MAME CPU process scenarios passed**,
+each with an actual MAME UPD7810 internal ADC converter-generated
+interrupt followed by original interrupt vector/handler
+(`0x0020`, `0x0070..0x008D`) and original RETI,
+followed in the *same* process by six original ENV/VCF
+passes and the selected original ADC bank conditioner
+(`0x0652`, `0x06E2`, `0x0800`).
+
+The test checks original IRQ entry SP=`FFED`, MKH,
+pre-toggle ANM captured as FF5C, four ISR-published raw
+register bytes FF5D..FF60, real RETI restoration SP=`FFF0`,
+the per-voice ENV/VCF and DAC helper checkpoints,
+the original main-loop ADC CALF/return, and all eight
+accepted/conditioned RAM bytes in both banks. Separately
+compiled `fm1juno_adc_full_bank_reference` calls
+actual production `native_adc106_receive_bank` and
+`native_adc106_process_latest`; it does not reproduce
+the ADC law in Python. 216 individual voice and 144
+ADC-channel comparisons pass. Combined with the
+previous verified 760 scenarios, this is **796 selected
+independent process runs**.
+
+**The scheduling handoff is still SYNTHETIC:** Once
+original RETI returns to the interrupted polling loop,
+a test-only `0x0400` conditional check on ISR-written
+FF5C jumps to the authentic `0x04D5` global-VCF entry.
+The original six-voice and ADC-service code itself is
+continuous/unmodified. To avoid overwriting original
+`0x0020` and `0x0070` IRQ instructions, the
+test-only bootstrap was relocated to `0x0200`;
+this fixed an initial test-harness timeout.
+
+**The ADC input samples remain zero** because stock
+MAME's Juno-106 UPD7810 driver leaves all eight
+`an0_func()..an7_func()` callbacks unbound.
+The current test deliberately does *not* patch CR0..CR3,
+so this is a causal proof of MAME's zero-input IRQ/data
+flow, **not** any real Roland analog-input calibration.
+Nonzero deterministic test-only analogue callbacks,
+actual original firmware scheduling, CPU variant/ROM
+provenance and physical IRQ/DAC timing remain OPEN.
+No audio or wave engine functionality follows from
+this check. See `docs/PHASE1_ADC_ISR_FIDELITY_GATE.md`.
+
 ### Limitations / open strict gate
 
 The **earlier bounded test interpreter** is not MAME's CPU core. The new MAME harness above now executes both windows using independently maintained MAME CPU code. However neither harness currently models/validates:
