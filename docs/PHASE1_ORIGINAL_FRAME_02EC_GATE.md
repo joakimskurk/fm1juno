@@ -3,10 +3,12 @@
 **State:** The bounded original **0x02EC..0x03A0** source-byte
 scheduler slice is now **FOCUSED STOCK-MAME VERIFIED**:
 [GitHub Actions original frame #5](https://github.com/joakimskurk/fm1juno/actions/runs/42132712384)
-**SUCCESS, 36/36 CPU processes**. This extends the prior
-940 selected independent MAME CPU process fixtures to **976
-historically verified cases** (stock-MAME 02EC extension adds
-36; compiled nonzero follow-ons remain separately pending).
+**SUCCESS, 36/36 CPU processes**. Combined with the prior 940 cases, these **36 stock-MAME
+02EC frame fixtures** and a separately successful **36-case
+compiled nonzero ADC 0738 tail extension** now constitute
+**1,012 historically verified selected MAME CPU process
+scenarios** across CI runs. The additional *compiled
+nonzero ADC 02EC frame* cases remain pending.
 The overall P1.1 strict gate remains OPEN; this is
 **not** an authenticated Roland ROM, original UPD7811 silicon,
 physical CPU clock/ADC voltage, complete frame scheduler or audio.
@@ -119,6 +121,11 @@ source provenance and IRQ checks**:
   `--input-profile fixed-eight`. This is an
   **additional 36-case test pending its own green result**
   and must not be added to historical selected counts yet.
+  The **separate compiled original 0738 tail** already
+  passed [compiled MAME #33](https://github.com/joakimskurk/fm1juno/actions/runs/42131473570),
+  independently verifying **36/36** additional
+  nonzero ADC source-derived original tail executions;
+  those cases ARE included in the 1,012 total.
 
 No standalone full original scheduler LFO/PWM or resonance
 native host parity oracle exists for this whole 181-byte
