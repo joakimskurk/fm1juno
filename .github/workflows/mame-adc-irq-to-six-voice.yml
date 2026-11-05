@@ -1,0 +1,42 @@
+name: MAME ADC IRQ to six-voice bank service
+
+on:
+  pull_request:
+    paths:
+      - "tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py"
+      - "tests/cpu_ic29/adc_full_bank_reference_cli.c"
+      - "tests/cpu_ic29/run_mame_six_voice_adc_handoff.py"
+      - "tests/cpu_ic29/run_mame_adc_isr_peripheral_probe.py"
+      - ".github/workflows/mame-adc-irq-to-six-voice.yml"
+  workflow_dispatch:
+
+jobs:
+  adc-irq-to-six:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install independent MAME CPU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends mame
+      - name: Build compiled production reference CLIs
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel --target fm1juno_envelope_attack_reference fm1juno_envelope_decay_release_reference fm1juno_vcf_global_reference fm1juno_vcf_chain_reference fm1juno_adc_full_bank_reference
+      - name: Download published IC29 transcription
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/ErroneousBosh/j106roms/master/ic29.txt \
+            --output build/ic29_public_disassembly.txt
+      - name: Verify real internal ADC IRQ to original six voices and ADC bank conditioning
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
