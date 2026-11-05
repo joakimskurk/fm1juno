@@ -129,7 +129,8 @@ def verify_irq_interleaving(log: str, bank: int, case: int,
     if len(events) == 1:
         return 0
     marker = log.find("FM1JUNO_ORIG_FAD_PRE_EI:")
-    endmarker = log.find("FM1JUNO_ORIG_FAD_BEFORE_POP:")
+    beforepop = log.find("FM1JUNO_ORIG_FAD_BEFORE_POP:")
+    endmarker = log.find("FM1JUNO_ORIG_FAD_AFTER_POP:")
     if not (0 <= marker < events[1].start() <
             pre[1].start() < endmarker):
         raise AssertionError(
@@ -148,7 +149,7 @@ def verify_irq_interleaving(log: str, bank: int, case: int,
             repr(p))
     # If the ISR's RETI fails to restore the original FFEE context,
     # later original 0737 POP DE / FF31 checks catch it.
-    return 1
+    return 1 if events[1].start() < beforepop else 2
 
 
 def verify_original_fad(log: str, serial: int, bank: int,
@@ -179,10 +180,11 @@ def verify_original_fad(log: str, serial: int, bank: int,
         raise AssertionError(
             "original DI entry wrong: %s bank %d" % (enter, bank))
     expected_post_mkh = 0x05 if second_irq else 0x04
+    expected_before_mkh = 0x05 if second_irq == 1 else 0x04
     expected_post_mode = (bank << 3) ^ (8 if second_irq else 0)
     if (after != (0xFFEE, 0x05)
             or preei != (0xFFEE, 0x04)
-            or beforepop != (0xFFEE, expected_post_mkh)):
+            or beforepop != (0xFFEE, expected_before_mkh)):
         raise AssertionError(
             "original SKIT/MKH/EI register/stack invariant: %s/%s/%s" %
             (after, preei, beforepop))
@@ -194,7 +196,7 @@ def verify_original_fad(log: str, serial: int, bank: int,
             "cursor: %s" % (pop,))
     print("MAME_ADC_POST_FAD %02d/%02d PASS bank=%d "
           "original_06B3_to_0738=continuous FF7D=%02X "
-          "SKIT_FAD_NOP=%d SECOND_IRQ=%d" %
+          "SKIT_FAD_NOP=%d SECOND_IRQ_PHASE=%d" %
           (serial + 1, TOTAL, bank, porta, len(nops), second_irq),
           flush=True)
 
