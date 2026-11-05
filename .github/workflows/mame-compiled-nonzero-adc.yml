@@ -6,6 +6,7 @@ on:
       - ".github/workflows/mame-compiled-nonzero-adc.yml"
       - "tests/cpu_ic29/patch_mame_juno106_analog_fixture.py"
       - "tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py"
+      - "tests/cpu_ic29/run_mame_adc_post_service_fad.py"
       - "tests/cpu_ic29/adc_full_bank_reference_cli.c"
   workflow_dispatch:
 
@@ -94,3 +95,18 @@ jobs:
             --input-profile fixed-eight \
             --case-timeout 20
           echo "FM1JUNO_NONZERO_ADC_MAME_GATE: PASS (36 entire CPU IRQ->ENV->ADC cases)"
+      - name: Verify nonzero callback-sourced original post-ADC FAD boundary and asynchronous IRQ stack return
+        working-directory: fm1juno
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_adc_post_service_fad.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame "$GITHUB_WORKSPACE/mame-src/juno106" \
+            --input-profile fixed-eight --case-timeout 20
+          echo "FM1JUNO_NONZERO_ORIGINAL_POST_ADC_FAD: PASS (36 original-byte CPU paths)"
