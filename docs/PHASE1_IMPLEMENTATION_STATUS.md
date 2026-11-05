@@ -799,4 +799,82 @@ hardware calibration is required before claiming input
 peripheral fidelity. No time or PWM/DAC voltage measurement
 is inferred from a successful program-path checkpoint.
 
+## 24. TEST-ONLY MAME 0.285 built and executed with 8 distinct nonzero ADC inputs — VERIFIED
+
+**GitHub Actions `MAME 0.285 compiled nonzero ADC callback gate` #3
+SUCCESS**, code commit `78e1d510`, [run #41981525577](https://github.com/joakimskurk/fm1juno/actions/runs/41981525577):
+**36/36 complete CPU paths PASS** for 18 six-voice patterns × both
+analogue ADC channel banks, yielding **216 per-voice ENV/VCF and
+144 ADC channel comparisons** against separately compiled production C.
+This **closes the bounded, test-only nonzero analogue callback proof**.
+It does **not** close the strict original-JUNO hardware/timing fidelity gate.
+
+### Precisely what was built
+
+- Exact upstream MAME 0.285 git source commit
+  `f379cd060ac3b2bd567ebbd0957aed059d6895ff`;
+  separate machine target, built from
+  `SOURCES=src/mame/roland/juno106.cpp SUBTARGET=juno106`.
+- `tests/cpu_ic29/patch_mame_juno106_analog_fixture.py`
+  inserts eight **test-only deterministic** input callbacks
+  `an0_func()..an7_func()` (not modelled Roland physical voltages).
+  Modified `juno106.cpp` SHA-256
+  `b78fe5a9323281e1fef0531b2f4b6f916d2566860608d4adec02f12211bc6c30`.
+- Actual compiled, executable `mame-src/juno106` SHA-256
+  `d025443aa7e3fb5275fc6f07c94b0438d51d4e4d43158d54c1f9564f08830b67`
+  for this CI runner/toolchain. The complete test executes this
+  path rather than the system-installed `/usr/games/mame`.
+  Build environment uses Qt **5** (MAME 0.285 requirement).
+- The eight independent 8-bit channels are
+  AN0..AN3 = `11 2D 49 65` and
+  AN4..AN7 = `81 9D B9 D5` (hex). MAME's *own*
+  ADC timer reads the callbacks and raises INTFAD; no debugger
+  patching of CR0..CR3 occurs. Each original ISR snapshot at
+  FF5D..FF60, CPU stack/RETI, six original VCF/DAC returns,
+  bank-selected original `0x0800` conditioner and unchanged
+  opposite bank is checked against the compiled production reference.
+- The test harness selects ANM bank **before** its longer
+  synthetic RAM initialization and explicitly clears any
+  preexisting FAD interrupt request before enabling IRQs.
+  This was necessary because initial build #2 did compile,
+  and bank 0 passed, but bank 1 originally received a stale
+  conversion from bank 0. Commit `78e1d510` fixed
+  **only synthetic fixture startup/IRQ sequencing**.
+  The real CPU and original published code paths remain intact.
+- Focused compiled gate #3, complete MAME CPU matrix #75,
+  separate six-voice original/ADC/ISR gates and host-tests #439
+  **all SUCCESS** on the same test-code commit.
+  Former **796 selected CPU process scenarios** plus 36 new
+  distinct `fixed-eight` input cases = **832/832 selected
+  process scenarios verified** across these CI runs.
+  This number counts invoked MAME process tests, not
+  individual original ROM instructions nor a complete ROM run.
+
+### Verified boundary and remaining work
+
+The **real MAME UPD7810 peripheral** generated the tested
+nonzero ADC conversion and interrupt, executed source-pinned
+original IC29 `0x0020` ISR vector and `0x0070` handler
+and returned with original RETI. A **synthetic test-only**
+`0x0400` poll then dispatches to source-pinned original
+six-voice control `0x04D5` and bank service
+`0x0652 / 0x06E2 / 0x0800`. The original source
+segments themselves are executed without bridges inside
+those pinned windows.
+
+Still **not verified**: an authenticated complete original
+Roland IC29 ROM; physical **UPD7811** vs MAME UPD7810
+CPU mapping/interrupt cycles; the original **unsynthesized**
+interrupt-to-main-loop scheduler; 8253/DCO/GATE phasing;
+hardware voltage transfer and knob calibration; DAC settling,
+S/H sample slots, audible waveform, and exact hardware
+real-time timing. These remain explicit P1.1 blockers.
+See `docs/PHASE1_ADC_ISR_FIDELITY_GATE.md` for the
+completed fixture and next proposed original-scheduler
+test slice.
+
+**Gate remains `P1.1_DIGITAL_IN_PROGRESS`; PR #3 remains draft
+and unmerged. Production DSP/control sources were not changed
+for this milestone.**
+
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
