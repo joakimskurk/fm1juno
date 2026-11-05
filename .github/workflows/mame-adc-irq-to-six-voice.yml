@@ -5,6 +5,7 @@ on:
     paths:
       - "tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py"
       - "tests/cpu_ic29/adc_full_bank_reference_cli.c"
+      - "tests/cpu_ic29/patch_mame_juno106_analog_fixture.py"
       - "tests/cpu_ic29/run_mame_six_voice_adc_handoff.py"
       - "tests/cpu_ic29/run_mame_adc_isr_peripheral_probe.py"
       - ".github/workflows/mame-adc-irq-to-six-voice.yml"
@@ -29,6 +30,15 @@ jobs:
           curl --fail --location --silent --show-error --retry 3 --max-time 30 \
             https://raw.githubusercontent.com/ErroneousBosh/j106roms/master/ic29.txt \
             --output build/ic29_public_disassembly.txt
+      - name: Check test-only eight-analogue-callback patch against pinned MAME 0.285 source
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/mamedev/mame/mame0285/src/mame/roland/juno106.cpp \
+            --output build/juno106_upstream_0285.cpp
+          python3 tests/cpu_ic29/patch_mame_juno106_analog_fixture.py \
+            --source build/juno106_upstream_0285.cpp \
+            --output build/juno106_analog_fixture_NOT_COMPILED.cpp
+          test "$(grep -c 'an[0-7]_func().set' build/juno106_analog_fixture_NOT_COMPILED.cpp)" -eq 8
       - name: Verify real internal ADC IRQ to original six voices and ADC bank conditioning
         run: |
           python3 -u tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py \
