@@ -158,6 +158,71 @@ focused runs. The full combined workflow adds both new gates as
 separate final stages; this does not by itself claim the newest
 full-matrix run completed until CI confirms it.
 
+## Linked original IRQ → six-voice → ADC service — MAME focused #2 VERIFIED
+
+The first end-to-end **single-process** control-flow test passed:
+`tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py` executes
+18 six-voice fixture sets for both ADC bank modes. **Focused CI #2
+SUCCESS** at commit `592807a`, run `41976855747`:
+**36/36 MAME processes, 216/216 voice calculations and
+144/144 ADC channel comparisons** match compiled native production C.
+These 36 bring the selected verified MAME repertoire to **796**
+processes, alongside the prior 760. The full combined matrix has
+been extended to include this path; validate its run status
+independently.
+
+The internal MAME ADC scan engine **actually raises INTFAD**,
+causes CPU hardware-style stack entry at original vector
+`0020`, executes original `0070..008D` ISR and `RETI`,
+then resumes a **synthetic, explicitly documented poll-and-jump**
+at `0400` that dispatches to original `04D5` after FF5C
+has been published. The unchanged original six-voice loop and
+published `0652/06E2` bank select and `0800` four-channel ADC
+conditioning code then execute. The test inspects real ISR entry,
+FF5C/FF5D..FF60 snapshot and returned CPU stack, all six
+original VCF DAC helper calls and their per-voice results,
+selected-bank ADC outputs and unselected-bank sentinel integrity.
+
+The first focused attempt timed out due to overlapping synthetic
+bootstrap and original IRQ vector addresses. The test bootstrap
+was moved to `0200` and original `0020` and
+`0070` bytes left intact; this fixed the **harness** only.
+The test does NOT add original firmware scheduler code between
+IRQ and six-voice main loop, nor does it modify the production
+control model. New `adc_full_bank_reference_cli.c` calls production
+ADC functions for all four arbitrary raw/held-byte pairs.
+
+**Critical physical input limitation remains unchanged:** No
+AN0..AN7 channels are connected by upstream MAME's Juno-106
+driver. The hardware-sourced `CR0..CR3` ADC readings are
+all **zero**. This new test DOES NOT debugger-inject those
+conversion registers after interrupt, and does not verify
+nonzero physical conversion or original analogue timing.
+
+### Test-only nonzero analogue callback requirement
+
+MAME's `upd7810_device` class supplies actual eight-bit
+read callbacks `an0_func()` through `an7_func()` (see
+upstream `src/devices/cpu/upd7810/upd7810.h`). The CPU's
+`upd7810.cpp` callback-driven ADC scan samples
+`m_an_func[m_adin | m_adrange]()` before completion,
+copies the samples into CR0..CR3, and raises INTFAD
+after four conversions. The stock `juno106.cpp` machine
+config does not bind these callbacks.
+
+To test nonzero conversion causally rather than fake
+CR register values, compile a **test-only** MAME
+configuration/driver binding deterministic, distinct
+eight-bit values to those eight callbacks. Run the
+existing original ISR/RETI and bank-service probe
+unchanged except for its expected raw input oracle and
+machine selector. The test should detect a failure
+if a callback returns zero when a nonzero value was
+expected. Until that independently built MAME fixture
+passes, this is a **hardware-input provenance BLOCKER**.
+Do not silently substitute direct debugger
+`do cr0=...` for a true analogue callback.
+
 ## Updated next engineering sequence
 
 1. Inspect/test the MAME UPD7810 AN0..AN7 callback API and
