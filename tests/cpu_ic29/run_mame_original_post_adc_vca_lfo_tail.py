@@ -261,10 +261,18 @@ def verify_tail_irq(log: str, window_end: int, bank: int,
                 raise AssertionError(
                     "case %d nested DAC helper IRQ missing enclosing "
                     "original CALL/RETURN checkpoint" % case)
-        elif not 0x0738 <= interrupted_pc <= 0x07B7:
+        elif not (
+            0x0738 <= interrupted_pc <= 0x07B7 or
+            interrupted_pc == 0x02EC
+        ):
             raise AssertionError(
                 "case %d main-loop IRQ saved PC outside original "
-                "published tail: %04X" % (case, interrupted_pc))
+                "published tail or 07B5->02EC destination: %04X" %
+                (case, interrupted_pc))
+        # Genuine 07B5 JMP 02EC completes before the debugger at 02EC
+        # is reached. MAME may accept an ADC IRQ *at* 02EC with
+        # SP=FFED; the saved address then correctly equals 02EC.
+        # Do not conflate that with a forged jump or full scheduler.
     if arrivals:
         words = tuple(int(x, 16) for x in saved_pc[0].group(1).split(":"))
         interrupted_pc = words[1] if words[0] == 0xFFED else words[2]
