@@ -1,11 +1,25 @@
 # FM1JUNO Phase-1 implementation status
 
-Updated: 2026-11-04
+Updated: 2026-11-05
 Active branch: `phase1/reference-engine`
 Authority: `docs/PHASE1_START_CONTRACT.md` -> `docs/PHASE1_REFERENCE_ENGINE_PLAN.md` -> relevant Phase-0 block-specific models.
 
 **State: `P1.0_TRACE_SCAFFOLD_RUNNING / P1.1_DIGITAL_IN_PROGRESS`.**
 **Do not mark P1.1 as complete, and do not begin claiming analogue/audio 106 fidelity.**
+
+**Latest verified result (read §24 for full evidence):**
+**832/832 selected MAME CPU process scenarios pass** across the
+separately verified test gates, including **36/36 executions
+of a genuinely compiled, test-modified MAME 0.285 binary**
+with eight distinct nonzero ADC callback inputs (source-pinned
+MAME commit `f379cd06`, compiled gate #3 SUCCESS).
+The original ADC/ISR, six-voice ENV/VCF and selected ADC
+conditioner checkpoints match compiled production control C.
+**Actual Roland firmware scheduler, CPU variant, hardware
+analogue/electrical/timing and audio still remain OPEN.**
+Sections §1–23 document earlier incremental milestones;
+**§24 supersedes older statements that nonzero analogue
+input callbacks had not yet been tested.**
 
 ## 1. Current checked-in code
 
