@@ -209,10 +209,17 @@ def check_frame(log: str, case: int, bank: int, run_mask: int) -> None:
             (case, mode, counts))
     (endsp, de, voice, flags, to_pitch, to_vcf, hold, attack) = (
         single("END", 8))
-    if (endsp, de, voice) != (0xFFF0, 0xFF31, run_mask):
+    # The 0370 holdoff path genuinely loads DE=FF56; subsequent
+    # 033F/0360 original MOV D,A arithmetic replaces its high byte.
+    # Other LFO paths retain E=31 from the source 0737 POP DE,
+    # but also overwrite D in the original modulation calculation.
+    # Only E and the balanced CPU stack are invariant at 03A1.
+    expected_e = 0x56 if mode == 0 else 0x31
+    if (endsp, de & 0xFF, voice) != (0xFFF0, expected_e, run_mask):
         raise AssertionError(
-            "original scheduler exit SP/DE/voice-run wrong %r" %
-            ((endsp,de,voice),))
+            "original scheduler exit stack/E/voice-run wrong %r "
+            "expected E=%02X" %
+            ((endsp,de,voice),expected_e))
     if (hold,attack) != (
             (HOLD_RATE, ATTACK_SEED) if mode==0 else
             (0, ATTACK_SEED + ATTACK_RATE) if mode==1 else
