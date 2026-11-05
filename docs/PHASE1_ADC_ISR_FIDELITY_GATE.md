@@ -238,9 +238,28 @@ fixed eight-bit values:
 These are **test vectors only, not original Roland knob voltages**.
 The source patch targets the tagged upstream MAME `mame0285`
 Juno-106 driver source. The focused GitHub Actions workflow
-now fetches that exact source version and verifies that
+fetches that exact source version and verifies that
 eight distinct ADC input callback bindings are inserted.
 **That check does not compile or run the patched binary.**
+
+**Focused MAME ADC IRQ → six-voice gate #11 SUCCESS**
+at code commit `3db7e51` (run `41978017143`) independently
+confirms all three source/provenance checks:
+1. The tagged upstream MAME C++ source patch inserts **8/8**
+   distinct nonzero AN0..AN7 callbacks.
+2. **Fail-closed negative control:** running `fixed-eight`
+   against *unpatched* stock MAME must fail with an
+   actual original ISR/CR ADC register mismatch. The negative
+   test checks the specific failure string, not merely any
+   command error. This guard passed as an expected rejection.
+3. The stock-MAME `stock-zero` original-IRQ to six-voice
+   and ADC bank-service path still passes **36/36**
+   CPU processes (216 voice + 144 channel comparisons).
+
+This validates the test fixture's discrimination; it is
+**NOT a successful nonzero MAME analogue callback execution**.
+The custom binary must still be built and run before
+the `fixed-eight` profile's 36 cases can count as proof.
 
 The already passing causal CPU test now has two strict,
 explicitly separated modes:
