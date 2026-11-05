@@ -507,11 +507,18 @@ FF5C mode, MKH and RETI stack invariants are checked.
 All six original ENV/VCF/DAC helper outputs and
 four ADC channels match separately compiled
 production control C; **216 voice + 144 ADC channel
-comparisons PASS**. Historical selected MAME CPU
-process count is now **868/868** for
-the verified stock-MAME follow-on. A second
-`fixed-eight` compiled nonzero MAME test is
-configured but separately CI-gated.
+comparisons PASS**. Selected MAME CPU process test repertoire is now
+**904/904** across fully verified CI jobs: the prior
+832, 36 new stock-MAME FAD follow-on cases and
+36 additional `fixed-eight` compiled nonzero
+MAME 0.285 FAD follow-on cases.
+[Compiled workflow #15](https://github.com/joakimskurk/fm1juno/actions/runs/42047064065)
+**SUCCESS**, 36/36 extended nonzero-input CPU
+paths PASS with the independent native C oracles.
+In those 36 fixed-eight runs no second post-EI
+ADC IRQ was observed; the stock-MAME tests do
+cover actual second IRQs both before and after
+the 0737 POP opcode.
 
 The `SKIT FAD` NOP was *executed* in all 36 cases;
 a test for its skipped-NOP pending-FAD condition is

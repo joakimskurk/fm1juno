@@ -8,7 +8,7 @@ Authority: `docs/PHASE1_START_CONTRACT.md` -> `docs/PHASE1_REFERENCE_ENGINE_PLAN
 **Do not mark P1.1 as complete, and do not begin claiming analogue/audio 106 fidelity.**
 
 **Latest verified result (read §25 for full evidence):**
-**868/868 selected MAME CPU process scenarios pass** across the
+**904/904 selected MAME CPU process scenarios pass** across the
 separately verified test gates, including **36/36 executions
 of a genuinely compiled, test-modified MAME 0.285 binary**
 with eight distinct nonzero ADC callback inputs (source-pinned
@@ -937,11 +937,20 @@ ADC-channel comparisons match compiled native C.** The selected
 historical suite of **832** verified MAME process fixtures plus
 these **36 newly extended stock-MAME tests** now gives
 **868 selected process tests** verified across CI runs.
-A second **36-case** variant is also wired into
-`.github/workflows/mame-compiled-nonzero-adc.yml` to run these
-extended paths in the separately compiled eight-channel
-nonzero MAME binary; **do not add them to the verified total
-before that workflow finishes green**.
+**Compiled test-only MAME 0.285 nonzero-input follow-on also
+VERIFIED:** [compiled callback/extended FAD workflow #15](https://github.com/joakimskurk/fm1juno/actions/runs/42047064065)
+**SUCCESS**, with an additional **36/36** complete
+original post-ADC CPU paths using eight distinct nonzero
+ADC callbacks. This includes another **216 voice / 144
+ADC channel comparisons** against separately compiled
+production C; the bounded cumulative repertoire is now
+**904 selected MAME process tests** (832 prior +
+36 post-ADC stock-zero + 36 post-ADC fixed-eight).
+Both original data-bank paths pass. In the compiled
+nonzero dataset **all 36** pass without a second
+ADC IRQ around the final EI/POP window; the 8
+asynchronous second-IRQ cases from the stock-MAME
+dataset remain independently verified.
 
 **Strict limits:** In this specific 36-case set the original
 SKIT FAD reached the *NOP-executed* branch; actual pending-FAD

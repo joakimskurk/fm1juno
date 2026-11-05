@@ -336,11 +336,22 @@ and reentry into the interrupted program restore stack state.
 These are MAME fixture observations, **not physical
 Roland interrupt latency measurements**.
 
-The present selected historical CPU suite totals **868/868
-process scenarios** (prior 832 plus 36 new source-pinned
-stock-MAME follow-on executions). The integrated **fixed-eight
-nonzero** test-only MAME variant is wired in and must be
-validated separately before counting another 36 cases.
+The present selected CPU suite totals **904/904 process
+scenarios** across green CI runs: prior 832 + 36
+source-pinned stock-MAME post-ADC executions +
+**36 additional compiled test-only MAME 0.285
+fixed-eight nonzero post-ADC executions**.
+The full compiled-MAME
+[#15 workflow](https://github.com/joakimskurk/fm1juno/actions/runs/42047064065)
+is **SUCCESS**. Its new post-ADC gate alone passes
+36/36 process paths with another 216 voice and
+144 ADC-channel comparisons. Nonzero input values
+remain source callback fixtures, NOT Roland hardware
+voltages. In that particular fixed-eight profile
+no second interrupt was observed between EI and POP;
+the stock-MAME 28/6/2 distribution is separately
+verified and cannot be extrapolated to physical
+original interrupt timing.
 `tests/cpu_ic29/run_mame_adc_post_service_fad.py` is the test.
 
 The original `SKIT FAD` instruction was executed, but in all 36
