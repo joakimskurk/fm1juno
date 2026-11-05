@@ -85,6 +85,24 @@ def build_rom(original: bytes, continuation: bytes, dac: bytes,
     rom = bytearray(original_image(
         original, continuation, dac, multiplier, table,
         scenario, global_case, global_values, expected, case))
+    # The standard six-voice fixture boots at 0000 and its synthetic
+    # initialization instructions extend through addresses 0020 and
+    # 0070. Those addresses are *authentic interrupt vectors/ISR* in
+    # this probe. Relocate the complete original fixture bootstrap to
+    # 0200 and install a tiny synthetic reset JMP there. Keep all
+    # original IRQ opcode regions byte-identical and executable.
+    initial_jump = bytes((0x54, 0xD5, 0x04))
+    old_end = rom.find(initial_jump, 0, 0x04CB)
+    if old_end < 0 or rom.find(initial_jump, old_end+1, 0x04CB) >= 0:
+        raise AssertionError("original six-voice fixture JMP not unique")
+    synthetic_prefix = bytes(rom[:old_end])
+    bootstrap_address = 0x0200
+    if bootstrap_address + len(synthetic_prefix) + 96 >= POLL_PC:
+        raise AssertionError("relocated bootstrap overlaps synthetic poll")
+    rom[:POLL_PC] = bytes(POLL_PC)
+    rom[:3] = bytes((0x54, 0x00, 0x02))
+    rom[bootstrap_address:bootstrap_address+len(synthetic_prefix)] = (
+        synthetic_prefix)
     # Overwrite only the *old synthetic STOP* at 0652; never alter
     # any original published envelope/VCF, ISR or ADC instruction.
     rom[POST_START:POST_END] = post
@@ -95,10 +113,7 @@ def build_rom(original: bytes, continuation: bytes, dac: bytes,
 
     # Add a deterministic 8-channel initially accepted/conditioned state
     # to synthetic boot. FF5C AA is a handshake sentinel, not a bank.
-    jmp = bytes((0x54, 0xD5, 0x04))
-    offset = rom.find(jmp, 0, 0x04CB)
-    if offset < 0 or rom.find(jmp, offset+1, 0x04CB) >= 0:
-        raise AssertionError("synthetic six-voice bootstrap JMP not unique")
+    offset = bootstrap_address + len(synthetic_prefix)
     setup = [(0x5C, 0xAA)]
     for k in range(4):
         setup.extend((
@@ -234,9 +249,19 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path, global_cli: Path,
                     timeout=timeout,
                     env={**os.environ, "QT_QPA_PLATFORM": "offscreen"})
             except subprocess.TimeoutExpired as e:
+                timeout_text = e.stdout or b""
+                if isinstance(timeout_text, bytes):
+                    timeout_text = timeout_text.decode(
+                        "utf-8", errors="replace")
+                error = root / "error.log"
+                if error.exists():
+                    timeout_text += "\n" + error.read_text(
+                        encoding="utf-8", errors="replace")
+                    error.unlink()
                 raise AssertionError(
                     "real internal ADC IRQ to 6-voice service timed out "
-                    "case %d bank %d" % (i, bank)) from e
+                    "case %d bank %d; diagnostic tail=%s" %
+                    (i, bank, timeout_text[-2600:])) from e
             log = p.stdout + p.stderr
             error = root / "error.log"
             if error.exists():
