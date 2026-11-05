@@ -160,6 +160,43 @@ def verify_tail(log: str, case: int, scenario: dict,
            lfo_value, pwm, NOISE_LEVEL), flush=True)
 
 
+def verify_tail_irq(log: str, window_end: int, bank: int,
+                    case: int, input_profile: str) -> None:
+    """Audit genuine late ADC interrupts separately from pre-0738 FAD.
+
+    The original CPU may continue scanning after original EI 06BA.
+    Counting only the first 0738-boundary records as all interrupts
+    would falsely reject a real 0749/07A9 IRQ; ignoring it would
+    conceal a possible pointer/stack corruption. Reject unpaired,
+    unexpected, duplicate or pre-expected-mode IRQ events.
+    """
+    arrivals = [
+        m for m in re.finditer(
+            r"FM1JUNO_REAL_ISR_ENTRY:([0-9a-fA-F:]+)", log)
+        if m.start() >= window_end]
+    snapshots = [
+        m for m in re.finditer(
+            r"FM1JUNO_REAL_ISR_PRE_RETI:([0-9a-fA-F:]+)", log)
+        if m.start() >= window_end]
+    if len(arrivals) != len(snapshots) or len(arrivals) > 1:
+        raise AssertionError(
+            "case %d late VCA/LFO ADC IRQ count unsupported %d/%d"
+            % (case, len(arrivals), len(snapshots)))
+    for arrival, snap in zip(arrivals, snapshots):
+        e = tuple(int(x, 16) for x in arrival.group(1).split(":"))
+        p = tuple(int(x, 16) for x in snap.group(1).split(":"))
+        mode = (bank << 3) ^ 8
+        raw = raw_for_bank(1-bank, input_profile)
+        if e != (0xFFED, mode, 0x04) or p != (
+                0xFFED, mode ^ 8, 0x05, mode, *raw):
+            raise AssertionError(
+                "case %d late true ADC IRQ/RETI register state "
+                "unexpected e=%r p=%r" % (case, e, p))
+    if arrivals:
+        print("MAME_POST_ADC_TAIL_REAL_IRQ case=%02d "
+              "irq_after_0738=1 SP_IRQ=FFED" % case, flush=True)
+
+
 def source_table(source: Path) -> bytes:
     # Original published lookup table lines contain up to sixteen
     # contiguous byte tokens, unlike 1..5-byte instruction lines.
@@ -419,8 +456,20 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path, global_cli: Path,
                 text = err.read_text(encoding="utf-8", errors="replace")
                 err.unlink()
                 log = text if "FM1JUNO_REAL_ISR_ENTRY:" in text else log + text
+            # Earlier source-pinned FAD test ENDS at 0738. This new
+            # tail adds CPU cycles in which a later real ADC IRQ may
+            # occur; do not incorrectly attribute those events to the
+            # earlier 06BA EI -> 0737 POP interval.
+            fad_stop = log.find("FM1JUNO_ORIG_FAD_AFTER_POP:")
+            if fad_stop == -1:
+                raise AssertionError("missing original 0738 POP return")
+            fad_stop = log.find("\n", fad_stop)
+            if fad_stop == -1:
+                raise AssertionError("original FAD breakpoint truncated")
+            fade_window = log[:fad_stop + 1]
             second_irq = verify_irq_interleaving(
-                log, bank, serial, input_profile)
+                fade_window, bank, serial, input_profile)
+            verify_tail_irq(log, fad_stop + 1, bank, serial, input_profile)
             check_six(log, voices[i], globals_[i][3], SCENARIOS[i], i)
             verify_adc(log, (i, bank, OLD_PATTERN[0],
                              raw_for_bank(bank, input_profile)[0]),
