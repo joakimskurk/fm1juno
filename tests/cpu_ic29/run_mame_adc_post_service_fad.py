@@ -108,7 +108,51 @@ def debugger() -> str:
     return prior + checks + "g\n"
 
 
-def verify_original_fad(log: str, serial: int, bank: int) -> None:
+def verify_irq_interleaving(log: str, bank: int, case: int,
+                            input_profile: str) -> int:
+    # The initial genuine IRQ must be complete BEFORE original 6-voice
+    # code executes. A *second* real ADC interrupt may occur after
+    # original 06BA EI and while 0652's DE cursor is still saved
+    # at stack SP=FFEE. Its CPU IRQ frame must then reach FFEB.
+    start = log.find("FM1JUNO_SIX_VCF:00:")
+    if start == -1:
+        raise AssertionError("missing first voice checkpoint")
+    verify_irq(log[:start], bank, case, input_profile)
+    events = list(re.finditer(
+        r"FM1JUNO_REAL_ISR_ENTRY:([0-9a-fA-F:]+)", log))
+    pre = list(re.finditer(
+        r"FM1JUNO_REAL_ISR_PRE_RETI:([0-9a-fA-F:]+)", log))
+    if len(events) not in (1, 2) or len(events) != len(pre):
+        raise AssertionError(
+            "case %d unexpected asynchronous IRQ count %d/%d" %
+            (case, len(events), len(pre)))
+    if len(events) == 1:
+        return 0
+    marker = log.find("FM1JUNO_ORIG_FAD_PRE_EI:")
+    endmarker = log.find("FM1JUNO_ORIG_FAD_BEFORE_POP:")
+    if not (0 <= marker < events[1].start() <
+            pre[1].start() < endmarker):
+        raise AssertionError(
+            "second IRQ did not occur within genuine original "
+            "06BA EI -> 0737 POP DE window")
+    e = tuple(int(v, 16) for v in events[1].group(1).split(":"))
+    p = tuple(int(v, 16) for v in pre[1].group(1).split(":"))
+    mode = bank << 3
+    raw = raw_for_bank(1-bank, input_profile)
+    if e != (0xFFEB, mode ^ 8, 0x04):
+        raise AssertionError(
+            "second IRQ frame/bank/MKH mismatch: " + repr(e))
+    if p != (0xFFEB, mode, 0x05, mode ^ 8, *raw):
+        raise AssertionError(
+            "second actual ADC IRQ did not snapshot alternate bank: " +
+            repr(p))
+    # If the ISR's RETI fails to restore the original FFEE context,
+    # later original 0737 POP DE / FF31 checks catch it.
+    return 1
+
+
+def verify_original_fad(log: str, serial: int, bank: int,
+                        second_irq: int) -> None:
     def record(name: str, fields: int) -> tuple[int, ...]:
         hits = re.findall(r"FM1JUNO_ORIG_FAD_" + name +
                           r":([0-9a-fA-F:]+)", log)
@@ -134,22 +178,25 @@ def verify_original_fad(log: str, serial: int, bank: int) -> None:
     if enter != (0xFFEE, 0x05, bank << 3, 6):
         raise AssertionError(
             "original DI entry wrong: %s bank %d" % (enter, bank))
+    expected_post_mkh = 0x05 if second_irq else 0x04
+    expected_post_mode = (bank << 3) ^ (8 if second_irq else 0)
     if (after != (0xFFEE, 0x05)
             or preei != (0xFFEE, 0x04)
-            or beforepop != (0xFFEE, 0x04)):
+            or beforepop != (0xFFEE, expected_post_mkh)):
         raise AssertionError(
             "original SKIT/MKH/EI register/stack invariant: %s/%s/%s" %
             (after, preei, beforepop))
     sp, de, mkh, mode, voice, porta = pop
     if (sp, de, mkh, mode, voice) != (
-            0xFFF0, 0xFF31, 0x04, bank << 3, 6):
+            0xFFF0, 0xFF31, expected_post_mkh, expected_post_mode, 6):
         raise AssertionError(
             "original 0737 POP DE failed to restore saved envelope "
             "cursor: %s" % (pop,))
     print("MAME_ADC_POST_FAD %02d/%02d PASS bank=%d "
           "original_06B3_to_0738=continuous FF7D=%02X "
-          "SKIT_FAD_NOP=%d" %
-          (serial + 1, TOTAL, bank, porta, len(nops)), flush=True)
+          "SKIT_FAD_NOP=%d SECOND_IRQ=%d" %
+          (serial + 1, TOTAL, bank, porta, len(nops), second_irq),
+          flush=True)
 
 
 def run(disasm: Path, attack_cli: Path, decay_cli: Path, global_cli: Path,
@@ -229,12 +276,13 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path, global_cli: Path,
                 text = err.read_text(encoding="utf-8", errors="replace")
                 err.unlink()
                 log = text if "FM1JUNO_REAL_ISR_ENTRY:" in text else log + text
-            verify_irq(log, bank, serial, input_profile)
+            second_irq = verify_irq_interleaving(
+                log, bank, serial, input_profile)
             check_six(log, voices[i], globals_[i][3], SCENARIOS[i], i)
             verify_adc(log, (i, bank, OLD_PATTERN[0],
                              raw_for_bank(bank, input_profile)[0]),
                        adc_expect)
-            verify_original_fad(log, serial, bank)
+            verify_original_fad(log, serial, bank, second_irq)
             if p.returncode:
                 raise AssertionError(
                     "MAME original FAD post-ADC exit=%d case=%d" %
