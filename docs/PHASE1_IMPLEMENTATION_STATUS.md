@@ -972,4 +972,82 @@ the synthetic `0x0400` dispatch.
 
 **P1.1_DIGITAL_IN_PROGRESS remains OPEN; PR #3 DRAFT/UNMERGED.**
 
+## 26. Original 0x0738..0x07B7 voice-six VCA, LFO/PWM, noise and frame-loop return — VERIFIED
+
+**Focused [MAME original post-ADC VCA/LFO/PWM/noise tail #5](https://github.com/joakimskurk/fm1juno/actions/runs/42122703559)
+SUCCESS**, stock MAME UPD7810 code commit `979951e`:
+**36/36 genuine internal-ADC-IRQ CPU process scenarios PASS**,
+216 original six-voice ENV/VCF comparisons and 144 selected-bank ADC
+channel comparisons against separately compiled native production C.
+
+New `tests/cpu_ic29/run_mame_original_post_adc_vca_lfo_tail.py`
+and focused `.github/workflows/mame-post-adc-vca-lfo-tail.yml`
+execute a new 128-byte published original ROM slice
+`0x0738..0x07B7`, checksum
+`d9dd161d9b0d3985b4c3e816cef9197c542aa7d02f27cd63a9bf3ef6da4ba191`.
+Every process preserves the proven genuine MAME ADC conversion
+IRQ → original `0x0020/0x0070` ISR/RETI →
+six original voice ENV/VCF/DAC paths → selected original
+`0x0800` ADC service → original `0x06B3`
+DI/SKIT FAD/MKH/EI and `0x0737 POP DE`; then
+executes the new authentic code **continuously** through:
+
+- Voice-six VCA ENV/GATE selection at `0x0738..0x074A`
+  and original `0x082F` DAC helper call/return.
+- Original `0x074E..0x07A8` LFO integrator and PWM duty
+  calculation, storing values at `FF4D/FF4F`.
+- Noise VCA DAC helper at `0x07A9..0x07B4`.
+- The actual original **`0x07B5 JMP 0x02EC`**, with
+  a breakpoint at the target `0x02EC` to verify
+  CPU stack, saved envelope pointer DE and voice index.
+  The original `0x02EC` scheduler is **not executed yet**.
+
+Test fixture variation deliberately covers **18 VCA ENV vs
+18 GATE**, **20 rising vs 16 falling LFO**, **16 pulse output
+enabled vs 20 off**, and **20 manual vs 16 LFO PWM source**
+settings. Cases use synthetic RAM initial conditions,
+including nonzero noise DAC input `0x1367`, deterministic LFO
+integrator state and coefficient, and PWM depth; all published
+opcode source windows remain untouched. Envelopes/VCF and ADC
+outputs continue to match compiled native production C, while
+tail-specific VCA/LFO/PWM/noise observations are checked against
+source-derived invariants and the independent MAME CPU result;
+**no standalone native C parity oracle has yet been established
+for the entire original LFO/PWM tail**.
+
+Extending execution exposed **28 real late ADC IRQs** after the
+previous test's `0x0738` stop. A late interrupt in ordinary
+main-loop execution enters at SP=`FFED`; one during the
+authentic `CALF 0x082F` DAC helper enters at
+SP=`FFEB` due to its already-pushed subroutine return.
+Both paths are checked for original ISR mode/bank, valid CPU
+interrupt stack and corresponding DAC call/return windows.
+A corrupted `FFEB` outside those windows explicitly FAILS.
+
+Historical independently verified selected MAME repertoire:
+**904 prior + 36 source-contiguous stock-MAME tail =
+940 CPU process scenarios** (not full ROM or instruction
+coverage). The full independent MAME CI has the new tail
+appended; confirm its *own* green state separately.
+`.github/workflows/mame-compiled-nonzero-adc.yml`
+also has a new final stage running this tail with eight
+different original ADC callback-sourced nonzero inputs,
+but that **distinct 36-case extension is pending separate
+compiled-binary CI evidence**; do not add it to the
+verified count until that specific job passes.
+
+**Strict P1.1 remains OPEN:** Published `0x02EC..0x04D5`
+frame scheduler (sustain, resonance, LFO holdoff/modulation,
+tuning, portamento and six DCO/8253 PIT writes) still
+requires source-pinned CPU proof and controlled peripheral
+fixtures. The initial real-ADC-RETI-to-original-`0x04D5`
+dispatcher still contains a declared synthetic `0x0400`
+poll/JMP. Original `0x06B4 SKIT FAD` **pending-flag
+NOP-skipped** branch still needs an explicit test; all
+existing original-boundary fixtures took the NOP-executed
+branch. UPD7811 CPU/ROM authenticity, physical cycle
+calibration, ADC voltage transfer, PIT/GATE, DAC/S&H and
+actual Roland audio remain unresolved. PR #3 stays
+DRAFT and UNMERGED.
+
 fm1juno_render remains a trace-only tool. Do not begin MC5534/80017A audio on this PR before reviewed P1.1 exit.
