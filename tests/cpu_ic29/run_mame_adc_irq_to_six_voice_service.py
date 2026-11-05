@@ -51,6 +51,11 @@ POLL_PC = 0x0400
 PHASE_ENTRY = 0x04D5
 OLD_PATTERN = (0, 2, 238, 255)
 OTHER_PATTERN = (11, 77, 131, 239)
+# A deterministic, visibly distinct TEST-ONLY MAME callback profile.
+# Requires a separately compiled MAME driver with AN0..AN7 bound
+# to these constants; stock juno106 provides all-zero callbacks.
+ANALOG_FIXTURE = (0x11, 0x2D, 0x49, 0x65,
+                  0x81, 0x9D, 0xB9, 0xD5)
 # Original six-voice fixture covers ATTACK/DECAY/RELEASE and mixed masks.
 
 
@@ -58,14 +63,23 @@ def test_cases() -> tuple[tuple[int, int], ...]:
     return tuple((i, bank) for i in range(len(SCENARIOS)) for bank in BANKS)
 
 
-def native_adc_expected(cli: Path, cases: tuple[tuple[int, int], ...]
-                        ) -> list[tuple[int, ...]]:
-    # All four raw channels MUST be zero. The MAME driver has no
-    # analogue callbacks; do not use the existing synthetic nonzero
-    # raw-channel CLI, or patch CPU CR registers after conversion.
+def raw_for_bank(bank: int, input_profile: str) -> tuple[int, ...]:
+    if input_profile == "stock-zero":
+        return (0, 0, 0, 0)
+    if input_profile == "fixed-eight":
+        return ANALOG_FIXTURE[bank*4:bank*4+4]
+    raise ValueError("unknown ADC input profile: " + input_profile)
+
+
+def native_adc_expected(
+    cli: Path, cases: tuple[tuple[int, int], ...], input_profile: str
+) -> list[tuple[int, ...]]:
+    # Source bytes here must match *physical emulator ADC callbacks*.
+    # No runtime CPU CR patching is allowed in either profile.
     query = "".join(
-        "%d %d %d %d %d 0 0 0 0\n" %
-        (bank, *OLD_PATTERN) for _, bank in cases)
+        " ".join(map(str, (bank, *OLD_PATTERN,
+                           *raw_for_bank(bank, input_profile)))) + "\n"
+        for _, bank in cases)
     p = subprocess.run([str(cli)], input=query, text=True,
                        capture_output=True, check=True, timeout=15)
     rows = [tuple(map(int, l.split(","))) for l in
@@ -162,7 +176,8 @@ def debugger() -> str:
     return original[:-2] + extra + "g\n"
 
 
-def verify_irq(log: str, bank: int, case: int) -> None:
+def verify_irq(log: str, bank: int, case: int,
+               input_profile: str) -> None:
     events = [
         re.findall(r"FM1JUNO_REAL_ISR_ENTRY:([0-9a-fA-F:]+)", log),
         re.findall(r"FM1JUNO_REAL_ISR_PRE_RETI:([0-9a-fA-F:]+)", log),
@@ -181,7 +196,8 @@ def verify_irq(log: str, bank: int, case: int) -> None:
         raise AssertionError(
             "case %d no hardware-stacked ADC vector: %r" %
             (case, entry))
-    if pre != (0xFFED, mode ^ 8, 5, mode, 0, 0, 0, 0):
+    if pre != (0xFFED, mode ^ 8, 5, mode,
+               *raw_for_bank(bank, input_profile)):
         raise AssertionError(
             "case %d original ISR/ANM/CR snapshot wrong: %r" %
             (case, pre))
@@ -192,7 +208,8 @@ def verify_irq(log: str, bank: int, case: int) -> None:
 
 
 def run(disasm: Path, attack_cli: Path, decay_cli: Path, global_cli: Path,
-        voice_cli: Path, adc_cli: Path, mame: str, timeout: int) -> None:
+        voice_cli: Path, adc_cli: Path, mame: str, timeout: int,
+        input_profile: str) -> None:
     original, dac, table = original_parts(disasm)
     continuation = original_loop_extension(disasm)
     multiplier = original_decay_helper(disasm)
@@ -210,11 +227,12 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path, global_cli: Path,
     expect_six = compiled_expectations(
         SCENARIOS, attack_cli, decay_cli, voice_cli, globals_)
     cases = test_cases()
-    expect_adc = native_adc_expected(adc_cli, cases)
+    expect_adc = native_adc_expected(adc_cli, cases, input_profile)
     binary = mame_binary(mame)
     print("Original internal ADC timer IRQ -> RETI -> all 6 original "
-          "voices -> original bank-select ADC service: %d cases" %
-          len(cases), flush=True)
+          "voices -> original bank-select ADC service: %d cases "
+          "input_profile=%s" %
+          (len(cases), input_profile), flush=True)
     with tempfile.TemporaryDirectory(prefix="fm1juno-real-isr-to-adc-"
                                      ) as directory:
         root = Path(directory)
@@ -270,24 +288,28 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path, global_cli: Path,
                 error.unlink()
                 log = candidate if "FM1JUNO_REAL_ISR_ENTRY:" in candidate \
                     else log + "\n" + candidate
-            verify_irq(log, bank, serial)
+            verify_irq(log, bank, serial, input_profile)
             check_six(log, expect_six[i], globals_[i][3], SCENARIOS[i], i)
-            verify_adc(log, (i, bank, OLD_PATTERN[0], 0), adc_reference)
+            verify_adc(log, (i, bank, OLD_PATTERN[0],
+                             raw_for_bank(bank, input_profile)[0]),
+                       adc_reference)
             if p.returncode != 0:
                 raise AssertionError(
                     "MAME returned nonzero %d case %d" %
                     (p.returncode, serial))
             print("MAME_IRQ_TO_SIX_ADC %02d/%02d PASS pattern=%s bank=%d "
-                  "ISR=real ADC timer CR=00000000" %
-                  (serial+1, TOTAL, SCENARIOS[i]["pattern"], bank),
+                  "ISR=real ADC timer CR=%s" %
+                  (serial+1, TOTAL, SCENARIOS[i]["pattern"], bank,
+                   "".join("%02X" % x for x in
+                           raw_for_bank(bank, input_profile))),
                   flush=True)
     print("IC29_IRQ_TO_SIX_ADC_MAME: PASS (%d causal CPU scenarios, "
           "%d voices, %d ADC channel comparisons)" %
           (TOTAL, 6*TOTAL, 4*TOTAL), flush=True)
-    print("Scope: stock UPD7810 MAME ADC peripheral, zero analog callback "
-          "data. SYNTHETIC handoff poll/JMP between original ISR and "
-          "original main loop; NOT original scheduler or calibrated "
-          "physical timing.", flush=True)
+    print("Scope: UPD7810 MAME ADC peripheral with %s callback data. "
+          "SYNTHETIC handoff poll/JMP between original ISR and original "
+          "main loop; NOT original scheduler or calibrated physical "
+          "timing." % input_profile, flush=True)
 
 
 if __name__ == "__main__":
@@ -300,10 +322,17 @@ if __name__ == "__main__":
     parser.add_argument("--adc-cli", type=Path, required=True)
     parser.add_argument("--mame", default="mame")
     parser.add_argument("--case-timeout", type=int, default=14)
+    parser.add_argument(
+        "--input-profile", choices=("stock-zero", "fixed-eight"),
+        default="stock-zero",
+        help="fixed-eight requires a separately rebuilt TEST-ONLY MAME "
+             "driver with eight exact AN0..AN7 callbacks; stock-zero "
+             "works with official MAME and MUST NOT accept nonzero data")
     a = parser.parse_args()
     try:
         run(a.ic29_disasm, a.attack_cli, a.decay_cli, a.global_cli,
-            a.voice_cli, a.adc_cli, a.mame, a.case_timeout)
+            a.voice_cli, a.adc_cli, a.mame, a.case_timeout,
+            a.input_profile)
     except (OSError, ValueError, AssertionError,
             subprocess.CalledProcessError) as exc:
         print("IC29_IRQ_TO_SIX_ADC_MAME: FAIL: " + str(exc),
