@@ -190,8 +190,11 @@ def check_frame(log: str, case: int, bank: int, run_mask: int) -> None:
                              ((gate,active,sp),run_mask))
     resonance = single("RESONANCE", 3)
     returned = single("RESONANCE_RETURN", 3)
+    # Original CALF 082F preserves EA, but the helper's final
+    # MOV A,EAL at 0839 returns the DAC's low 8-bit value in A.
+    # A=06 is only the source-side channel selector *before* CALF.
     if resonance != (6, RESONANCE, 0xFFF0) or (
-            returned != (6, RESONANCE, 0xFFF0)):
+            returned != (RESONANCE & 0xFF, RESONANCE, 0xFFF0)):
         raise AssertionError("original resonance DAC original 082F "
                              "call/return mismatch %r/%r" %
                              (resonance,returned))
