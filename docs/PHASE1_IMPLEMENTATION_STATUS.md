@@ -35,6 +35,18 @@ were checked from actual MAME snapshots. This is **additional
 source-byte coverage**, not a new count of 36 independent
 input profiles. The previously reported **1,048** cumulative
 selected MAME scenarios therefore stays unchanged.
+
+**NEW — original six-voice Portamento `0x03D7..0x0406` VERIFIED:**
+[stock MAME 36/36](https://github.com/joakimskurk/fm1juno/actions/runs/42312573517) and
+[compiled nonzero-ADC MAME 0.285 36/36](https://github.com/joakimskurk/fm1juno/actions/runs/42312573688).
+Both extend the existing original CPU frame through `0x0406`,
+preserving 216 six-voice ENV/VCF and 144 ADC comparisons per
+profile. Zero-step/direct, up/down, equal, clamp and partial
+Portamento paths, all six original RAM updates, CPU loop
+pointers and original-byte SHA were checked. These are
+longer continuations of previously chosen profiles, not a
+new 72-scenario addition. Historical total stays **1,048**.
+See [PHASE1_ORIGINAL_PORTAMENTO_GATE.md](PHASE1_ORIGINAL_PORTAMENTO_GATE.md).
 **Actual original full Roland scheduler, UPD7811/ROM
 identity, hardware analogue/electrical timing, PIT/DCO and
 audio remain OPEN. P1.1 is NOT complete.**
@@ -1136,22 +1148,24 @@ The next original `0x03A1..0x04D4` source segment is still
 alone does not close any additional scheduler/hardware gate.
 
 **Strict blockers unchanged:** The published
-`0x02EC..0x03D6` source-byte path is now focused
-stock-MAME verified. The following `0x03D7..0x04D4`
-Portamento and six physical 8253/PIT/DCO writes remain
-unproven in this same path; a separately compiled nonzero
-ADC fixture for the new pitch-offset continuation is also open.
+`0x02EC..0x0406` source-byte path is now verified by
+stock and separately compiled nonzero-ADC MAME gates.
+Original `0x0407..0x04D4` SUB-DAC, six physical 8253/PIT
+timer writes and DCO-CV output paths remain OPEN, as do
+original CPU silicon, full ROM provenance and analogue/audio
+fidelity.
 An explicit synthetic FF5C polling/JMP still exists
 from the first genuine ISR RETI to original
 `0x04D5` voice control. This is not the original
 cold-start/full scheduler, authenticated UPD7811,
 physical ADC/8253/DAC timing or audible Roland synthesis.
 
-**Next step:** source-pin and execute `0x03D7..0x04D4`
-with controlled Portamento, PIT/DAC peripheral observations
-before claiming removal of the synthetic first-ISR
-voice-dispatch seam. Handoff and source limits:
-`docs/PHASE1_ORIGINAL_FRAME_02EC_GATE.md`.
+**Next step:** source-pin `0x0407..0x041B` SUB DAC and
+mux, then `0x041C..0x04D4` actual six-voice PIT register
+and DCO-CV updates, with independently checked physical
+I/O observations. Preserve the synthetic first-ISR
+voice-dispatch seam pending verified full scheduler.
+Handoff: `docs/PHASE1_ORIGINAL_PORTAMENTO_GATE.md`.
 
 **P1.1_DIGITAL_IN_PROGRESS remains OPEN; PR #3 stays
 DRAFT/UNMERGED. No production audio algorithm changed.**
