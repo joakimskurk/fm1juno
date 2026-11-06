@@ -1,0 +1,46 @@
+name: MAME original post-ADC FAD scheduler boundary
+
+on:
+  pull_request:
+    paths:
+      - "tests/cpu_ic29/run_mame_adc_post_service_fad.py"
+      - "tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py"
+      - "tests/cpu_ic29/run_mame_six_voice_adc_handoff.py"
+      - ".github/workflows/mame-post-adc-fad.yml"
+  workflow_dispatch:
+
+jobs:
+  adc-post-fad:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install independent MAME UPD7810 CPU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends mame
+      - name: Compile native production ENV VCF and all-channel ADC oracles
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel --target \
+            fm1juno_envelope_attack_reference \
+            fm1juno_envelope_decay_release_reference \
+            fm1juno_vcf_global_reference \
+            fm1juno_vcf_chain_reference \
+            fm1juno_adc_full_bank_reference
+      - name: Fetch publicly transcribed original IC29 bytes
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/ErroneousBosh/j106roms/master/ic29.txt \
+            --output build/ic29_public_disassembly.txt
+      - name: Real ADC IRQ to original FAD masking, portamento and saved envelope pointer
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_adc_post_service_fad.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame /usr/games/mame \
+            --input-profile stock-zero --case-timeout 14

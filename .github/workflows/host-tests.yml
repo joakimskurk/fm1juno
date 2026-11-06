@@ -1,0 +1,34 @@
+name: host-tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Smoke reference scaffold
+        run: ./build/fm1juno_ref
+      - name: Fetch externally published IC29 opcode listing (not vendored)
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/ErroneousBosh/j106roms/master/ic29.txt \
+            --output build/ic29_public_disassembly.txt
+      - name: Execute original IC29 ADC opcodes against compiled host reference
+        run: |
+          python3 tests/cpu_ic29/run_adc_opcode_window.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --native-cli build/fm1juno_native_adc_reference
+      - name: Execute original IC29 VCF clamp opcodes against compiled host reference
+        run: |
+          python3 tests/cpu_ic29/run_vcf_opcode_window.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --native-cli build/fm1juno_vcf_clamp_reference

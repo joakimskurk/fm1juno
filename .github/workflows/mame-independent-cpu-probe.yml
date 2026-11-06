@@ -1,0 +1,160 @@
+name: MAME independent uPD7810 CPU probe
+
+on:
+  pull_request:
+    paths:
+      - "tests/cpu_ic29/**"
+      - ".github/workflows/mame-independent-cpu-probe.yml"
+  workflow_dispatch:
+
+jobs:
+  independent-cpu-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install packaged MAME CPU core
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends mame
+          /usr/games/mame -help | head -n 4
+      - name: Compile real production ADC baseline
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel --target fm1juno_native_adc_reference fm1juno_vcf_clamp_reference fm1juno_vcf_chain_reference fm1juno_vcf_global_reference fm1juno_envelope_attack_reference fm1juno_envelope_decay_release_reference fm1juno_adc_full_bank_reference
+      - name: Fetch public disassembly (not vendored)
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/ErroneousBosh/j106roms/master/ic29.txt \
+            --output build/ic29_public_disassembly.txt
+      - name: Execute original IC29 ADC opcodes in independently maintained MAME CPU
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_cpu_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --native-cli build/fm1juno_native_adc_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Execute original IC29 VCF clamp opcodes in independently maintained MAME CPU
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_vcf_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --native-cli build/fm1juno_vcf_clamp_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Execute published IC29 VCF ENV and Key Follow chain under independent MAME CPU
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_vcf_chain_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --native-cli build/fm1juno_vcf_chain_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Execute published IC29 global VCF add/sub and overflow flags in MAME
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_vcf_global_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --native-cli build/fm1juno_vcf_global_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Execute original global-to-voice VCF chain with declared ENV seam in MAME
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_vcf_linked_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Execute full published IC29 first-voice ATTACK path and VCF in independent MAME CPU
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_vcf_original_attack_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --envelope-cli build/fm1juno_envelope_attack_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Execute original first-voice DECAY and RELEASE paths with native 083D multiplier in MAME
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_vcf_original_decay_release_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --envelope-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Execute the original 6-voice ENV/VCF loop and all six DAC returns in independent MAME
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_six_voice_original_loop.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Verify native original six-voice to ADC bank servicing continuity in MAME
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_six_voice_adc_handoff.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_native_adc_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Run original IC29 ADC ISR direct-vector instruction snapshots under MAME
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_adc_isr_direct_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Verify actual internal-ADC interrupt and original RETI under MAME
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_adc_isr_peripheral_probe.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Execute actual MAME ADC IRQ through original six voices and bank service in one CPU pass
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14
+      - name: Execute original post-ADC bend/portamento and FAD masking through POP DE under real MAME IRQ
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_adc_post_service_fad.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame /usr/games/mame \
+            --input-profile stock-zero --case-timeout 14
+      - name: Execute original post-ADC voice6 VCA LFO PWM noise and JMP to 02EC in independent MAME
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_original_post_adc_vca_lfo_tail.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame /usr/games/mame \
+            --input-profile stock-zero --case-timeout 14
+      - name: Execute original next-frame 02EC..03A0 voice-run, resonance and LFO-delay scheduler under actual ADC IRQ
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_original_frame_scheduler_entry.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame /usr/games/mame \
+            --input-profile stock-zero --case-timeout 14

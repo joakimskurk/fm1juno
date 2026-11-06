@@ -1,0 +1,69 @@
+name: MAME ADC IRQ to six-voice bank service
+
+on:
+  pull_request:
+    paths:
+      - "tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py"
+      - "tests/cpu_ic29/adc_full_bank_reference_cli.c"
+      - "tests/cpu_ic29/patch_mame_juno106_analog_fixture.py"
+      - "tests/cpu_ic29/run_mame_six_voice_adc_handoff.py"
+      - "tests/cpu_ic29/run_mame_adc_isr_peripheral_probe.py"
+      - ".github/workflows/mame-adc-irq-to-six-voice.yml"
+  workflow_dispatch:
+
+jobs:
+  adc-irq-to-six:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install independent MAME CPU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends mame
+      - name: Build compiled production reference CLIs
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel --target fm1juno_envelope_attack_reference fm1juno_envelope_decay_release_reference fm1juno_vcf_global_reference fm1juno_vcf_chain_reference fm1juno_adc_full_bank_reference
+      - name: Download published IC29 transcription
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/ErroneousBosh/j106roms/master/ic29.txt \
+            --output build/ic29_public_disassembly.txt
+      - name: Check test-only eight-analogue-callback patch against pinned MAME 0.285 source
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/mamedev/mame/mame0285/src/mame/roland/juno106.cpp \
+            --output build/juno106_upstream_0285.cpp
+          python3 tests/cpu_ic29/patch_mame_juno106_analog_fixture.py \
+            --source build/juno106_upstream_0285.cpp \
+            --output build/juno106_analog_fixture_NOT_COMPILED.cpp
+          test "$(grep -c 'an[0-7]_func().set' build/juno106_analog_fixture_NOT_COMPILED.cpp)" -eq 8
+      - name: Negative control - fixed-eight MUST reject unpatched zero-input MAME
+        run: |
+          if python3 -u tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame /usr/games/mame --input-profile fixed-eight \
+            --case-timeout 14 > build/negative_adc_fixture.log 2>&1; then
+            echo "ERROR: unpatched MAME unexpectedly satisfied nonzero ADC callback fixture"
+            cat build/negative_adc_fixture.log
+            exit 1
+          fi
+          grep -q "original ISR/ANM/CR snapshot wrong" build/negative_adc_fixture.log
+          echo "PASS: nonzero callback gate fails closed on stock zero-input MAME"
+      - name: Verify real internal ADC IRQ to original six voices and ADC bank conditioning
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame /usr/games/mame \
+            --case-timeout 14

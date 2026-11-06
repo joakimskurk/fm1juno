@@ -1,0 +1,46 @@
+name: MAME original next-frame 02EC scheduler entry
+
+on:
+  pull_request:
+    paths:
+      - "tests/cpu_ic29/run_mame_original_frame_scheduler_entry.py"
+      - "tests/cpu_ic29/run_mame_original_post_adc_vca_lfo_tail.py"
+      - "tests/cpu_ic29/run_mame_adc_irq_to_six_voice_service.py"
+      - ".github/workflows/mame-original-frame-scheduler.yml"
+  workflow_dispatch:
+
+jobs:
+  frame-original:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install independent MAME UPD7810 CPU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends mame
+      - name: Compile production ADC ENV and VCF oracle tools
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel --target \
+            fm1juno_envelope_attack_reference \
+            fm1juno_envelope_decay_release_reference \
+            fm1juno_vcf_global_reference \
+            fm1juno_vcf_chain_reference \
+            fm1juno_adc_full_bank_reference
+      - name: Download published source for original byte SHA checks
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 30 \
+            https://raw.githubusercontent.com/ErroneousBosh/j106roms/master/ic29.txt \
+            --output build/ic29_public_disassembly.txt
+      - name: Real ADC IRQ through original 07B5 JMP and 02EC next-frame scheduler to 03A1
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_original_frame_scheduler_entry.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame /usr/games/mame \
+            --input-profile stock-zero --case-timeout 14

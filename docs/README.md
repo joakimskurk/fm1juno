@@ -152,6 +152,18 @@ These remain useful for project history but are not current authority where newe
 
 ## 13. Phase transition
 
+**Live Phase-1 implementation handoff:** [`PHASE1_IMPLEMENTATION_STATUS.md`](PHASE1_IMPLEMENTATION_STATUS.md). This tracks built/tested code, approximate divisor-profile fidelity, exactness gaps and the next work slice. It does not override Phase-0 behavioral authority.
+
+**Timestamped parameter and replay interface:** [`PHASE1_RAW_PARAMETER_EVENTS.md`](PHASE1_RAW_PARAMETER_EVENTS.md). This is the stable ID/7-bit/8-bit/flag registry for version-1 `PARAMETER` event scripts, ROM macro service causality, and `MEASURE_PENDING` boundaries.
+
+**8253 Mode-3 edge-validation contract:** [`PHASE1_8253_EDGE_VALIDATION.md`](PHASE1_8253_EDGE_VALIDATION.md). This tracks independently tested normal-count edge sequences, count 0/65536, the supported exceptional-count boundary, and still-unverified physical GATE/RANGE phase.
+
+**Native switch/ADC/IC29 serial protocol:** [`PHASE1_NATIVE_PANEL_SERIAL_ADC.md`](PHASE1_NATIVE_PANEL_SERIAL_ADC.md). This is the frozen clean-room native input contract, packed bit truth tables, ADC integer conditioning, running-status command map, and remaining CPU-cycle validation limits.
+
+**Independent uPD7811 ADC/VCF ALU flag oracle:** [`PHASE1_UPD7811_FLAG_VALIDATION.md`](PHASE1_UPD7811_FLAG_VALIDATION.md). Exhaustive 8-bit ADC history-pair checks and VCF carry/borrow integer tests, with strict full-ROM execution gate still open.
+
+**Original IC29 opcode execution and MAME CPU verification:** [`PHASE1_IC29_OPCODE_EXECUTION.md`](PHASE1_IC29_OPCODE_EXECUTION.md). SHA-256-pinned published original IC29 ADC/VCF machine bytes executed both in bounded local decoders and in the independently maintained MAME UPD7810 CPU, with real MAME RAM/EA output compared to compiled production code. Full uPD7811/original-ROM/physical phase gates remain open.
+
 Phase-0 research branch:
 
 ```text

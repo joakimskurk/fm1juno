@@ -1,0 +1,5 @@
+/build/
+/build-*/
+*.wav
+*.trace
+.DS_Store
