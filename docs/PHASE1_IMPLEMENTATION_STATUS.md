@@ -24,6 +24,17 @@ test independently passed **36/36**, including 216 voice and
 144 selected-bank ADC parity comparisons, and observed six
 additional real frame ADC IRQs with validated saved return PCs.
 The stock next-frame run also remains 36/36 PASS.
+
+**New focused stock-MAME proof (2026-11-06):** original
+`0x03A1..0x03D6` master VCA and signed Tune/LFO/Bend
+pitch offset was executed in
+[36/36 CPU scenarios](https://github.com/joakimskurk/fm1juno/actions/runs/42277911705).
+The original master DAC `EA=5678` call/return and the
+`FF6F` 16-bit offset after its real control arithmetic
+were checked from actual MAME snapshots. This is **additional
+source-byte coverage**, not a new count of 36 independent
+input profiles. The previously reported **1,048** cumulative
+selected MAME scenarios therefore stays unchanged.
 **Actual original full Roland scheduler, UPD7811/ROM
 identity, hardware analogue/electrical timing, PIT/DCO and
 audio remain OPEN. P1.1 is NOT complete.**
@@ -1124,19 +1135,20 @@ The next original `0x03A1..0x04D4` source segment is still
 **not yet proven** by those tests; changing documentation
 alone does not close any additional scheduler/hardware gate.
 
-**Strict blockers unchanged:** This verifies only the
-published `0x02EC..0x03A0` frame slice following the real
-frame-loop return. The subsequent `0x03A1..0x04D4`
-tuning, bender/LFO pitch, portamento and six physical
-8253/PIT/DCO writes remain unproven in this new path.
+**Strict blockers unchanged:** The published
+`0x02EC..0x03D6` source-byte path is now focused
+stock-MAME verified. The following `0x03D7..0x04D4`
+Portamento and six physical 8253/PIT/DCO writes remain
+unproven in this same path; a separately compiled nonzero
+ADC fixture for the new pitch-offset continuation is also open.
 An explicit synthetic FF5C polling/JMP still exists
 from the first genuine ISR RETI to original
 `0x04D5` voice control. This is not the original
 cold-start/full scheduler, authenticated UPD7811,
 physical ADC/8253/DAC timing or audible Roland synthesis.
 
-**Next step:** source-pin and execute `0x03A1..0x04D4`
-with controlled PIT/DAC peripheral observations
+**Next step:** source-pin and execute `0x03D7..0x04D4`
+with controlled Portamento, PIT/DAC peripheral observations
 before claiming removal of the synthetic first-ISR
 voice-dispatch seam. Handoff and source limits:
 `docs/PHASE1_ORIGINAL_FRAME_02EC_GATE.md`.

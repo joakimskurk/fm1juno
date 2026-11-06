@@ -137,6 +137,52 @@ segment; the branch and source-state invariants are
 currently checked against independent MAME CPU execution
 and source-derived expectations only.
 
+## New source-pinned 0x03A1..0x03D6 extension (6 November 2026)
+
+**Focused stock-MAME PASS: 36/36 independent CPU processes.**
+[GitHub Actions original pitch-offset gate 42277911705](https://github.com/joakimskurk/fm1juno/actions/runs/42277911705)
+ran the original ADC interrupt, ISR/RETI, six-voice and ADC
+chains, the proven 02EC scheduler, and then original
+**03A1..03D6 master VCA and signed Tune/LFO/Bend offset**
+instructions. The prior 03A1 debugger gate continues before
+the new 03D7 stop; all 36 old frame checks and 36 new
+pitch-offset checks passed in this focused job.
+
+- Source-pinned published IC29 bytes: full **02EC..03D6**
+  (235 bytes), SHA-256
+  `a33160eb553a6f16fc83199e739c104fc31971075facd97f8ed2e355052351e8`;
+  newly added **03A1..03D6** (54 bytes), SHA-256
+  `ee512b953239a68c34663d1f8846eb98251cf0bd29e81108e9267969c2d4a3c2`.
+- Real CPU `CALF 082F` master VCA call used the test-only
+  RAM value `0x5678`; source helper retained EA and returned
+  A=EAL `0x78`. The test checks call and return and balanced
+  original CPU stack.
+- Source-level signed Tune + signed LFO pitch + signed Bend
+  accumulation starts at `0x1818` and stores its 16-bit
+  wrapped output at `FF6F`. Every case compares actual
+  source CPU EA and RAM with an independent arithmetic oracle
+  constructed from live RAM snapshots at `03A1`.
+- The original ADC service may replace test-only Tune/Bend
+  startup seeds before the `03A1` snapshot. Actual focused
+  examples include Tune `0x80` / Bend `0x0123` on one
+  bank, and Tune `0x27` / Bend `0x0000` on the other.
+  The differential check uses observed RAM state rather than
+  assuming initial synthetic values survive.
+- Both earlier LFO-delay branch tests and the six-voice
+  control/ADC parity comparisons remain mandatory.
+- `--extended-pitch` is an **additive stock-MAME fixture**;
+  the default runner still stops at `03A1`. This focused
+  result is not yet separate compiled nonzero-ADC source
+  evidence for `03A1..03D6`, nor physical PIT/audio proof.
+- These 36 extended cases **are not automatically added** to
+  the already reported 1,048 historical case count, which
+  includes earlier distinct input profiles.
+
+**Next:** original `03D7..0406` per-voice Portamento first,
+then `0407..04D4` six physical PIT/8253 timer and DCO-CV DAC
+paths, including reset-voice-mask and timer I/O semantics.
+Keep those unverified until their own source-pinned runs pass.
+
 ## Synthetic ROM relocation and limitations
 
 The earlier CPU fixture initializes synthetic RAM at `0x0200`
@@ -176,10 +222,11 @@ or UPD7811 provenance blocker**.
    The distinct 36 compiled original-frame CPU cases are now
    counted, bringing the cumulative selected scenario total
    to **1,048**.
-5. **NEXT original-byte slice:** extend `0x03A1..0x04D4`
-   (tune/LFO/bender, portamento and six PIT/DCO
-   timer/CV updates) with original source bytes
-   and deterministic analogue/PIT fixture state.
+5. **PARTIAL COMPLETE:** the original `0x03A1..0x03D6`
+   master VCA and Tune/LFO/Bend offset CPU path passed
+   36/36 focused stock-MAME cases. **NEXT** extend original
+   `0x03D7..0x04D4` Portamento and PIT/DCO timer/CV updates
+   with deterministic RAM and peripheral I/O observations.
    The synthetic IRQ→`04D5` bridge remains until
    original scheduler-to-voice entry is verified.
 6. Original 8253 phase, calibrated analogue voltage/real
