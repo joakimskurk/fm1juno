@@ -63,7 +63,7 @@ FRAME_SHA = "3cd0206778e6fa8650fd8d803ff4d7665cd15f9963803d1ff98a9118be70c7df"
 PITCH_END = 0x03D7
 PITCH_SHA = "a33160eb553a6f16fc83199e739c104fc31971075facd97f8ed2e355052351e8"
 # Original 03D7..0406 six-voice per-voice Portamento source bytes.
-PORTA_END = 0x0407
+PORTAMENTO_FRAME_END = 0x0407
 PORTA_SHA = "4698319f2537aef41b0047f759abcd473b5a1288bfe75f120b6408ab447fb301"
 PORTA_SEGMENT_SHA = "dc51f3151027350521d0d9a8f85c6cd9b6c2bd5a28588ab6688c69da9c799e23"
 PORTA_STEP_SEEDS = (0x00, 0x01, 0x20, 0x80)
@@ -579,14 +579,14 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path,
     if extended_portamento:
         extended_pitch = True
     end_pc,source_sha = (
-        (PORTA_END,PORTA_SHA) if extended_portamento else
+        (PORTAMENTO_FRAME_END,PORTA_SHA) if extended_portamento else
         (PITCH_END,PITCH_SHA) if extended_pitch else
         (FRAME_END,FRAME_SHA))
     frame = source_slice(disasm,FRAME_START,end_pc,source_sha)
     if extended_portamento:
         # Pin the new segment independently of the preceding 235 bytes.
         segment = source_slice(
-            disasm, PITCH_END, PORTA_END, PORTA_SEGMENT_SHA)
+            disasm, PITCH_END, PORTAMENTO_FRAME_END, PORTA_SEGMENT_SHA)
         if frame[PITCH_END-FRAME_START:] != segment:
             raise AssertionError("Portamento source segment image mismatch")
     # This test has to relocate its bootstrap into a source-declared
