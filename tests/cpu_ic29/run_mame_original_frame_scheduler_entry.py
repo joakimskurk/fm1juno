@@ -58,6 +58,13 @@ from run_mame_original_post_adc_vca_lfo_tail import (
 
 FRAME_START, FRAME_END = 0x02EC, 0x03A1
 FRAME_SHA = "3cd0206778e6fa8650fd8d803ff4d7665cd15f9963803d1ff98a9118be70c7df"
+# Complete 02EC..03D6 image: original 03A1..03D6 master VCA and
+# tune/LFO/bender accumulator only; portamento starts at 03D7.
+PITCH_END = 0x03D7
+PITCH_SHA = "a33160eb553a6f16fc83199e739c104fc31971075facd97f8ed2e355052351e8"
+MASTER_VCA = 0x5678
+FIXTURE_TUNE = 0x27
+FIXTURE_BEND = 0x0123
 NOP_START, NOP_END = 0x0863, 0x09EA
 NOP_SHA = "db6f6097124dc8eaba5c36f64fdc1e3e44201b6c0f3fd6a11fbab4b38657ad6b"
 BOOT_NEW = 0x0863  # published NOP-only 0863..09DF ROM hole
@@ -76,7 +83,8 @@ CASES = tuple((i, bank) for i, bank in test_cases() if i < 18)
 
 
 def seed_and_relocate(rom: bytearray, case: int,
-                      pattern: str, frame: bytes) -> int:
+                      pattern: str, frame: bytes,
+                      extended_pitch: bool = False) -> int:
     """Only rehome *synthetic* bytes. Published code is never patched."""
     tail_seed(rom, case)
     start = rom.find(BOOT_SUFFIX, OLD_BOOT, OLD_POLL)
@@ -105,6 +113,13 @@ def seed_and_relocate(rom: bytearray, case: int,
         (0x6C, ATTACK_RATE & 0xFF),
         (0x6D, ATTACK_RATE >> 8),
     )
+    if extended_pitch:
+        # Extra RAM seeds only; no published original opcode is patched.
+        vals += (
+            (0x43, MASTER_VCA & 0xFF), (0x44, MASTER_VCA >> 8),
+            (0x61, FIXTURE_TUNE),
+            (0x68, FIXTURE_BEND & 0xFF), (0x69, FIXTURE_BEND >> 8),
+        )
     extra = bytes(byte for a, v in vals for byte in (0x71, a, v))
     if start + len(extra) + len(BOOT_SUFFIX) >= OLD_POLL:
         raise AssertionError("frame fixture seed exceeds former boot area")
@@ -137,7 +152,7 @@ def seed_and_relocate(rom: bytearray, case: int,
     return run_mask
 
 
-def debugger() -> str:
+def debugger(extended_pitch: bool = False) -> str:
     base = tail_debugger()
     if not base.endswith("g\n"):
         raise AssertionError("original tail debugger format changed")
@@ -166,9 +181,28 @@ def debugger() -> str:
         'bp 03a1:modulecpu,1,{logerror '
         '"FM1JUNO_ORIG_FRAME_END:%04X:%04X:%02X:%02X:%04X:'
         '%04X:%04X:%04X\\n",'
-        'sp,de,b@ff11,b@ff1e,w@ff51,w@ff53,w@ff56,w@ff5a; quit}\n'
+        'sp,de,b@ff11,b@ff1e,w@ff51,w@ff53,w@ff56,w@ff5a; quit}\\n'
     )
-    return base[:-2] + checks + "g\n"
+    if extended_pitch:
+        # Keep the old 03A1 checkpoint, but continue into original
+        # master-VCA and combined signed pitch offset instructions.
+        checks = checks.replace("; quit}", "; g}")
+        checks += (
+            'bp 03a1:modulecpu,1,{logerror '
+            '"FM1JUNO_ORIG_PITCH_IN:%04X:%02X:%02X:%02X:'
+            '%04X:%04X:%04X\\n",'
+            'sp,b@ff61,b@ff1e,b@ff4a,w@ff51,w@ff68,w@ff43; g}\\n'
+            'bp 03a8:modulecpu,1,{logerror '
+            '"FM1JUNO_ORIG_PITCH_MASTER_CALL:%02X:%04X:%04X\\n",'
+            'a,ea,sp; g}\\n'
+            'bp 03aa:modulecpu,1,{logerror '
+            '"FM1JUNO_ORIG_PITCH_MASTER_RETURN:%02X:%04X:%04X\\n",'
+            'a,ea,sp; g}\\n'
+            'bp 03d7:modulecpu,1,{logerror '
+            '"FM1JUNO_ORIG_PITCH_OUT:%04X:%04X:%04X:%02X\\n",'
+            'sp,ea,w@ff6f,b@ff0f; quit}\\n'
+        )
+    return base[:-2] + checks + "g\\n"
 
 
 def check_frame(log: str, case: int, bank: int, run_mask: int) -> None:
@@ -239,8 +273,56 @@ def check_frame(log: str, case: int, bank: int, run_mask: int) -> None:
           flush=True)
 
 
+def check_pitch_offset(log: str, case: int, bank: int) -> None:
+    """Source-level 03A1..03D6 CPU differential checks only.
+
+    MAME executes the actual original instructions; this independent
+    expectation reduces the four 16-bit signed add/sub instructions
+    to modulo-16-bit arithmetic. It does not certify a physical DAC
+    voltage or real hardware clock.
+    """
+    def single(name: str, count: int) -> tuple[int, ...]:
+        matches = re.findall(
+            r"FM1JUNO_ORIG_PITCH_" + name + r":([0-9a-fA-F:]+)", log)
+        if len(matches) != 1:
+            raise AssertionError(
+                "case %d bank %d original pitch %s hits=%d tail=%s" %
+                (case, bank, name, len(matches), log[-2000:]))
+        values = tuple(int(x, 16) for x in matches[0].split(":"))
+        if len(values) != count:
+            raise AssertionError("pitch %s width %r" % (name, values))
+        return values
+
+    sp,tune,flags,lfo_flags,lfo_to_pitch,bend,master = single("IN",7)
+    call = single("MASTER_CALL",3)
+    returned = single("MASTER_RETURN",3)
+    endsp,ea,stored,voiceptr = single("OUT",4)
+    if (sp,master,call,returned) != (
+            0xFFF0,MASTER_VCA,(6,MASTER_VCA,0xFFF0),
+            (MASTER_VCA & 0xFF,MASTER_VCA,0xFFF0)):
+        raise AssertionError(
+            "original 03A1 master VCA DAC mismatch %r %r %r %r" %
+            (sp,master,call,returned))
+    # BIT followed by JR in 7810 source: bit set skips branch,
+    # selecting subtraction; clear bit jumps to addition.
+    value=0x1818
+    value=(value - tune if flags & 0x80 else value + tune) & 0xFFFF
+    value=(value - lfo_to_pitch if lfo_flags & 2 else
+           value + lfo_to_pitch) & 0xFFFF
+    value=(value - bend if flags & 0x20 else value + bend) & 0xFFFF
+    if (endsp,ea,stored,voiceptr)!=(0xFFF0,value,value,6):
+        raise AssertionError(
+            "original 03AD tune/LFO/bend mismatch: "
+            "actual=%r expected EA=%04X inputs=%r" %
+            ((endsp,ea,stored,voiceptr),value,
+             (tune,flags,lfo_flags,lfo_to_pitch,bend)))
+    print("MAME_ORIGINAL_PITCH %02d/36 PASS bank=%d "
+          "tune=%02X bend=%04X master=%04X offset=%04X" %
+          (case*2+bank+1,bank,tune,bend,master,value),flush=True)
+
+
 def verify_frame_irq(log: str, start: int, case: int, bank: int,
-                     input_profile: str) -> None:
+                     input_profile: str, end_pc: int = FRAME_END) -> None:
     """Fail closed on unexpected genuine interrupts inside 02EC..03A1.
 
     Prior source-pinned original ISR interrupt count determines current
@@ -292,7 +374,7 @@ def verify_frame_irq(log: str, start: int, case: int, bank: int,
                 "case %d frame IRQ saved PC contract broken %r" %
                 (case,words))
         pc=words[1] if e[0]==0xFFED else words[2]
-        if (e[0]==0xFFED and not FRAME_START<=pc<=FRAME_END) or (
+        if (e[0]==0xFFED and not FRAME_START<=pc<=end_pc) or (
                 e[0]==0xFFEB and not 0x082F<=pc<=0x083C):
             raise AssertionError(
                 "case %d MAME original frame IRQ stack depth "
@@ -306,14 +388,17 @@ def verify_frame_irq(log: str, start: int, case: int, bank: int,
 
 def run(disasm: Path, attack_cli: Path, decay_cli: Path,
         global_cli: Path, voice_cli: Path, adc_cli: Path,
-        mame: str, timeout: int, input_profile: str) -> None:
+        mame: str, timeout: int, input_profile: str,
+        extended_pitch: bool = False) -> None:
     original,dac,attack_table = original_parts(disasm)
     continuation = original_loop_extension(disasm)
     multiplier = original_decay_helper(disasm)
     post = source_slice(disasm,POST_START,POST_END,POST_SHA256)
     bank0 = source_slice(disasm,BANK0_START,BANK0_END,BANK0_SHA256)
     follow = source_slice(disasm,FOLLOW_START,FOLLOW_END,FOLLOW_SHA)
-    frame = source_slice(disasm,FRAME_START,FRAME_END,FRAME_SHA)
+    end_pc,source_sha = ((PITCH_END,PITCH_SHA) if extended_pitch
+                         else (FRAME_END,FRAME_SHA))
+    frame = source_slice(disasm,FRAME_START,end_pc,source_sha)
     # This test has to relocate its bootstrap into a source-declared
     # original 0x0863..0x09E9 NOP region. Fail closed if the public
     # original transcription ceases to identify this as unused ROM;
@@ -334,16 +419,16 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path,
     cases=CASES
     adcs=native_adc_expected(adc_cli,cases,input_profile)
     binary=mame_binary(mame)
-    print("MAME original 02EC..03A0 frame scheduler from genuine "
+    print("MAME source-pinned 02EC..%04X frame from genuine "
           "ADC IRQ and original 07B5 jump: %d cases input=%s" %
-          (len(cases),input_profile),flush=True)
+          (end_pc-1,len(cases),input_profile),flush=True)
     with tempfile.TemporaryDirectory(prefix="fm1juno-original-frame-") as td:
         root=Path(td)
         romdir=root/"roms"
         romdir.mkdir()
         (root/"cfg").mkdir()
         script=root/"frame.cmd"
-        script.write_text(debugger(),encoding="ascii")
+        script.write_text(debugger(extended_pitch),encoding="ascii")
         assigner=bytes((0x54,0,0))+bytes(0x2000-3)
         for serial,((i,bank),adc_expect) in enumerate(zip(cases,adcs)):
             rom=bytearray(build_rom(
@@ -353,7 +438,8 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path,
             rom[FOLLOW_START:FOLLOW_END]=follow
             rom[PORTA_START:PORTA_END]=porta
             rom[TAIL_START:TAIL_END]=tail
-            run_mask=seed_and_relocate(rom,i,SCENARIOS[i]["pattern"],frame)
+            run_mask=seed_and_relocate(rom,i,SCENARIOS[i]["pattern"],frame,
+                                       extended_pitch)
             with zipfile.ZipFile(romdir/"juno106.zip","w",
                                  compression=zipfile.ZIP_STORED) as z:
                 z.writestr("v5 a_5.ic2",assigner)
@@ -408,14 +494,18 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path,
             verify_original_fad(pre_frame,serial,bank,second_irq)
             verify_tail(pre_frame,i,SCENARIOS[i],voices[i])
             check_frame(log,i,bank,run_mask)
-            verify_frame_irq(log,head+1,serial,bank,input_profile)
+            if extended_pitch:
+                check_pitch_offset(log,i,bank)
+            verify_frame_irq(log,head+1,serial,bank,input_profile,end_pc)
             if p.returncode:
                 raise AssertionError("MAME 02EC original frame CPU rc=%d"
                                      "case=%d" %(p.returncode,i))
-    print("IC29_ORIGINAL_FRAME_MAME: PASS (%d actual ADC IRQ CPU cases "
-          "and published 02EC..03A0 frame scheduler entries, "
+    label=("IC29_ORIGINAL_PITCH_OFFSET_MAME" if extended_pitch
+           else "IC29_ORIGINAL_FRAME_MAME")
+    print("%s: PASS (%d actual ADC IRQ CPU cases "
+          "and published 02EC..%04X source entries, "
           "%d voice and %d ADC comparisons)" %
-          (len(cases),len(cases)*6,len(cases)*4),flush=True)
+          (label,len(cases),end_pc-1,len(cases)*6,len(cases)*4),flush=True)
     print("SCOPE: synthetic boot/poll relocated into pinned public "
           "NOP holes; no original full ROM scheduler provenance, "
           "no physical clock/UPD7811 silicon proof.",flush=True)
@@ -430,13 +520,16 @@ if __name__=="__main__":
     p.add_argument("--voice-cli",type=Path,required=True)
     p.add_argument("--adc-cli",type=Path,required=True)
     p.add_argument("--mame",default="mame")
+    p.add_argument("--extended-pitch",action="store_true",
+                   help="continue original 03A1..03D6 master VCA/pitch offset")
     p.add_argument("--case-timeout",type=int,default=14)
     p.add_argument("--input-profile",choices=("stock-zero","fixed-eight"),
                    default="stock-zero")
     a=p.parse_args()
     try:
         run(a.ic29_disasm,a.attack_cli,a.decay_cli,a.global_cli,
-            a.voice_cli,a.adc_cli,a.mame,a.case_timeout,a.input_profile)
+            a.voice_cli,a.adc_cli,a.mame,a.case_timeout,a.input_profile,
+            a.extended_pitch)
     except (OSError,ValueError,AssertionError,subprocess.CalledProcessError) as ex:
         print("IC29_ORIGINAL_FRAME_MAME: FAIL: "+str(ex),file=sys.stderr)
         sys.exit(1)
