@@ -191,7 +191,7 @@ def debugger(extended_pitch: bool = False) -> str:
             'sp,de,b@ff11,b@ff1e,w@ff51,w@ff53,w@ff56,w@ff5a; g}',
             'sp,de,b@ff11,b@ff1e,w@ff51,w@ff53,w@ff56,w@ff5a; '
             'logerror "FM1JUNO_ORIG_PITCH_IN:%04X:%02X:%02X:%02X:'
-            '%04X:%04X:%04X\\n",'
+            '%04X:%04X:%04X\n",'
             'sp,b@ff61,b@ff1e,b@ff4a,w@ff51,w@ff68,w@ff43; g}',
             1)
         checks += (
