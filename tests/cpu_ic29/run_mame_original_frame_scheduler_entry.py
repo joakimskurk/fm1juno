@@ -165,22 +165,22 @@ def debugger(extended_pitch: bool = False) -> str:
     base = base.replace("; quit}", "; g}")
     checks = (
         'bp 0301:modulecpu,1,{logerror '
-        '"FM1JUNO_ORIG_FRAME_VOICES:%02X:%02X:%04X\n",'
+        '"FM1JUNO_ORIG_FRAME_VOICES:%02X:%02X:%04X\\n",'
         'b@ff10,b@ff11,sp; g}\n'
         'bp 0308:modulecpu,1,{logerror '
-        '"FM1JUNO_ORIG_FRAME_RESONANCE:%02X:%04X:%04X\n",a,ea,sp; g}\n'
+        '"FM1JUNO_ORIG_FRAME_RESONANCE:%02X:%04X:%04X\\n",a,ea,sp; g}\n'
         'bp 030a:modulecpu,1,{logerror '
-        '"FM1JUNO_ORIG_FRAME_RESONANCE_RETURN:%02X:%04X:%04X\n",'
+        '"FM1JUNO_ORIG_FRAME_RESONANCE_RETURN:%02X:%04X:%04X\\n",'
         'a,ea,sp; g}\n'
         'bp 0370:modulecpu,1,{logerror '
-        '"FM1JUNO_ORIG_FRAME_HOLDOFF:%04X\n",sp; g}\n'
+        '"FM1JUNO_ORIG_FRAME_HOLDOFF:%04X\\n",sp; g}\n'
         'bp 0388:modulecpu,1,{logerror '
-        '"FM1JUNO_ORIG_FRAME_ATTACK:%04X\n",sp; g}\n'
+        '"FM1JUNO_ORIG_FRAME_ATTACK:%04X\\n",sp; g}\n'
         'bp 032b:modulecpu,1,{logerror '
-        '"FM1JUNO_ORIG_FRAME_FULL_MOD:%04X\n",sp; g}\n'
+        '"FM1JUNO_ORIG_FRAME_FULL_MOD:%04X\\n",sp; g}\n'
         'bp 03a1:modulecpu,1,{logerror '
         '"FM1JUNO_ORIG_FRAME_END:%04X:%04X:%02X:%02X:%04X:'
-        '%04X:%04X:%04X\n",'
+        '%04X:%04X:%04X\\n",'
         'sp,de,b@ff11,b@ff1e,w@ff51,w@ff53,w@ff56,w@ff5a; quit}\n'
     )
     if extended_pitch:
@@ -191,18 +191,18 @@ def debugger(extended_pitch: bool = False) -> str:
             'sp,de,b@ff11,b@ff1e,w@ff51,w@ff53,w@ff56,w@ff5a; g}',
             'sp,de,b@ff11,b@ff1e,w@ff51,w@ff53,w@ff56,w@ff5a; '
             'logerror "FM1JUNO_ORIG_PITCH_IN:%04X:%02X:%02X:%02X:'
-            '%04X:%04X:%04X\n",'
+            '%04X:%04X:%04X\\n",'
             'sp,b@ff61,b@ff1e,b@ff4a,w@ff51,w@ff68,w@ff43; g}',
             1)
         checks += (
             'bp 03a8:modulecpu,1,{logerror '
-            '"FM1JUNO_ORIG_PITCH_MASTER_CALL:%02X:%04X:%04X\n",'
+            '"FM1JUNO_ORIG_PITCH_MASTER_CALL:%02X:%04X:%04X\\n",'
             'a,ea,sp; g}\n'
             'bp 03aa:modulecpu,1,{logerror '
-            '"FM1JUNO_ORIG_PITCH_MASTER_RETURN:%02X:%04X:%04X\n",'
+            '"FM1JUNO_ORIG_PITCH_MASTER_RETURN:%02X:%04X:%04X\\n",'
             'a,ea,sp; g}\n'
             'bp 03d7:modulecpu,1,{logerror '
-            '"FM1JUNO_ORIG_PITCH_OUT:%04X:%04X:%04X:%02X\n",'
+            '"FM1JUNO_ORIG_PITCH_OUT:%04X:%04X:%04X:%02X\\n",'
             'sp,ea,w@ff6f,b@ff0f; quit}\n'
         )
     return base[:-2] + checks + "g\n"
