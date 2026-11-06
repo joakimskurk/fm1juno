@@ -146,8 +146,8 @@ def seed_and_relocate(rom: bytearray, case: int,
     rom[BOOT_NEW:BOOT_NEW+len(synthetic)] = synthetic
     rom[POLL_NEW:POLL_NEW+len(poll)] = poll
     rom[:3] = bytes((0x54, BOOT_NEW & 0xFF, BOOT_NEW >> 8))
-    rom[FRAME_START:FRAME_END] = frame
-    if rom[FRAME_START:FRAME_END] != frame:
+    rom[FRAME_START:FRAME_START+len(frame)] = frame
+    if rom[FRAME_START:FRAME_START+len(frame)] != frame:
         raise AssertionError("authentic scheduler source overwritten")
     return run_mask
 
@@ -187,11 +187,14 @@ def debugger(extended_pitch: bool = False) -> str:
         # Keep the old 03A1 checkpoint, but continue into original
         # master-VCA and combined signed pitch offset instructions.
         checks = checks.replace("; quit}", "; g}")
+        checks = checks.replace(
+            'sp,de,b@ff11,b@ff1e,w@ff51,w@ff53,w@ff56,w@ff5a; g}',
+            'sp,de,b@ff11,b@ff1e,w@ff51,w@ff53,w@ff56,w@ff5a; '
+            'logerror "FM1JUNO_ORIG_PITCH_IN:%04X:%02X:%02X:%02X:'
+            '%04X:%04X:%04X\\n",'
+            'sp,b@ff61,b@ff1e,b@ff4a,w@ff51,w@ff68,w@ff43; g}',
+            1)
         checks += (
-            'bp 03a1:modulecpu,1,{logerror '
-            '"FM1JUNO_ORIG_PITCH_IN:%04X:%02X:%02X:%02X:'
-            '%04X:%04X:%04X\n",'
-            'sp,b@ff61,b@ff1e,b@ff4a,w@ff51,w@ff68,w@ff43; g}\n'
             'bp 03a8:modulecpu,1,{logerror '
             '"FM1JUNO_ORIG_PITCH_MASTER_CALL:%02X:%04X:%04X\n",'
             'a,ea,sp; g}\n'
