@@ -62,6 +62,11 @@ FRAME_SHA = "3cd0206778e6fa8650fd8d803ff4d7665cd15f9963803d1ff98a9118be70c7df"
 # tune/LFO/bender accumulator only; portamento starts at 03D7.
 PITCH_END = 0x03D7
 PITCH_SHA = "a33160eb553a6f16fc83199e739c104fc31971075facd97f8ed2e355052351e8"
+# Original 03D7..0406 six-voice per-voice Portamento source bytes.
+PORTA_END = 0x0407
+PORTA_SHA = "4698319f2537aef41b0047f759abcd473b5a1288bfe75f120b6408ab447fb301"
+PORTA_SEGMENT_SHA = "dc51f3151027350521d0d9a8f85c6cd9b6c2bd5a28588ab6688c69da9c799e23"
+PORTA_STEP_SEEDS = (0x00, 0x01, 0x20, 0x80)
 MASTER_VCA = 0x5678
 FIXTURE_TUNE = 0x27
 FIXTURE_BEND = 0x0123
@@ -82,9 +87,28 @@ SCALE_VCF = 0x40
 CASES = tuple((i, bank) for i, bank in test_cases() if i < 18)
 
 
+def porta_targets(pitches: tuple[int, ...]) -> tuple[int, ...]:
+    """One source-level above/below/equal target per repeated voice triplet."""
+    if len(pitches) != 6:
+        raise AssertionError("Portamento fixture needs six voice pitches")
+    targets = []
+    for voice, pitch in enumerate(pitches):
+        note = (pitch >> 8) & 0xFF
+        if voice % 3 == 0:
+            note = min(127, note + 1)
+        elif voice % 3 == 1:
+            note = max(0, note - 1)
+        targets.append(note)
+    if any(not 0 <= note <= 127 for note in targets):
+        raise AssertionError("Portamento target outside MIDI range")
+    return tuple(targets)
+
+
 def seed_and_relocate(rom: bytearray, case: int,
                       pattern: str, frame: bytes,
-                      extended_pitch: bool = False) -> int:
+                      extended_pitch: bool = False,
+                      extended_portamento: bool = False,
+                      pitches: tuple[int, ...] = ()) -> int:
     """Only rehome *synthetic* bytes. Published code is never patched."""
     tail_seed(rom, case)
     start = rom.find(BOOT_SUFFIX, OLD_BOOT, OLD_POLL)
@@ -120,6 +144,15 @@ def seed_and_relocate(rom: bytearray, case: int,
             (0x61, FIXTURE_TUNE),
             (0x68, FIXTURE_BEND & 0xFF), (0x69, FIXTURE_BEND >> 8),
         )
+    if extended_portamento:
+        if not extended_pitch:
+            raise AssertionError("Portamento requires original pitch continuation")
+        # Initial note targets are test-only RAM; leave the pre-existing
+        # FF71..FF7C previous-voice pitches untouched, since the original
+        # six-voice ENV/VCF comparisons depend on their exact values.
+        vals += tuple((0x09 + v, note)
+                      for v, note in enumerate(porta_targets(pitches)))
+        vals += ((0x7D, PORTA_STEP_SEEDS[case % 4]),)
     extra = bytes(byte for a, v in vals for byte in (0x71, a, v))
     if start + len(extra) + len(BOOT_SUFFIX) >= OLD_POLL:
         raise AssertionError("frame fixture seed exceeds former boot area")
@@ -152,7 +185,8 @@ def seed_and_relocate(rom: bytearray, case: int,
     return run_mask
 
 
-def debugger(extended_pitch: bool = False) -> str:
+def debugger(extended_pitch: bool = False,
+             extended_portamento: bool = False) -> str:
     base = tail_debugger()
     if not base.endswith("g\n"):
         raise AssertionError("original tail debugger format changed")
@@ -204,6 +238,47 @@ def debugger(extended_pitch: bool = False) -> str:
             'bp 03d7:modulecpu,1,{logerror '
             '"FM1JUNO_ORIG_PITCH_OUT:%04X:%04X:%04X:%02X\\n",'
             'sp,ea,w@ff6f,b@ff0f; quit}\n'
+        )
+    if extended_portamento:
+        if not extended_pitch:
+            raise AssertionError("Portamento debugger requires pitch continuation")
+        start_fmt = ":".join(
+            ("%04X", "%02X") + ("%04X",) * 6 + ("%02X",) * 6)
+        start_regs = ",".join(
+            ("sp", "b@ff7d") +
+            tuple("w@ff%02x" % (0x71 + 2*v) for v in range(6)) +
+            tuple("b@ff%02x" % (0x09 + v) for v in range(6)))
+        exit_fmt = ":".join(("%04X", "%02X", "%04X") + ("%04X",) * 6)
+        exit_regs = ",".join(
+            ("sp", "b@ff0f", "de") +
+            tuple("w@ff%02x" % (0x71 + 2*v) for v in range(6)))
+        # Reuse the existing 03D7 breakpoint rather than registering
+        # overlapping one-shot breakpoints with undefined ordering.
+        old = 'sp,ea,w@ff6f,b@ff0f; quit}'
+        if checks.count(old) != 1:
+            raise AssertionError("03D7 original pitch stop not unique")
+        checks = checks.replace(
+            old,
+            'sp,ea,w@ff6f,b@ff0f; logerror "FM1JUNO_ORIG_PORTA_HEAD:' +
+            start_fmt + '\\n",' + start_regs + '; g}', 1)
+        checks += (
+            'bp 03e0:modulecpu,1,{logerror '
+            '"FM1JUNO_ORIG_PORTA_VOICE:%02X:%04X:%04X:%04X\\n",'
+            'b@ff0f,de,hl,sp; g}\n'
+            'bp 03eb:modulecpu,1,{logerror '
+            '"FM1JUNO_ORIG_PORTA_DIRECT:%02X\\n",b@ff0f; g}\n'
+            'bp 03f5:modulecpu,1,{logerror '
+            '"FM1JUNO_ORIG_PORTA_STEP:%02X\\n",b@ff0f; g}\n'
+            'bp 03fb:modulecpu,1,{logerror '
+            '"FM1JUNO_ORIG_PORTA_DOWN:%02X\\n",b@ff0f; g}\n'
+            'bp 0401:modulecpu,1,{logerror '
+            '"FM1JUNO_ORIG_PORTA_UP:%02X\\n",b@ff0f; g}\n'
+            'bp 03ec:modulecpu,1,{logerror '
+            '"FM1JUNO_ORIG_PORTA_STORE:%02X:%04X:%04X\\n",'
+            'b@ff0f,ea,de; g}\n'
+            'bp 0407:modulecpu,1,{logerror '
+            '"FM1JUNO_ORIG_PORTA_EXIT:' + exit_fmt + '\\n",' +
+            exit_regs + '; quit}\n'
         )
     return base[:-2] + checks + "g\n"
 
@@ -324,6 +399,107 @@ def check_pitch_offset(log: str, case: int, bank: int) -> None:
           (case*2+bank+1,bank,tune,bend,master,value),flush=True)
 
 
+def check_portamento(log: str, case: int, bank: int,
+                    scenario: dict) -> set[str]:
+    """Differential check of all six original 03D7..0406 CPU updates.
+
+    The independent oracle only implements constant-step 8.8 motion
+    toward a note target with integer overshoot clamping. All samples,
+    prior VCF/ENV/ADC assertions, original opcode source SHA, stacks,
+    and branch paths remain checked by the independent MAME CPU.
+    """
+    def records(kind: str, width: int) -> list[tuple[int, ...]]:
+        matches = re.findall(
+            r"FM1JUNO_ORIG_PORTA_" + kind + r":([0-9a-fA-F:]+)", log)
+        values = [tuple(int(x,16) for x in row.split(":"))
+                  for row in matches]
+        if any(len(row) != width for row in values):
+            raise AssertionError("case %d Portamento %s width %r" %
+                                 (case, kind, values))
+        return values
+
+    heads = records("HEAD",14)
+    exits = records("EXIT",9)
+    entries = records("VOICE",4)
+    stores = records("STORE",3)
+    if len(heads)!=1 or len(exits)!=1 or len(entries)!=6 or len(stores)!=6:
+        raise AssertionError(
+            "case %d bank %d original six-voice Portamento "
+            "head/exit/voice/store=%d/%d/%d/%d" %
+            (case, bank, len(heads), len(exits),
+             len(entries), len(stores)))
+    sp,step,*ram = heads[0]
+    previous = tuple(ram[:6])
+    notes = tuple(ram[6:])
+    expected_notes = porta_targets(scenario["pitches"])
+    if (sp, previous, notes) != (
+            0xFFF0, scenario["pitches"], expected_notes):
+        raise AssertionError(
+            "case %d bank %d original Portamento RAM handoff "
+            "SP=%04X previous=%r note=%r expected=%r/%r" %
+            (case,bank,sp,previous,notes,
+             scenario["pitches"],expected_notes))
+    expected = []
+    paths = []
+    features = {"direct" if step==0 else "step"}
+    for voice,(pitch,note) in enumerate(zip(previous,notes)):
+        target = note << 8
+        if step == 0:
+            next_pitch = target
+            path = "direct"
+        elif pitch == target:
+            next_pitch = target
+            path = "equal"
+            features.add("equal")
+        elif pitch > target:
+            next_pitch = max(target, pitch-step)
+            path = "down"
+            features.add("down")
+        else:
+            next_pitch = min(target, pitch+step)
+            path = "up"
+            features.add("up")
+        if step and pitch != target:
+            features.add("clamp" if next_pitch==target else "partial")
+        expected.append(next_pitch)
+        paths.append(path)
+        entry = entries[voice]
+        store = stores[voice]
+        if entry != (voice,0xFF71+2*voice,0xFF09+voice,0xFFF0):
+            raise AssertionError(
+                "case %d voice %d original DE/HL Portamento loop "
+                "cursor entry=%r" % (case,voice,entry))
+        if store != (voice,next_pitch,0xFF71+2*voice):
+            raise AssertionError(
+                "case %d voice %d Portamento CPU state mismatch "
+                "actual=%r expected=%04X path=%s step=%02X" %
+                (case,voice,store,next_pitch,path,step))
+    exitsp,index,dep,*after=exits[0]
+    if (exitsp,index,dep,tuple(after)) != (
+            0xFFF0,6,0xFF7D,tuple(expected)):
+        raise AssertionError(
+            "case %d bank %d original Portamento store/exit "
+            "actual=%r expected=%r" %
+            (case,bank,exits[0],tuple(expected)))
+    for name in ("DIRECT","STEP","DOWN","UP"):
+        observed=[row[0] for row in records(name,1)]
+        active = {"DIRECT":lambda p: p=="direct",
+                  "STEP":lambda p: p!="direct",
+                  "DOWN":lambda p: p=="down",
+                  "UP":lambda p: p=="up"}[name]
+        want=[i for i,p in enumerate(paths) if active(p)]
+        if observed != want:
+            raise AssertionError(
+                "case %d Portamento branch %s actual=%r expected=%r" %
+                (case,name,observed,want))
+    print("MAME_ORIGINAL_PORTAMENTO %02d/%02d PASS bank=%d "
+          "step=%02X paths=%s results=%s" %
+          (case*2+bank+1,len(CASES),bank,step,
+           ",".join(paths),",".join("%04X"%v for v in expected)),
+          flush=True)
+    return features
+
+
 def verify_frame_irq(log: str, start: int, case: int, bank: int,
                      input_profile: str, end_pc: int = FRAME_END) -> None:
     """Fail closed on unexpected genuine interrupts inside 02EC..03A1.
@@ -392,16 +568,27 @@ def verify_frame_irq(log: str, start: int, case: int, bank: int,
 def run(disasm: Path, attack_cli: Path, decay_cli: Path,
         global_cli: Path, voice_cli: Path, adc_cli: Path,
         mame: str, timeout: int, input_profile: str,
-        extended_pitch: bool = False) -> None:
+        extended_pitch: bool = False,
+        extended_portamento: bool = False) -> None:
     original,dac,attack_table = original_parts(disasm)
     continuation = original_loop_extension(disasm)
     multiplier = original_decay_helper(disasm)
     post = source_slice(disasm,POST_START,POST_END,POST_SHA256)
     bank0 = source_slice(disasm,BANK0_START,BANK0_END,BANK0_SHA256)
     follow = source_slice(disasm,FOLLOW_START,FOLLOW_END,FOLLOW_SHA)
-    end_pc,source_sha = ((PITCH_END,PITCH_SHA) if extended_pitch
-                         else (FRAME_END,FRAME_SHA))
+    if extended_portamento:
+        extended_pitch = True
+    end_pc,source_sha = (
+        (PORTA_END,PORTA_SHA) if extended_portamento else
+        (PITCH_END,PITCH_SHA) if extended_pitch else
+        (FRAME_END,FRAME_SHA))
     frame = source_slice(disasm,FRAME_START,end_pc,source_sha)
+    if extended_portamento:
+        # Pin the new segment independently of the preceding 235 bytes.
+        segment = source_slice(
+            disasm, PITCH_END, PORTA_END, PORTA_SEGMENT_SHA)
+        if frame[PITCH_END-FRAME_START:] != segment:
+            raise AssertionError("Portamento source segment image mismatch")
     # This test has to relocate its bootstrap into a source-declared
     # original 0x0863..0x09E9 NOP region. Fail closed if the public
     # original transcription ceases to identify this as unused ROM;
@@ -431,7 +618,9 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path,
         romdir.mkdir()
         (root/"cfg").mkdir()
         script=root/"frame.cmd"
-        script.write_text(debugger(extended_pitch),encoding="ascii")
+        script.write_text(debugger(extended_pitch,extended_portamento),
+                          encoding="ascii")
+        feature_coverage=set()
         assigner=bytes((0x54,0,0))+bytes(0x2000-3)
         for serial,((i,bank),adc_expect) in enumerate(zip(cases,adcs)):
             rom=bytearray(build_rom(
@@ -442,7 +631,8 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path,
             rom[PORTA_START:PORTA_END]=porta
             rom[TAIL_START:TAIL_END]=tail
             run_mask=seed_and_relocate(rom,i,SCENARIOS[i]["pattern"],frame,
-                                       extended_pitch)
+                                       extended_pitch,extended_portamento,
+                                       SCENARIOS[i]["pitches"])
             with zipfile.ZipFile(romdir/"juno106.zip","w",
                                  compression=zipfile.ZIP_STORED) as z:
                 z.writestr("v5 a_5.ic2",assigner)
@@ -499,12 +689,25 @@ def run(disasm: Path, attack_cli: Path, decay_cli: Path,
             check_frame(log,i,bank,run_mask)
             if extended_pitch:
                 check_pitch_offset(log,i,bank)
+            if extended_portamento:
+                feature_coverage.update(check_portamento(
+                    log,i,bank,SCENARIOS[i]))
             verify_frame_irq(log,head+1,serial,bank,input_profile,end_pc)
             if p.returncode:
                 raise AssertionError("MAME 02EC original frame CPU rc=%d"
                                      "case=%d" %(p.returncode,i))
-    label=("IC29_ORIGINAL_PITCH_OFFSET_MAME" if extended_pitch
-           else "IC29_ORIGINAL_FRAME_MAME")
+    if extended_portamento:
+        expected_paths = {
+            "direct", "step", "up", "down", "equal", "clamp", "partial"
+        }
+        if not expected_paths.issubset(feature_coverage):
+            raise AssertionError(
+                "original Portamento missed distinct branch/step coverage: "
+                "observed=%r required=%r" %
+                (sorted(feature_coverage),sorted(expected_paths)))
+    label=("IC29_ORIGINAL_PORTAMENTO_MAME" if extended_portamento else
+           "IC29_ORIGINAL_PITCH_OFFSET_MAME" if extended_pitch else
+           "IC29_ORIGINAL_FRAME_MAME")
     print("%s: PASS (%d actual ADC IRQ CPU cases "
           "and published 02EC..%04X source entries, "
           "%d voice and %d ADC comparisons)" %
@@ -525,6 +728,8 @@ if __name__=="__main__":
     p.add_argument("--mame",default="mame")
     p.add_argument("--extended-pitch",action="store_true",
                    help="continue original 03A1..03D6 master VCA/pitch offset")
+    p.add_argument("--extended-portamento",action="store_true",
+                   help="continue original 03D7..0406 six-voice Portamento")
     p.add_argument("--case-timeout",type=int,default=14)
     p.add_argument("--input-profile",choices=("stock-zero","fixed-eight"),
                    default="stock-zero")
@@ -532,7 +737,7 @@ if __name__=="__main__":
     try:
         run(a.ic29_disasm,a.attack_cli,a.decay_cli,a.global_cli,
             a.voice_cli,a.adc_cli,a.mame,a.case_timeout,a.input_profile,
-            a.extended_pitch)
+            a.extended_pitch,a.extended_portamento)
     except (OSError,ValueError,AssertionError,subprocess.CalledProcessError) as ex:
         print("IC29_ORIGINAL_FRAME_MAME: FAIL: "+str(ex),file=sys.stderr)
         sys.exit(1)

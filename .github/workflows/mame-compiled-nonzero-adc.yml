@@ -142,3 +142,19 @@ jobs:
             --mame "$GITHUB_WORKSPACE/mame-src/juno106" \
             --input-profile fixed-eight --case-timeout 20
           echo "FM1JUNO_NONZERO_ORIGINAL_FRAME: PASS (36 real ADC IRQ next-frame CPU paths)"
+
+      - name: Verify compiled nonzero ADC through original six-voice Portamento 03D7..0406
+        working-directory: fm1juno
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python3 -u tests/cpu_ic29/run_mame_original_frame_scheduler_entry.py \
+            --ic29-disasm build/ic29_public_disassembly.txt \
+            --attack-cli build/fm1juno_envelope_attack_reference \
+            --decay-cli build/fm1juno_envelope_decay_release_reference \
+            --global-cli build/fm1juno_vcf_global_reference \
+            --voice-cli build/fm1juno_vcf_chain_reference \
+            --adc-cli build/fm1juno_adc_full_bank_reference \
+            --mame "$GITHUB_WORKSPACE/mame-src/juno106" \
+            --input-profile fixed-eight --extended-portamento --case-timeout 20
+          echo "FM1JUNO_NONZERO_ORIGINAL_PORTAMENTO: PASS (36 actual source CPU cases)"
