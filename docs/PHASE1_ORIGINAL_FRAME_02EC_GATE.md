@@ -172,16 +172,19 @@ pitch-offset checks passed in this focused job.
   control/ADC parity comparisons remain mandatory.
 - `--extended-pitch` is an **additive stock-MAME fixture**;
   the default runner still stops at `03A1`. This focused
-  result is not yet separate compiled nonzero-ADC source
-  evidence for `03A1..03D6`, nor physical PIT/audio proof.
+  extension has also passed as a required prerequisite
+  in the [compiled nonzero Portamento gate](https://github.com/joakimskurk/fm1juno/actions/runs/42312573688).
+  Neither result is physical PIT/audio proof.
 - These 36 extended cases **are not automatically added** to
   the already reported 1,048 historical case count, which
   includes earlier distinct input profiles.
 
-**Next:** original `03D7..0406` per-voice Portamento first,
-then `0407..04D4` six physical PIT/8253 timer and DCO-CV DAC
-paths, including reset-voice-mask and timer I/O semantics.
-Keep those unverified until their own source-pinned runs pass.
+**COMPLETE:** original `03D7..0406` six-voice Portamento,
+with [stock 36/36](https://github.com/joakimskurk/fm1juno/actions/runs/42312573517)
+and [compiled nonzero 36/36](https://github.com/joakimskurk/fm1juno/actions/runs/42312573688).
+See [dedicated handoff](PHASE1_ORIGINAL_PORTAMENTO_GATE.md).
+**NEXT:** `0407..04D4` SUB DAC, PIT/8253 timer and DCO-CV
+DAC paths. Keep those unverified until their own gates pass.
 
 ## Synthetic ROM relocation and limitations
 
@@ -195,11 +198,11 @@ test-only polling loop moves to `0x09E0`. The CPU's reset
 stub jumps to the relocated boot, whose original test
 state setup and wait-on-FF5C behavior are unchanged.
 
-The execution boundary intentionally stays at source `0x03A1`:
-the rest of original frame logic (`0x03A1..0x04D4`)
-including tune/LFO/bend construction, portamento,
-DCO-8253 timer updates and six pitch/CV outputs remains
-unverified by this new test. The initial ISR-RETI→VCF
+The **base** 02EC source gate stops at 03A1; the optional
+pitch-offset gate stops at 03D7, and the Portamento extension
+stops at 0407. Only the original `0407..04D4` SUB DAC,
+DCO-8253 timer updates and six DCO-CV outputs remain
+unverified by the extended frame tests. The initial ISR-RETI→VCF
 step still uses a declared synthetic polling/JMP bridge,
 so **this new test does not remove the strict full-scheduler
 or UPD7811 provenance blocker**.
@@ -222,11 +225,11 @@ or UPD7811 provenance blocker**.
    The distinct 36 compiled original-frame CPU cases are now
    counted, bringing the cumulative selected scenario total
    to **1,048**.
-5. **PARTIAL COMPLETE:** the original `0x03A1..0x03D6`
-   master VCA and Tune/LFO/Bend offset CPU path passed
-   36/36 focused stock-MAME cases. **NEXT** extend original
-   `0x03D7..0x04D4` Portamento and PIT/DCO timer/CV updates
-   with deterministic RAM and peripheral I/O observations.
+5. **COMPLETE through `0x0406`:** original master VCA,
+   Tune/LFO/Bend and six-voice Portamento pass both stock
+   and compiled nonzero-ADC MAME CPU gates, 36/36 per profile.
+   **NEXT** original `0x0407..0x04D4` SUB DAC, PIT/DCO
+   timer and DCO-CV paths with peripheral I/O assertions.
    The synthetic IRQ→`04D5` bridge remains until
    original scheduler-to-voice entry is verified.
 6. Original 8253 phase, calibrated analogue voltage/real
