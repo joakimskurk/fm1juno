@@ -1,14 +1,15 @@
 # P1.1 — Original IC29 next-frame scheduler at 0x02EC
 
 **State:** The bounded original **0x02EC..0x03A0** source-byte
-scheduler slice is now **FOCUSED STOCK-MAME VERIFIED**:
-[GitHub Actions original frame #5](https://github.com/joakimskurk/fm1juno/actions/runs/42132712384)
-**SUCCESS, 36/36 CPU processes**. Combined with the prior 940 cases, these **36 stock-MAME
-02EC frame fixtures** and a separately successful **36-case
-compiled nonzero ADC 0738 tail extension** now constitute
-**1,012 historically verified selected MAME CPU process
-scenarios** across CI runs. The additional *compiled
-nonzero ADC 02EC frame* cases remain pending.
+scheduler slice is **VERIFIED IN STOCK AND COMPILED MAME**:
+[stock original-frame gate](https://github.com/joakimskurk/fm1juno/actions/runs/42133442733)
+and [compiled eight-channel nonzero-ADC gate](https://github.com/joakimskurk/fm1juno/actions/runs/42133442637)
+**SUCCESS, 36/36 CPU processes in each distinct input profile**.
+Combining 940 earlier selected process scenarios, 36 stock
+original-frame entries, 36 separately verified compiled nonzero
+original-0738 tails and 36 compiled nonzero original-frame entries
+gives **1,048 historically verified selected MAME CPU process
+scenarios** across separate completed CI jobs.
 The overall P1.1 strict gate remains OPEN; this is
 **not** an authenticated Roland ROM, original UPD7811 silicon,
 physical CPU clock/ADC voltage, complete frame scheduler or audio.
@@ -19,8 +20,10 @@ physical CPU clock/ADC voltage, complete frame scheduler or audio.
   and genuine ADC IRQ → ISR/RETI → six original ENV/VCF →
   bank-selected conditioner → original post-ADC DI/SKIT FAD/EI,
   VCA, LFO/PWM, noise and 0x07B5 JMP have separate verified evidence.
-  The selected historic repertoire of **940** original-byte
-  MAME CPU process scenarios remains the last verified count.
+  **940** is the pre-02EC source-tail historical baseline,
+  not the current total. The independently completed
+  original-frame and nonzero-tail stages bring the selected
+  process-scenario count to **1,048**.
 - The stock MAME original tail gate now has an additional
   **saved-interrupted-PC proof**. Focused [#10](https://github.com/joakimskurk/fm1juno/actions/runs/42129860723)
   passed **36/36** using the actual return PC stored by MAME's
@@ -115,17 +118,18 @@ source provenance and IRQ checks**:
   must be checked separately before claiming it passed
   on the latest commit.
 - `.github/workflows/mame-compiled-nonzero-adc.yml`
-  additionally runs this scheduler test using the
-  independently compiled `mame0285` Juno-106 binary
-  with eight distinct nonzero analogue callbacks,
-  `--input-profile fixed-eight`. This is an
-  **additional 36-case test pending its own green result**
-  and must not be added to historical selected counts yet.
-  The **separate compiled original 0738 tail** already
-  passed [compiled MAME #33](https://github.com/joakimskurk/fm1juno/actions/runs/42131473570),
-  independently verifying **36/36** additional
-  nonzero ADC source-derived original tail executions;
-  those cases ARE included in the 1,012 total.
+  runs this scheduler test using the independently compiled
+  `mame0285` Juno-106 binary with eight distinct nonzero
+  analogue callbacks, `--input-profile fixed-eight`.
+  [Compiled workflow 42133442637](https://github.com/joakimskurk/fm1juno/actions/runs/42133442637)
+  passed **36/36** additional original-frame CPU cases, with
+  **216 voice and 144 selected-bank ADC parity comparisons**.
+  The compiled CPU log also recorded **six further genuine
+  original-frame ADC interrupts** with saved return PCs
+  `02EE`, `02F2`, `02FD`, `02F2`, `02F4`, `02EE`.
+  These are separate from the **36/36 compiled original 0738
+  tail cases** verified in [compiled MAME #33](https://github.com/joakimskurk/fm1juno/actions/runs/42131473570).
+  Both groups are included in the **1,048** historical total.
 
 No standalone full original scheduler LFO/PWM or resonance
 native host parity oracle exists for this whole 181-byte
@@ -165,10 +169,13 @@ or UPD7811 provenance blocker**.
 3. **COMPLETE:** four genuine further frame IRQs observed;
    checked CPU-stacked return PC, ANM bank, masked FAD
    status and original alternate-bank ISR/RETI.
-4. **NEXT:** confirm *complete combined matrix*
-   containing the new stock gate is green, and separately
-   confirm the compiled eight-channel `fixed-eight`
-   version before adding its distinct 36 scenarios.
+4. **COMPLETE:** the full independent CPU matrix passed
+   [42133442641](https://github.com/joakimskurk/fm1juno/actions/runs/42133442641)
+   and the compiled eight-channel `fixed-eight` gate passed
+   [42133442637](https://github.com/joakimskurk/fm1juno/actions/runs/42133442637).
+   The distinct 36 compiled original-frame CPU cases are now
+   counted, bringing the cumulative selected scenario total
+   to **1,048**.
 5. **NEXT original-byte slice:** extend `0x03A1..0x04D4`
    (tune/LFO/bender, portamento and six PIT/DCO
    timer/CV updates) with original source bytes
